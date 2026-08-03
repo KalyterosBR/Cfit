@@ -1,0 +1,1 @@
+from .academy import Academy

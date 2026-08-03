@@ -10,5 +10,20 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  django:
+    build:
+      context: .
+      dockerfile: docker/django/Dockerfile
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - .:/app
+
+    depends_on:
+      - postgres
+
 volumes:
   postgres_data:
