@@ -1,21 +1,26 @@
-from apps.academy.repositories import academy_repository
+from apps.academy.models import Academy
 
 
 def create_academy(data):
-    return academy_repository.create(data)
+    return Academy.objects.create(**data)
 
 
 def update_academy(academy, data):
-    return academy_repository.update(academy, data)
+    for key, value in data.items():
+        setattr(academy, key, value)
+
+    academy.save()
+
+    return academy
 
 
 def delete_academy(academy):
-    academy_repository.delete(academy)
+    academy.delete()
 
 
 def get_academy(academy_id):
-    return academy_repository.get(academy_id)
+    return Academy.objects.get(id=academy_id)
 
 
 def list_academies():
-    return academy_repository.list()
+    return Academy.objects.all()

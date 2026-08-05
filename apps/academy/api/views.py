@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from apps.academy.serializers.academy_serializer import AcademySerializer
+from apps.academy.serializers import AcademySerializer
 from apps.academy.services.academy_service import (
     create_academy,
     list_academies,

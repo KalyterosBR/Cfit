@@ -1,1 +1,0 @@
-from .academy_serializer import AcademySerializer

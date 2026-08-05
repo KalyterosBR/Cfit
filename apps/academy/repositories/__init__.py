@@ -1,1 +1,0 @@
-from .academy_repository import academy_repository

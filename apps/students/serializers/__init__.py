@@ -1,1 +1,0 @@
-from .student_serializer import StudentSerializer
