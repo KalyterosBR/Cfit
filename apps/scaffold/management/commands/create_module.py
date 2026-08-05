@@ -52,14 +52,9 @@ class Command(BaseCommand):
             module_path,
             module_path / "api",
             module_path / "models",
-            module_path / "repositories",
-            module_path / "serializers",
-            module_path / "selectors",
-            module_path / "use_cases",
-            module_path / "use_cases" / variable_name,
+            module_path / "services",
             module_path / "validators",
             module_path / "migrations",
-            module_path / "tests",
         ]
 
         for directory in directories:
@@ -75,15 +70,12 @@ class Command(BaseCommand):
             "apps.py.tpl": module_path / "apps.py",
             "admin.py.tpl": module_path / "admin.py",
             "constants.py.tpl": module_path / "constants.py",
-            "model.py.tpl": (module_path / "models" / f"{variable_name}.py"),
-            "repository.py.tpl": (
-                module_path / "repositories" / f"{variable_name}_repository.py"
-            ),
-            "serializer.py.tpl": (
-                module_path / "serializers" / f"{variable_name}_serializer.py"
-            ),
-            "api_urls.py.tpl": module_path / "api" / "urls.py",
-            "api_views.py.tpl": module_path / "api" / "views.py",
+            "model.py.tpl": module_path / "models" / f"{variable_name}.py",
+            "serializer.py.tpl": module_path / "serializers.py",
+            "selector.py.tpl": module_path / "selectors.py",
+            "service.py.tpl": module_path / "services" / f"{variable_name}_service.py",
+            "api_router.py.tpl": module_path / "api" / "router.py",
+            "api_viewset.py.tpl": module_path / "api" / "viewsets.py",
         }
 
         for template_name, destination in templates.items():
