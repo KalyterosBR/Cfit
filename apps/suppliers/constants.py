@@ -1,3 +1,0 @@
-"""
-Constantes do módulo suppliers.
-"""
