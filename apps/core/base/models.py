@@ -9,6 +9,10 @@ class BaseModel(models.Model):
         editable=False,
     )
 
+    active = models.BooleanField(
+        default=True,
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )

@@ -8,6 +8,11 @@ class Academy(BaseModel):
         max_length=150,
     )
 
+    trade_name = models.CharField(
+        max_length=150,
+        blank=True,
+    )
+
     cnpj = models.CharField(
         max_length=18,
         unique=True,
@@ -22,10 +27,6 @@ class Academy(BaseModel):
 
     email = models.EmailField(
         blank=True,
-    )
-
-    active = models.BooleanField(
-        default=True,
     )
 
     def __str__(self):

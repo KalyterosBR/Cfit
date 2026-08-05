@@ -2,3 +2,4 @@ Django
 psycopg[binary]
 python-dotenv
 djangorestframework
+django-filter
