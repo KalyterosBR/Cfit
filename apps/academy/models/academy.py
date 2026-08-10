@@ -29,5 +29,16 @@ class Academy(BaseModel):
         blank=True,
     )
 
+    logo = models.ImageField(
+        upload_to="academies/logos/",
+        null=True,
+        blank=True,
+    )
+
+    active = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+
     def __str__(self):
-        return self.name
+        return self.trade_name or self.name

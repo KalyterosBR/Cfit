@@ -1,3 +1,5 @@
+from unidecode import unidecode
+
 from django.db import models
 
 from apps.core.base.models import BaseModel
@@ -6,6 +8,13 @@ from apps.core.base.models import BaseModel
 class Student(BaseModel):
     name = models.CharField(
         max_length=100,
+    )
+
+    search_name = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        db_index=True,
     )
 
     cpf = models.CharField(
@@ -85,6 +94,10 @@ class Student(BaseModel):
         null=True,
         blank=True,
     )
+
+    def save(self, *args, **kwargs):
+        self.search_name = unidecode(self.name).lower()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

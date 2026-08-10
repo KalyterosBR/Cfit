@@ -16,15 +16,21 @@ import useStudents from "../hooks/useStudents";
 import StudentForm from "../components/StudentForm";
 import StudentsTable from "../components/StudentsTable";
 
-import { deleteStudent } from "../services/student.service";
+import {
+    activateStudent,
+    deactivateStudent,
+} from "../services/student.service";
 
 import type { Student } from "../types/student";
+import type { StudentStatusFilter } from "../hooks/useStudents";
 
 export default function StudentsListPage() {
     const {
         students,
         search,
         setSearch,
+        statusFilter,
+        setStatusFilter,
         loadStudents,
     } = useStudents();
 
@@ -32,8 +38,8 @@ export default function StudentsListPage() {
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
     const [openConfirm, setOpenConfirm] = useState(false);
-    const [loadingDelete, setLoadingDelete] = useState(false);
-    const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+    const [loadingStatus, setLoadingStatus] = useState(false);
+    const [studentToToggle, setStudentToToggle] = useState<Student | null>(null);
 
     function handleEdit(student: Student) {
         setSelectedStudent(student);
@@ -45,36 +51,41 @@ export default function StudentsListPage() {
         setOpenModal(true);
     }
 
-    function handleDelete(student: Student) {
-        setStudentToDelete(student);
+    function handleToggleActive(student: Student) {
+        setStudentToToggle(student);
         setOpenConfirm(true);
     }
 
-    async function confirmDelete() {
-        if (!studentToDelete) return;
+    async function confirmToggleActive() {
+        if (!studentToToggle) return;
 
         try {
-            setLoadingDelete(true);
+            setLoadingStatus(true);
 
-            await deleteStudent(studentToDelete.id);
+            if (studentToToggle.active) {
+                await deactivateStudent(studentToToggle.id);
+            } else {
+                await activateStudent(studentToToggle.id);
+            }
+
             await loadStudents();
 
-            Toast.success.deleted("Aluno");
+            Toast.success.updated("Aluno");
 
             setOpenConfirm(false);
-            setStudentToDelete(null);
+            setStudentToToggle(null);
         } catch (error) {
             console.error(error);
 
-            Toast.error.deleted("Aluno");
+            Toast.error.updated("Aluno");
         } finally {
-            setLoadingDelete(false);
+            setLoadingStatus(false);
         }
     }
 
-    function cancelDelete() {
+    function cancelToggleActive() {
         setOpenConfirm(false);
-        setStudentToDelete(null);
+        setStudentToToggle(null);
     }
 
     function closeModal() {
@@ -85,6 +96,8 @@ export default function StudentsListPage() {
     async function reloadStudents() {
         await loadStudents();
     }
+
+    const isDeactivating = studentToToggle?.active ?? false;
 
     return (
         <DashboardLayout>
@@ -99,16 +112,42 @@ export default function StudentsListPage() {
             />
 
             <Card>
-                <SearchInput
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
+                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                    <div className="flex-1">
+                        <SearchInput
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+
+                    <select
+                        value={statusFilter}
+                        onChange={(e) =>
+                            setStatusFilter(
+                                e.target.value as StudentStatusFilter,
+                            )
+                        }
+                        className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                    >
+                        <option value="all">
+                            Todos
+                        </option>
+
+                        <option value="active">
+                            Ativos
+                        </option>
+
+                        <option value="inactive">
+                            Inativos
+                        </option>
+                    </select>
+                </div>
 
                 <div className="mt-6">
                     <StudentsTable
                         students={students}
                         onEdit={handleEdit}
-                        onDelete={handleDelete}
+                        onToggleActive={handleToggleActive}
                     />
                 </div>
             </Card>
@@ -127,11 +166,19 @@ export default function StudentsListPage() {
 
             <ConfirmDialog
                 open={openConfirm}
-                title="Excluir aluno"
-                description={`Deseja realmente excluir "${studentToDelete?.name ?? ""}"?`}
-                loading={loadingDelete}
-                onCancel={cancelDelete}
-                onConfirm={confirmDelete}
+                title={
+                    isDeactivating
+                        ? "Inativar aluno"
+                        : "Reativar aluno"
+                }
+                description={
+                    isDeactivating
+                        ? `Deseja realmente inativar "${studentToToggle?.name ?? ""}"?`
+                        : `Deseja realmente reativar "${studentToToggle?.name ?? ""}"?`
+                }
+                loading={loadingStatus}
+                onCancel={cancelToggleActive}
+                onConfirm={confirmToggleActive}
             />
         </DashboardLayout>
     );

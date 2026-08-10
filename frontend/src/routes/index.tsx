@@ -6,6 +6,7 @@ import Dashboard from "../pages/Dashboard";
 import Plans from "../pages/Plans";
 
 import StudentsListPage from "../features/students/pages/StudentsListPage";
+import StudentDetailsPage from "../features/students/pages/StudentDetailsPage";
 
 export default function AppRoutes() {
     return (
@@ -24,6 +25,11 @@ export default function AppRoutes() {
                 <Route
                     path="/students"
                     element={<StudentsListPage />}
+                />
+
+                <Route
+                    path="/students/:id"
+                    element={<StudentDetailsPage />}
                 />
 
                 <Route

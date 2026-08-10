@@ -2,6 +2,10 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatCard from "@/components/dashboard/StatCard";
+import RevenueChart from "@/components/dashboard/RevenueChart";
+import RecentPayments from "@/components/dashboard/RecentPayments";
+import RecentCheckins from "@/components/dashboard/RecentCheckins";
+import PendingStudents from "@/components/dashboard/PendingStudents";
 
 import {
     Users,
@@ -46,6 +50,22 @@ export default function Dashboard() {
                     icon={<TrendingUp size={28} />}
                     description="Últimos 30 dias"
                 />
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+                <div className="xl:col-span-2">
+                    <RevenueChart />
+                </div>
+
+                <RecentPayments />
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+                <div className="xl:col-span-2">
+                    <RecentCheckins />
+                </div>
+
+                <PendingStudents />
             </div>
         </DashboardLayout>
     );

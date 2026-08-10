@@ -4,9 +4,13 @@ from apps.students.models import Student
 
 
 def search_students(search=None):
-    queryset = Student.objects.filter(active=True)
+    queryset = Student.objects.all()
 
     if search:
-        queryset = queryset.filter(Q(name__icontains=search) | Q(cpf__icontains=search))
+        search = search.lower()
 
-    return queryset
+        queryset = queryset.filter(
+            Q(search_name__icontains=search) | Q(cpf__icontains=search)
+        )
+
+    return queryset.order_by("name")

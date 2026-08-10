@@ -85,6 +85,14 @@ class Command(BaseCommand):
                 context,
             )
 
+        # Atualiza models/__init__.py
+        models_init = module_path / "models" / "__init__.py"
+
+        models_init.write_text(
+            f"from .{variable_name} import {class_name}\n",
+            encoding="utf-8",
+        )
+
         self.stdout.write(
             self.style.SUCCESS(f"Módulo '{module_name}' criado com sucesso!")
         )
