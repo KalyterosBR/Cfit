@@ -19,6 +19,22 @@ class ChargeViewSet(viewsets.ModelViewSet):
     serializer_class = ChargeSerializer
 
     # ==========================================
+    # FILTROS
+    # ==========================================
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        student_id = self.request.query_params.get("student")
+
+        if student_id:
+            queryset = queryset.filter(
+                enrollment__student_id=student_id,
+            )
+
+        return queryset
+
+    # ==========================================
     # REGISTRAR PAGAMENTO
     # ==========================================
 
@@ -37,13 +53,19 @@ class ChargeViewSet(viewsets.ModelViewSet):
 
         if charge.status == Charge.Status.PAID:
             return Response(
-                {"detail": ("Esta cobrança já está paga.")},
+                {
+                    "detail": "Esta cobrança já está paga.",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if charge.status == Charge.Status.CANCELED:
             return Response(
-                {"detail": ("Uma cobrança cancelada não pode ser marcada como paga.")},
+                {
+                    "detail": (
+                        "Uma cobrança cancelada não pode ser marcada como paga."
+                    ),
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -58,9 +80,7 @@ class ChargeViewSet(viewsets.ModelViewSet):
             ]
         )
 
-        serializer = self.get_serializer(
-            charge,
-        )
+        serializer = self.get_serializer(charge)
 
         return Response(
             serializer.data,
@@ -86,13 +106,17 @@ class ChargeViewSet(viewsets.ModelViewSet):
 
         if charge.status == Charge.Status.PAID:
             return Response(
-                {"detail": ("Uma cobrança paga não pode ser cancelada.")},
+                {
+                    "detail": ("Uma cobrança paga não pode ser cancelada."),
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if charge.status == Charge.Status.CANCELED:
             return Response(
-                {"detail": ("Esta cobrança já está cancelada.")},
+                {
+                    "detail": "Esta cobrança já está cancelada.",
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -105,9 +129,7 @@ class ChargeViewSet(viewsets.ModelViewSet):
             ]
         )
 
-        serializer = self.get_serializer(
-            charge,
-        )
+        serializer = self.get_serializer(charge)
 
         return Response(
             serializer.data,

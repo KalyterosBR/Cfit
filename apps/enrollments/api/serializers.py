@@ -7,7 +7,7 @@ from apps.enrollments.models import (
     Enrollment,
     EnrollmentHistory,
 )
-from apps.financial.models import Charge
+from apps.financial.services.billing import create_enrollment_charges
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
@@ -46,9 +46,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-        # Desativa os validators automáticos do DRF.
-        # A validação personalizada abaixo dará uma
-        # mensagem mais amigável.
         validators = []
 
     def validate(self, attrs):
@@ -107,32 +104,13 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             validated_data,
         )
 
-        # ======================================
-        # HISTÓRICO DA MATRÍCULA
-        # ======================================
-
         EnrollmentHistory.objects.create(
             enrollment=enrollment,
-            event_type=(EnrollmentHistory.EventType.CREATED),
+            event_type=EnrollmentHistory.EventType.CREATED,
             event_date=timezone.localdate(),
             description=(f"Matrícula criada no plano {enrollment.plan.name}."),
         )
 
-        # ======================================
-        # PRIMEIRA COBRANÇA
-        # ======================================
-
-        if enrollment.billing_method == "monthly":
-            description = f"Mensalidade - {enrollment.plan.name}"
-        else:
-            description = f"Pagamento do plano - {enrollment.plan.name}"
-
-        Charge.objects.create(
-            enrollment=enrollment,
-            description=description,
-            amount=enrollment.contracted_price,
-            due_date=enrollment.due_date,
-            status=Charge.Status.PENDING,
-        )
+        create_enrollment_charges(enrollment)
 
         return enrollment

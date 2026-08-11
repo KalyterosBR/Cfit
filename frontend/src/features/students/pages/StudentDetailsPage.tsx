@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import {
+    cancelCharge,
+    getStudentCharges,
+    payCharge,
+    type Charge,
+} from "../services/financial.service";
 
 import {
     ArrowLeft,
@@ -16,7 +22,8 @@ import {
 } from "lucide-react";
 
 import DashboardLayout from "../../../layouts/DashboardLayout";
-
+import StudentForm from "../components/StudentForm";
+import Modal from "../../../components/Modal";
 import AddEnrollmentModal from "../components/AddEnrollmentModal";
 import ManageEnrollmentModal from "../components/ManageEnrollmentModal";
 
@@ -78,6 +85,7 @@ export default function StudentDetailsPage() {
 
     const [student, setStudent] =
         useState<Student | null>(null);
+    const [openEditModal, setOpenEditModal] = useState(false);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -90,6 +98,20 @@ export default function StudentDetailsPage() {
 
     const [loadingEnrollments, setLoadingEnrollments] =
         useState(false);
+    const [charges, setCharges] =
+        useState<Charge[]>([]);
+
+    const [loadingCharges, setLoadingCharges] =
+        useState(false);
+
+    const [chargesError, setChargesError] =
+        useState(false);
+
+    const [payingChargeId, setPayingChargeId] =
+        useState<string | null>(null);
+
+    const [cancelingChargeId, setCancelingChargeId] =
+        useState<string | null>(null);
 
     const [enrollmentHistory, setEnrollmentHistory] =
         useState<EnrollmentHistory[]>([]);
@@ -107,33 +129,31 @@ export default function StudentDetailsPage() {
         useState<Enrollment | null>(null);
 
 
-    useEffect(() => {
-        async function loadStudent() {
-            if (!id) {
-                setError(true);
-                setLoading(false);
-                return;
-            }
-
-            try {
-                setLoading(true);
-                setError(false);
-
-                const data = await getStudent(id);
-
-                setStudent(data);
-            } catch (error) {
-                console.error(error);
-
-                setError(true);
-            } finally {
-                setLoading(false);
-            }
+    async function loadStudent() {
+        if (!id) {
+            setError(true);
+            setLoading(false);
+            return;
         }
 
+        try {
+            setLoading(true);
+            setError(false);
+
+            const data = await getStudent(id);
+
+            setStudent(data);
+        } catch (error) {
+            console.error(error);
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    useEffect(() => {
         loadStudent();
     }, [id]);
-
 
     async function loadEnrollments() {
         if (!id) {
@@ -153,6 +173,89 @@ export default function StudentDetailsPage() {
             setEnrollments([]);
         } finally {
             setLoadingEnrollments(false);
+        }
+    }
+
+
+    async function loadCharges() {
+        if (!id) {
+            return;
+        }
+
+        try {
+            setLoadingCharges(true);
+            setChargesError(false);
+
+            const data = await getStudentCharges(id);
+
+            setCharges(data);
+        } catch (error) {
+            console.error(error);
+
+            setCharges([]);
+            setChargesError(true);
+        } finally {
+            setLoadingCharges(false);
+        }
+    }
+
+
+    async function handlePayCharge(charge: Charge) {
+        const confirmed = window.confirm(
+            `Confirmar o pagamento de ${formatMoney(charge.amount)}?`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setPayingChargeId(charge.id);
+
+            await payCharge(charge.id);
+
+            await Promise.all([
+                loadCharges(),
+                loadStudent(),
+            ]);
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                "Não foi possível registrar o pagamento. Tente novamente.",
+            );
+        } finally {
+            setPayingChargeId(null);
+        }
+    }
+
+
+    async function handleCancelCharge(charge: Charge) {
+        const confirmed = window.confirm(
+            `Cancelar a cobrança "${charge.description}" no valor de ${formatMoney(charge.amount)}?`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setCancelingChargeId(charge.id);
+
+            await cancelCharge(charge.id);
+
+            await Promise.all([
+                loadCharges(),
+                loadStudent(),
+            ]);
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                "Não foi possível cancelar a cobrança. Tente novamente.",
+            );
+        } finally {
+            setCancelingChargeId(null);
         }
     }
 
@@ -183,6 +286,7 @@ export default function StudentDetailsPage() {
 
     useEffect(() => {
         loadEnrollments();
+        loadCharges();
         loadEnrollmentHistory();
     }, [id]);
 
@@ -267,6 +371,50 @@ export default function StudentDetailsPage() {
 
             case "expired":
                 return "bg-amber-50 text-amber-700";
+
+            default:
+                return "bg-slate-100 text-slate-600";
+        }
+    }
+
+
+    function getChargeStatusLabel(
+        status: Charge["status"],
+    ) {
+        switch (status) {
+            case "pending":
+                return "Pendente";
+
+            case "paid":
+                return "Pago";
+
+            case "overdue":
+                return "Atrasado";
+
+            case "canceled":
+                return "Cancelado";
+
+            default:
+                return status;
+        }
+    }
+
+
+    function getChargeStatusClass(
+        status: Charge["status"],
+    ) {
+        switch (status) {
+            case "paid":
+                return "bg-emerald-50 text-emerald-700";
+
+            case "pending":
+                return "bg-amber-50 text-amber-700";
+
+            case "overdue":
+                return "bg-red-50 text-red-700";
+
+            case "canceled":
+                return "bg-slate-100 text-slate-600";
 
             default:
                 return "bg-slate-100 text-slate-600";
@@ -425,6 +573,33 @@ export default function StudentDetailsPage() {
                                                 Inativo
                                             </span>
                                         )}
+
+                                        {student.financial_status === "regular" && (
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                Financeiro regular
+                                            </span>
+                                        )}
+
+                                        {student.financial_status === "grace_period" && (
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+
+                                                {student.grace_days_remaining === null
+                                                    ? "Em tolerância"
+                                                    : `Em tolerância · ${student.grace_days_remaining} ${student.grace_days_remaining === 1
+                                                        ? "dia restante"
+                                                        : "dias restantes"
+                                                    }`}
+                                            </span>
+                                        )}
+
+                                        {student.financial_status === "defaulting" && (
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                                Inadimplente
+                                            </span>
+                                        )}
                                     </div>
 
                                     <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
@@ -462,6 +637,7 @@ export default function StudentDetailsPage() {
                             <div className="shrink-0">
                                 <button
                                     type="button"
+                                    onClick={() => setOpenEditModal(true)}
                                     className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                                 >
                                     <Pencil size={16} />
@@ -840,6 +1016,235 @@ export default function StudentDetailsPage() {
                     )}
 
 
+                    {/* FINANCEIRO */}
+                    {activeTab === "financial" && (
+                        <div className="space-y-5">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">
+                                    Financeiro do aluno
+                                </h2>
+
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Acompanhe cobranças, pagamentos e vencimentos.
+                                </p>
+                            </div>
+
+                            {loadingCharges ? (
+                                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
+                                    Carregando financeiro...
+                                </div>
+                            ) : chargesError ? (
+                                <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+                                    <h3 className="font-semibold text-red-700">
+                                        Não foi possível carregar o financeiro
+                                    </h3>
+
+                                    <p className="mt-1 text-sm text-red-600">
+                                        Tente atualizar a página.
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                            <p className="text-sm font-medium text-slate-500">
+                                                Total de cobranças
+                                            </p>
+
+                                            <p className="mt-2 text-2xl font-bold text-slate-900">
+                                                {charges.length}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                            <p className="text-sm font-medium text-slate-500">
+                                                Total pago
+                                            </p>
+
+                                            <p className="mt-2 text-2xl font-bold text-emerald-600">
+                                                {formatMoney(
+                                                    charges
+                                                        .filter(
+                                                            (charge) =>
+                                                                charge.status === "paid",
+                                                        )
+                                                        .reduce(
+                                                            (total, charge) =>
+                                                                total +
+                                                                Number(charge.amount),
+                                                            0,
+                                                        )
+                                                        .toFixed(2),
+                                                )}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                            <p className="text-sm font-medium text-slate-500">
+                                                Em aberto
+                                            </p>
+
+                                            <p className="mt-2 text-2xl font-bold text-amber-600">
+                                                {formatMoney(
+                                                    charges
+                                                        .filter(
+                                                            (charge) =>
+                                                                charge.status === "pending" ||
+                                                                charge.status === "overdue",
+                                                        )
+                                                        .reduce(
+                                                            (total, charge) =>
+                                                                total +
+                                                                Number(charge.amount),
+                                                            0,
+                                                        )
+                                                        .toFixed(2),
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {charges.length === 0 ? (
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+                                            <h3 className="font-semibold text-slate-900">
+                                                Nenhuma cobrança encontrada
+                                            </h3>
+
+                                            <p className="mt-1 text-sm text-slate-500">
+                                                Este aluno ainda não possui cobranças registradas.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full">
+                                                    <thead className="border-b border-slate-200 bg-slate-50">
+                                                        <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                            <th className="px-6 py-4">
+                                                                Descrição
+                                                            </th>
+                                                            <th className="px-6 py-4">
+                                                                Plano
+                                                            </th>
+                                                            <th className="px-6 py-4">
+                                                                Vencimento
+                                                            </th>
+                                                            <th className="px-6 py-4">
+                                                                Valor
+                                                            </th>
+                                                            <th className="px-6 py-4">
+                                                                Status
+                                                            </th>
+                                                            <th className="px-6 py-4">
+                                                                Pagamento
+                                                            </th>
+                                                            <th className="px-6 py-4 text-right">
+                                                                Ações
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {charges.map((charge) => (
+                                                            <tr
+                                                                key={charge.id}
+                                                                className="text-sm text-slate-700"
+                                                            >
+                                                                <td className="px-6 py-4 font-medium text-slate-900">
+                                                                    {charge.description}
+                                                                </td>
+
+                                                                <td className="px-6 py-4">
+                                                                    {charge.plan_name}
+                                                                </td>
+
+                                                                <td className="px-6 py-4">
+                                                                    {formatDate(
+                                                                        charge.due_date,
+                                                                    )}
+                                                                </td>
+
+                                                                <td className="px-6 py-4 font-semibold">
+                                                                    {formatMoney(
+                                                                        charge.amount,
+                                                                    )}
+                                                                </td>
+
+                                                                <td className="px-6 py-4">
+                                                                    <span
+                                                                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getChargeStatusClass(
+                                                                            charge.status,
+                                                                        )}`}
+                                                                    >
+                                                                        {getChargeStatusLabel(
+                                                                            charge.status,
+                                                                        )}
+                                                                    </span>
+                                                                </td>
+
+                                                                <td className="px-6 py-4">
+                                                                    {charge.paid_at
+                                                                        ? formatDateTime(
+                                                                            charge.paid_at,
+                                                                        )
+                                                                        : "—"}
+                                                                </td>
+
+                                                                <td className="px-6 py-4 text-right">
+                                                                    {(charge.status === "pending" ||
+                                                                        charge.status === "overdue") ? (
+                                                                        <div className="flex items-center justify-end gap-2">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handlePayCharge(charge)
+                                                                                }
+                                                                                disabled={
+                                                                                    payingChargeId === charge.id ||
+                                                                                    cancelingChargeId === charge.id
+                                                                                }
+                                                                                className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                            >
+                                                                                {payingChargeId === charge.id
+                                                                                    ? "Registrando..."
+                                                                                    : "Registrar pagamento"}
+                                                                            </button>
+
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handleCancelCharge(charge)
+                                                                                }
+                                                                                disabled={
+                                                                                    payingChargeId === charge.id ||
+                                                                                    cancelingChargeId === charge.id
+                                                                                }
+                                                                                className="inline-flex h-9 items-center justify-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                            >
+                                                                                {cancelingChargeId === charge.id
+                                                                                    ? "Cancelando..."
+                                                                                    : "Cancelar"}
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-slate-400">
+                                                                            —
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
+
+
                     {/* HISTÓRICO GERAL */}
                     {activeTab === "history" && (
                         <div className="space-y-5">
@@ -986,6 +1391,7 @@ export default function StudentDetailsPage() {
                     {/* ABAS QUE AINDA SERÃO DESENVOLVIDAS */}
                     {activeTab !== "overview" &&
                         activeTab !== "plans" &&
+                        activeTab !== "financial" &&
                         activeTab !== "history" && (
                             <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                                 <h2 className="text-lg font-semibold text-slate-900">
@@ -1032,6 +1438,22 @@ export default function StudentDetailsPage() {
                         setSelectedEnrollment(null);
                     }}
                 />
+            )}
+            {openEditModal && student && (
+                <Modal
+                    open={openEditModal}
+                    title="Editar Aluno"
+                    onClose={() => setOpenEditModal(false)}
+                >
+                    <StudentForm
+                        student={student}
+                        onCancel={() => setOpenEditModal(false)}
+                        onSuccess={async () => {
+                            await loadStudent();
+                            setOpenEditModal(false);
+                        }}
+                    />
+                </Modal>
             )}
         </DashboardLayout>
     );

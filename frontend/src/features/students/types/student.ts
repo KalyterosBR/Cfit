@@ -21,6 +21,19 @@ export interface Student {
 
     active: boolean;
 
+    // ==========================================
+    // SITUAÇÃO FINANCEIRA
+    // ==========================================
+
+    is_defaulting: boolean;
+
+    financial_status:
+    | "regular"
+    | "grace_period"
+    | "defaulting";
+
+    grace_days_remaining: number | null;
+
     created_at: string;
     updated_at: string;
 }
