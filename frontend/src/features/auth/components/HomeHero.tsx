@@ -1,111 +1,224 @@
 import {
     ArrowRight,
-    Activity,
-    TrendingUp,
+    CheckCircle2,
 } from "lucide-react";
 
 
 export default function HomeHero() {
-    return (
-        <div className="relative max-w-2xl">
-            {/* IDENTIDADE / EYEBROW */}
-            <div className="mb-7 flex items-center gap-3">
-                <span className="h-px w-10 bg-gradient-to-r from-blue-600 to-cyan-400" />
+    function smoothScrollTo(id: string) {
+        const element = document.getElementById(id);
 
-                <span className="text-xs font-bold uppercase tracking-[0.22em] text-blue-600">
-                    Performance para sua gestão
+        if (!element) {
+            return;
+        }
+
+        const startPosition = window.scrollY;
+
+        const targetPosition =
+            element.getBoundingClientRect().top +
+            window.scrollY;
+
+        const distance =
+            targetPosition - startPosition;
+
+        const duration = 700;
+
+        let startTime: number | null = null;
+
+
+        function animation(currentTime: number) {
+            if (startTime === null) {
+                startTime = currentTime;
+            }
+
+            const elapsed =
+                currentTime - startTime;
+
+            const progress = Math.min(
+                elapsed / duration,
+                1,
+            );
+
+            const ease =
+                progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 -
+                    Math.pow(
+                        -2 * progress + 2,
+                        2,
+                    ) /
+                    2;
+
+            window.scrollTo(
+                0,
+                startPosition +
+                distance * ease,
+            );
+
+            if (progress < 1) {
+                requestAnimationFrame(
+                    animation,
+                );
+            }
+        }
+
+
+        requestAnimationFrame(animation);
+    }
+
+
+    return (
+        <div className="relative max-w-[720px] lg:pr-2">
+            {/* IDENTIDADE */}
+            <div className="mb-7 flex items-center gap-3">
+                <span className="h-px w-8 bg-gradient-to-r from-blue-600 to-cyan-400" />
+
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
+                    Plataforma de gestão para academias
                 </span>
             </div>
 
 
             {/* TÍTULO */}
-            <h1 className="text-5xl font-black leading-[1.02] tracking-[-0.045em] text-slate-950 lg:text-7xl">
-                Gestão que acompanha
-                <br />
+            <h1 className="max-w-[720px] font-black leading-[0.98] tracking-[-0.055em] text-slate-950">
+                <span className="block text-[3.1rem] sm:text-[3.6rem] lg:text-[3.65rem] xl:text-[3.85rem]">
+                    Sua academia em movimento.
+                </span>
 
-                <span className="relative inline-block">
-                    o ritmo da sua
-                    <span className="ml-3 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-                        academia.
-                    </span>
-
-                    <span className="absolute -bottom-3 left-0 h-[3px] w-24 rounded-full bg-gradient-to-r from-blue-600 to-cyan-400" />
+                <span className="mt-1 block bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 bg-clip-text text-[3.1rem] text-transparent sm:text-[3.6rem] lg:text-[3.65rem] xl:text-[3.85rem]">
+                    Sua gestão também.
                 </span>
             </h1>
 
 
-            {/* TEXTO */}
-            <p className="mt-10 max-w-xl text-lg leading-8 text-slate-600">
-                Controle sua operação, acompanhe seus números e
-                transforme informação em decisões melhores para
+            {/* DESCRIÇÃO */}
+            <p className="mt-8 max-w-[590px] text-[17px] leading-8 text-slate-600">
+                Centralize alunos, matrículas, financeiro,
+                agenda e controle de acesso em uma única
+                plataforma feita para acompanhar o ritmo da
                 sua academia.
             </p>
 
 
-            {/* INDICADORES */}
-            <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-4">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-cyan-400">
-                        <Activity size={19} />
-                    </div>
+            {/* CTAS */}
+            <div className="mt-9 flex flex-wrap items-center gap-5">
+                <button
+                    type="button"
+                    onClick={() =>
+                        smoothScrollTo("sistema")
+                    }
+                    className="group inline-flex h-[52px] items-center gap-3 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white shadow-[0_16px_35px_-14px_rgba(37,99,235,0.65)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-[0_20px_40px_-14px_rgba(37,99,235,0.72)]"
+                >
+                    Conhecer o Cfit
 
-                    <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                            Operação
-                        </p>
+                    <ArrowRight
+                        size={17}
+                        className="transition-transform duration-300 group-hover:translate-x-1"
+                    />
+                </button>
 
-                        <p className="text-sm font-bold text-slate-900">
-                            Tudo sob controle
-                        </p>
-                    </div>
+
+                <button
+                    type="button"
+                    onClick={() =>
+                        smoothScrollTo("recursos")
+                    }
+                    className="group inline-flex h-[52px] items-center gap-2 px-1 text-sm font-semibold text-slate-700 transition-colors duration-300 hover:text-blue-600"
+                >
+                    Explorar recursos
+
+                    <ArrowRight
+                        size={15}
+                        className="transition-transform duration-300 group-hover:translate-x-1"
+                    />
+                </button>
+            </div>
+
+
+            {/* BENEFÍCIOS */}
+            <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div className="flex items-center gap-2">
+                    <CheckCircle2
+                        size={15}
+                        strokeWidth={2.2}
+                        className="text-emerald-500"
+                    />
+
+                    <span className="text-[13px] font-medium text-slate-600">
+                        Gestão centralizada
+                    </span>
                 </div>
 
 
-                <div className="hidden h-9 w-px bg-slate-200 sm:block" />
+                <div className="hidden h-4 w-px bg-slate-200 sm:block" />
 
 
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-                        <TrendingUp size={19} />
-                    </div>
+                <div className="flex items-center gap-2">
+                    <CheckCircle2
+                        size={15}
+                        strokeWidth={2.2}
+                        className="text-emerald-500"
+                    />
 
-                    <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                            Performance
-                        </p>
+                    <span className="text-[13px] font-medium text-slate-600">
+                        Operação conectada
+                    </span>
+                </div>
 
-                        <p className="text-sm font-bold text-slate-900">
-                            Decisões mais claras
-                        </p>
-                    </div>
+
+                <div className="hidden h-4 w-px bg-slate-200 sm:block" />
+
+
+                <div className="flex items-center gap-2">
+                    <CheckCircle2
+                        size={15}
+                        strokeWidth={2.2}
+                        className="text-emerald-500"
+                    />
+
+                    <span className="text-[13px] font-medium text-slate-600">
+                        Decisões mais claras
+                    </span>
                 </div>
             </div>
 
 
-            {/* CTA */}
-            <button
-                type="button"
-                onClick={() => {
-                    document
-                        .getElementById("sistema")
-                        ?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start",
-                        });
-                }}
-                className="group mt-10 inline-flex items-center gap-4 font-bold text-slate-950"
-            >
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-white transition duration-300 group-hover:bg-blue-600">
-                    <ArrowRight
-                        size={19}
-                        className="transition-transform duration-300 group-hover:translate-x-1"
-                    />
-                </span>
+            {/* ECOSSISTEMA */}
+            <div className="mt-10 max-w-[620px] border-t border-slate-200/80 pt-5">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                        Uma plataforma
+                    </span>
 
-                <span className="border-b border-slate-300 pb-1 transition group-hover:border-blue-600 group-hover:text-blue-600">
-                    Explore o Cfit
-                </span>
-            </button>
+                    <span className="hidden h-1 w-1 rounded-full bg-blue-500 sm:block" />
+
+                    {[
+                        "Alunos",
+                        "Financeiro",
+                        "Matrículas",
+                        "Agenda",
+                        "Acesso",
+                    ].map(
+                        (
+                            item,
+                            index,
+                        ) => (
+                            <div
+                                key={item}
+                                className="flex items-center gap-4"
+                            >
+                                <span className="text-xs font-semibold text-slate-600">
+                                    {item}
+                                </span>
+
+                                {index < 4 && (
+                                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                )}
+                            </div>
+                        ),
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
