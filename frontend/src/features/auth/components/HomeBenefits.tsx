@@ -1,6 +1,7 @@
 import {
     ArrowRight,
     BarChart3,
+    CheckCircle2,
     CreditCard,
     Link2,
 } from "lucide-react";
@@ -64,17 +65,20 @@ export default function HomeBenefits() {
             currentTime: number,
         ) {
             if (startTime === null) {
-                startTime = currentTime;
+                startTime =
+                    currentTime;
             }
 
             const elapsed =
                 currentTime -
                 startTime;
 
-            const progress = Math.min(
-                elapsed / duration,
-                1,
-            );
+            const progress =
+                Math.min(
+                    elapsed /
+                    duration,
+                    1,
+                );
 
             const ease =
                 progress < 0.5
@@ -112,79 +116,105 @@ export default function HomeBenefits() {
 
 
     return (
-        <section className="relative overflow-hidden bg-[#f8fafc] py-24 md:py-32">
+        <section className="relative overflow-hidden bg-[#f8fafc] py-16 md:py-20">
             {/* FUNDO */}
             <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -left-48 bottom-0 h-[32rem] w-[32rem] rounded-full bg-blue-500/[0.045] blur-[120px]" />
+                <div className="absolute -left-44 top-1/2 h-[30rem] w-[30rem] -translate-y-1/2 rounded-full bg-blue-500/[0.045] blur-[120px]" />
 
-                <div className="absolute -right-48 top-0 h-[34rem] w-[34rem] rounded-full bg-cyan-400/[0.045] blur-[120px]" />
+                <div className="absolute -right-44 top-12 h-[28rem] w-[28rem] rounded-full bg-cyan-400/[0.045] blur-[120px]" />
 
-                <div className="absolute left-1/2 top-0 h-px w-[70%] -translate-x-1/2 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                <div className="absolute left-1/2 top-0 h-px w-[72%] -translate-x-1/2 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
             </div>
 
 
             <div className="relative mx-auto max-w-7xl px-6">
-                {/* CABEÇALHO */}
-                <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-                    {/* ESQUERDA */}
-                    <div className="lg:sticky lg:top-32">
-                        <div className="flex items-center gap-3">
-                            <span className="h-px w-8 bg-gradient-to-r from-blue-600 to-cyan-400" />
-
-                            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
-                                Menos operação
-                            </span>
-                        </div>
+                {/* BLOCO PRINCIPAL */}
+                <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-stretch">
+                    {/* NARRATIVA */}
+                    <div className="relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white p-7 md:p-8">
+                        <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-blue-500/[0.06] blur-[80px]" />
 
 
-                        <h2 className="mt-6 max-w-lg text-4xl font-black leading-[1.03] tracking-[-0.045em] text-slate-950 md:text-5xl">
-                            Menos trabalho
-                            <br />
+                        <div className="relative">
+                            <div className="flex items-center gap-3">
+                                <span className="h-px w-8 bg-gradient-to-r from-blue-600 to-cyan-400" />
 
-                            <span className="text-slate-950">
+                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">
+                                    Menos operação
+                                </span>
+                            </div>
+
+
+                            <h2 className="mt-5 max-w-lg text-4xl font-black leading-[1.02] tracking-[-0.045em] text-slate-950 md:text-5xl">
+                                Menos trabalho
+                                <br />
+
                                 no operacional.
-                            </span>
+                                <br />
 
-                            <br />
-
-                            <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 bg-clip-text text-transparent">
-                                Mais tempo para
-                                sua academia.
-                            </span>
-                        </h2>
+                                <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 bg-clip-text text-transparent">
+                                    Mais tempo para
+                                    sua academia.
+                                </span>
+                            </h2>
 
 
-                        <p className="mt-7 max-w-md text-base leading-8 text-slate-600">
-                            O Cfit organiza o que
-                            costuma consumir tempo
-                            todos os dias para que a
-                            gestão consiga enxergar
-                            melhor a operação e focar
-                            no crescimento.
-                        </p>
+                            <p className="mt-5 max-w-md text-base leading-7 text-slate-600">
+                                O Cfit organiza o que
+                                costuma consumir tempo
+                                todos os dias para que a
+                                gestão enxergue melhor a
+                                operação e consiga focar no
+                                crescimento.
+                            </p>
 
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                smoothScrollTo(
-                                    "sistema",
-                                )
-                            }
-                            className="group mt-8 inline-flex items-center gap-3 text-sm font-bold text-slate-950 transition-colors hover:text-blue-600"
-                        >
-                            Ver o Cfit em ação
+                            <div className="mt-6 space-y-2.5">
+                                {[
+                                    "Menos tarefas espalhadas",
+                                    "Mais clareza na rotina",
+                                    "Informação pronta para decidir",
+                                ].map((item) => (
+                                    <div
+                                        key={item}
+                                        className="flex items-center gap-3"
+                                    >
+                                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                                            <CheckCircle2
+                                                size={14}
+                                            />
+                                        </div>
 
-                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-white transition-all duration-300 group-hover:translate-x-1 group-hover:bg-blue-600">
-                                <ArrowRight
-                                    size={16}
-                                />
-                            </span>
-                        </button>
+                                        <span className="text-sm font-medium text-slate-700">
+                                            {item}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    smoothScrollTo(
+                                        "sistema",
+                                    )
+                                }
+                                className="group mt-7 inline-flex items-center gap-3 text-sm font-bold text-slate-950 transition-colors hover:text-blue-600"
+                            >
+                                Ver o Cfit em ação
+
+                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-white transition-all duration-300 group-hover:translate-x-1 group-hover:bg-blue-600">
+                                    <ArrowRight
+                                        size={15}
+                                    />
+                                </span>
+                            </button>
+                        </div>
                     </div>
 
 
-                    {/* DIREITA */}
+                    {/* BENEFÍCIOS */}
                     <div className="overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white">
                         {benefits.map(
                             (
@@ -199,7 +229,7 @@ export default function HomeBenefits() {
                                         key={
                                             benefit.number
                                         }
-                                        className={`group relative grid gap-6 p-7 transition-colors duration-300 hover:bg-slate-50/70 sm:grid-cols-[76px_1fr] md:p-9 ${index <
+                                        className={`group relative grid gap-5 p-6 transition-all duration-300 hover:bg-slate-50/70 sm:grid-cols-[68px_1fr] md:p-7 ${index <
                                                 benefits.length -
                                                 1
                                                 ? "border-b border-slate-200"
@@ -207,18 +237,16 @@ export default function HomeBenefits() {
                                             }`}
                                     >
                                         {/* NÚMERO + ÍCONE */}
-                                        <div>
+                                        <div className="flex items-start gap-3 sm:block">
                                             <span className="text-[10px] font-black tracking-[0.18em] text-slate-300">
                                                 {
                                                     benefit.number
                                                 }
                                             </span>
 
-                                            <div className="mt-3 flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-blue-600 shadow-sm transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-[0_12px_30px_-18px_rgba(37,99,235,0.5)]">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-blue-600 shadow-sm transition-all duration-300 group-hover:border-blue-200 group-hover:bg-blue-50">
                                                 <Icon
-                                                    size={
-                                                        20
-                                                    }
+                                                    size={18}
                                                 />
                                             </div>
                                         </div>
@@ -226,23 +254,33 @@ export default function HomeBenefits() {
 
                                         {/* TEXTO */}
                                         <div>
-                                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">
+                                            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-blue-600">
                                                 {
                                                     benefit.eyebrow
                                                 }
                                             </p>
 
-                                            <h3 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-slate-950">
-                                                {
-                                                    benefit.title
-                                                }
-                                            </h3>
+                                            <div className="mt-1.5 flex items-start justify-between gap-5">
+                                                <div>
+                                                    <h3 className="text-[1.35rem] font-bold tracking-[-0.025em] text-slate-950 md:text-2xl">
+                                                        {
+                                                            benefit.title
+                                                        }
+                                                    </h3>
 
-                                            <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500">
-                                                {
-                                                    benefit.description
-                                                }
-                                            </p>
+                                                    <p className="mt-2.5 max-w-xl text-sm leading-6 text-slate-500">
+                                                        {
+                                                            benefit.description
+                                                        }
+                                                    </p>
+                                                </div>
+
+                                                <span className="hidden text-4xl font-black tracking-[-0.06em] text-slate-100 md:block">
+                                                    {
+                                                        benefit.number
+                                                    }
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -252,26 +290,24 @@ export default function HomeBenefits() {
                 </div>
 
 
-                {/* FECHAMENTO */}
-                <div className="mt-16 overflow-hidden rounded-[2rem] bg-slate-950">
-                    <div className="relative grid gap-8 p-8 md:grid-cols-[1fr_auto] md:items-center md:p-10">
-                        {/* EFEITOS */}
-                        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-600/20 blur-[90px]" />
+                {/* RESULTADO */}
+                <div className="relative mt-6 overflow-hidden rounded-[1.75rem] bg-slate-950">
+                    <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-600/20 blur-[90px]" />
 
-                        <div className="pointer-events-none absolute -bottom-24 left-[35%] h-56 w-56 rounded-full bg-cyan-400/10 blur-[90px]" />
+                    <div className="pointer-events-none absolute -bottom-24 left-[30%] h-56 w-56 rounded-full bg-cyan-400/10 blur-[90px]" />
 
 
-                        <div className="relative">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400">
+                    <div className="relative grid gap-5 px-7 py-6 md:grid-cols-[1fr_auto] md:items-center md:px-8">
+                        <div>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-400">
                                 Resultado
                             </p>
 
-                            <h3 className="mt-3 max-w-2xl text-2xl font-bold tracking-[-0.03em] text-white md:text-3xl">
+                            <h3 className="mt-2 max-w-2xl text-xl font-bold tracking-[-0.03em] text-white md:text-2xl">
                                 Menos tempo procurando
                                 informações.
-                                <br />
 
-                                <span className="text-slate-400">
+                                <span className="ml-2 text-slate-400">
                                     Mais clareza para
                                     administrar.
                                 </span>
@@ -279,12 +315,18 @@ export default function HomeBenefits() {
                         </div>
 
 
-                        <div className="relative flex items-center gap-3">
+                        <div className="flex items-center gap-3 border-t border-white/10 pt-4 md:border-l md:border-t-0 md:pl-7 md:pt-0">
                             <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,0.8)]" />
 
-                            <span className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                                Operação organizada
-                            </span>
+                            <div>
+                                <p className="text-[8px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                                    Operação
+                                </p>
+
+                                <p className="mt-1 text-sm font-semibold text-white">
+                                    Mais organizada
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
