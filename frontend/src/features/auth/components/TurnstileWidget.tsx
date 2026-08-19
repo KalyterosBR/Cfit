@@ -24,6 +24,10 @@ declare global {
             remove: (
                 widgetId: string,
             ) => void;
+
+            reset: (
+                widgetId: string,
+            ) => void;
         };
     }
 }
@@ -35,12 +39,15 @@ type TurnstileWidgetProps = {
     ) => void;
 
     onExpire?: () => void;
+
+    resetKey?: number;
 };
 
 
 export default function TurnstileWidget({
     onVerify,
     onExpire,
+    resetKey = 0,
 }: TurnstileWidgetProps) {
     const containerRef =
         useRef<HTMLDivElement | null>(
@@ -51,6 +58,18 @@ export default function TurnstileWidget({
         useRef<string | null>(
             null,
         );
+
+
+    useEffect(() => {
+        if (
+            widgetIdRef.current &&
+            window.turnstile
+        ) {
+            window.turnstile.reset(
+                widgetIdRef.current,
+            );
+        }
+    }, [resetKey]);
 
 
     useEffect(() => {

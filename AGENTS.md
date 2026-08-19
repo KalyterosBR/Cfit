@@ -90,7 +90,7 @@ docker compose up -d --build
 
 Serviços principais:
 - PostgreSQL: `postgres:17`
-- Porta externa PostgreSQL: `15432`
+- Porta externa PostgreSQL: `5432`
 - Porta interna PostgreSQL: `5432`
 - Django: `8000`
 - Frontend/Vite: `5173`
@@ -330,7 +330,7 @@ export interface LoginCredentials {
 
 ---
 
-## 16. PONTO EXATO DE RETOMADA
+## 16. Reset do Turnstile após falha no login
 O Turnstile já está funcionando corretamente de ponta a ponta.
 
 Fluxo testado com sucesso:
@@ -338,39 +338,22 @@ Fluxo testado com sucesso:
 Turnstile → React → Django → Cloudflare → JWT → Dashboard
 ```
 
-### Próximo problema
-Tokens do Cloudflare Turnstile são de uso único.
+Tokens do Cloudflare Turnstile são de uso único. Por isso, o frontend agora renova automaticamente a verificação quando uma tentativa de login falha.
 
-Se:
-1. o Turnstile gerar um token;
-2. o usuário tentar login;
-3. login falhar por e-mail/senha incorretos;
-4. usuário tentar novamente;
+Implementação atual:
+- `TurnstileWidget.tsx` aceita a prop `resetKey`;
+- quando `resetKey` muda, o componente chama `window.turnstile.reset(widgetId)`;
+- `LoginForm.tsx` limpa `turnstileToken` no `catch` do login;
+- o formulário incrementa `turnstileResetKey`, fazendo o widget gerar uma nova verificação;
+- o botão permanece desabilitado até a obtenção do novo token.
 
-o mesmo token não deve ser reutilizado.
-
-### Próxima tarefa
-Implementar reset/renovação automática do Turnstile após uma tentativa de login que falhar.
-
-Provavelmente envolverá:
+Arquivos envolvidos:
 ```text
-TurnstileWidget.tsx
-LoginForm.tsx
+frontend/src/features/auth/components/TurnstileWidget.tsx
+frontend/src/features/auth/components/LoginForm.tsx
 ```
 
-Possível solução:
-- expor função de reset;
-- usar `window.turnstile.reset(widgetId)`;
-- limpar `turnstileToken`;
-- obter novo token após erro.
-
-Antes de implementar:
-1. ler `TurnstileWidget.tsx` atual;
-2. ler `LoginForm.tsx` atual;
-3. preservar o visual atual;
-4. fazer a menor alteração possível.
-
-Não reescrever o fluxo inteiro.
+O layout e a correção visual de autofill foram preservados.
 
 ---
 
@@ -406,6 +389,14 @@ Após sucesso:
 saveTokens(data.access, data.refresh);
 navigate("/dashboard", { replace: true });
 ```
+Após falha da requisição de login:
+```ts
+setTurnstileToken("");
+setTurnstileResetKey((current) => current + 1);
+```
+
+Isso impede a reutilização do token Turnstile consumido.
+
 
 ---
 
@@ -705,17 +696,18 @@ Alguns são reutilizados na homepage.
 ## 32. Students API
 Regra importante: CPF é único.
 
-`StudentViewSet`:
+`StudentViewSet` usa somente `OrderingFilter` diretamente e mantém:
 ```python
-search_fields = ["name", "cpf"]
 ordering_fields = ["name", "created_at"]
 ordering = ["name"]
 ```
 
-Busca usa selector:
+O parâmetro `search` é lido em `get_queryset()` e enviado ao selector:
 ```python
 search_students(search)
 ```
+
+O selector pesquisa por `search_name` ou `cpf` e ordena o resultado por nome.
 
 ---
 
@@ -900,7 +892,7 @@ não reescrever antes de identificar a causa.
 ---
 
 ## 47. Estado atual resumido
-O projeto está funcionando via Docker.
+O último estado funcional registrado do projeto é via Docker.
 
 - Homepage institucional implementada.
 - Login JWT funcionando.
@@ -908,6 +900,7 @@ O projeto está funcionando via Docker.
 - Cloudflare Turnstile integrado visualmente.
 - Cloudflare Turnstile validado no backend.
 - Login completo testado com sucesso.
+- Reset automático do Turnstile após falha de login implementado no frontend.
 
 Estado atual:
 ```text
@@ -918,36 +911,48 @@ Turnstile
 ✅ Siteverify
 ✅ JWT
 ✅ acesso ao Dashboard
+✅ limpeza do token após falha
+✅ chamada de reset do widget após falha
+⏳ validação manual da segunda tentativa de login
 ```
+
+Validação realizada na sessão da implementação:
+- `git diff --check` passou para a alteração;
+- `npm run lint` foi executado;
+- o lint encontrou `9 erros` e `4 avisos` já presentes em outros arquivos do frontend;
+- `LoginForm.tsx` e `TurnstileWidget.tsx` não apareceram entre os erros do lint;
+- não foi possível validar os containers porque a sessão Codex recebeu `permission denied` ao acessar `/var/run/docker.sock`.
 
 ---
 
 ## 48. PRÓXIMA TAREFA
 Ao iniciar nova sessão, começar daqui:
 ```text
-Implementar reset/renovação automática do Cloudflare Turnstile quando uma tentativa de login falhar.
+Validar manualmente o reset/renovação do Cloudflare Turnstile após uma tentativa de login com credenciais incorretas.
 ```
 
-Antes de mudar código, ler:
+Fluxo que precisa ser confirmado no navegador:
+```text
+gerar token Turnstile
+↓
+tentar login com credenciais incorretas
+↓
+receber erro de autenticação
+↓
+invalidar token atual e resetar o widget
+↓
+obter novo token
+↓
+permitir uma segunda tentativa sem recarregar a página
+```
+
+Antes de qualquer ajuste adicional, ler:
 ```text
 frontend/src/features/auth/components/TurnstileWidget.tsx
 frontend/src/features/auth/components/LoginForm.tsx
 ```
 
-Objetivo:
-```text
-falhou login
-↓
-invalidar token atual
-↓
-resetar Turnstile
-↓
-obter novo token
-↓
-permitir nova tentativa
-```
-
-Preservar integralmente o layout atual.
+Se o fluxo funcionar, considerar esta correção concluída e escolher a próxima tarefa funcional. Se falhar, diagnosticar a causa antes de alterar o código. Preservar integralmente o layout atual.
 
 ---
 

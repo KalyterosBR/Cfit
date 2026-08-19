@@ -60,13 +60,13 @@ function Status({ status }: { status: string }) {
 
 export default function RecentPayments() {
     return (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:p-6">
             <div className="mb-5">
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-base font-bold text-slate-950">
                     Pagamentos recentes
                 </h2>
 
-                <p className="text-sm text-slate-500">
+                <p className="mt-1 text-xs text-slate-500">
                     Últimas movimentações registradas
                 </p>
             </div>

@@ -46,8 +46,14 @@ export default function LoginForm() {
     const [loading, setLoading] =
         useState(false);
 
+    const [keepConnected, setKeepConnected] =
+        useState(false);
+
     const [error, setError] =
         useState("");
+
+    const [turnstileResetKey, setTurnstileResetKey] =
+        useState(0);
 
 
     const handleTurnstileVerify =
@@ -113,6 +119,7 @@ export default function LoginForm() {
             saveTokens(
                 data.access,
                 data.refresh,
+                keepConnected,
             );
 
 
@@ -125,6 +132,13 @@ export default function LoginForm() {
         } catch (error) {
             console.error(
                 error,
+            );
+
+
+            setTurnstileToken("");
+            setTurnstileResetKey(
+                (current) =>
+                    current + 1,
             );
 
 
@@ -285,11 +299,17 @@ export default function LoginForm() {
                 <label className="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-slate-300">
                     <input
                         type="checkbox"
+                        checked={keepConnected}
+                        onChange={(event) =>
+                            setKeepConnected(
+                                event.target.checked,
+                            )
+                        }
                         disabled={loading}
                         className="h-3.5 w-3.5 cursor-pointer accent-blue-600"
                     />
 
-                    Lembrar-me
+                    Manter conectado
                 </label>
 
                 <button
@@ -332,6 +352,9 @@ export default function LoginForm() {
                         }
                         onExpire={
                             handleTurnstileExpire
+                        }
+                        resetKey={
+                            turnstileResetKey
                         }
                     />
                 </div>

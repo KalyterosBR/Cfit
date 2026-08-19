@@ -99,7 +99,7 @@ export default function HomeHero() {
                     Sua academia em movimento.
                 </span>
 
-                <span className="mt-1.5 block bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 bg-clip-text text-[3rem] text-transparent sm:text-[3.55rem] lg:text-[3.55rem] xl:text-[3.8rem]">
+                <span className="mt-1.5 block bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 bg-clip-text pb-1 text-[3rem] text-transparent sm:text-[3.55rem] lg:text-[3.55rem] xl:text-[3.8rem]">
                     Sua gestão também.
                 </span>
             </h1>

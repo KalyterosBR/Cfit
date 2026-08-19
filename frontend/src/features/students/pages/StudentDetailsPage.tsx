@@ -12,6 +12,8 @@ import {
     CalendarDays,
     CircleCheck,
     CircleX,
+    Clock3,
+    DoorOpen,
     History,
     Mail,
     PauseCircle,
@@ -37,6 +39,12 @@ import {
 } from "../services/enrollment.service";
 
 import type { Student } from "../types/student";
+
+import {
+    createCheckIn,
+    getStudentCheckIns,
+    type CheckIn,
+} from "../services/checkin.service";
 
 
 type StudentTab =
@@ -121,6 +129,39 @@ export default function StudentDetailsPage() {
 
     const [historyError, setHistoryError] =
         useState(false);
+
+    const [checkIns, setCheckIns] =
+        useState<CheckIn[]>([]);
+
+    const [checkInsCount, setCheckInsCount] =
+        useState(0);
+
+    const [latestCheckIn, setLatestCheckIn] =
+        useState<CheckIn | null>(null);
+
+    const [checkInsPage, setCheckInsPage] =
+        useState(1);
+
+    const [checkInsNext, setCheckInsNext] =
+        useState<string | null>(null);
+
+    const [checkInsPrevious, setCheckInsPrevious] =
+        useState<string | null>(null);
+
+    const [loadingCheckIns, setLoadingCheckIns] =
+        useState(false);
+
+    const [checkInsError, setCheckInsError] =
+        useState(false);
+
+    const [registeringCheckIn, setRegisteringCheckIn] =
+        useState(false);
+
+    const [showCheckInModal, setShowCheckInModal] =
+        useState(false);
+
+    const [checkInNotes, setCheckInNotes] =
+        useState("");
 
     const [showEnrollmentModal, setShowEnrollmentModal] =
         useState(false);
@@ -284,6 +325,49 @@ export default function StudentDetailsPage() {
     }
 
 
+    async function loadCheckIns(page: number) {
+        if (!id) {
+            return;
+        }
+
+        try {
+            setLoadingCheckIns(true);
+            setCheckInsError(false);
+
+            const data = await getStudentCheckIns(
+                id,
+                page,
+            );
+
+            setCheckIns(data.results);
+            setCheckInsCount(data.count);
+            setCheckInsNext(data.next);
+            setCheckInsPrevious(data.previous);
+
+            if (page === 1) {
+                setLatestCheckIn(
+                    data.results[0] ?? null,
+                );
+            }
+        } catch (error) {
+            console.error(error);
+
+            setCheckIns([]);
+            setCheckInsCount(0);
+            setCheckInsNext(null);
+            setCheckInsPrevious(null);
+
+            if (page === 1) {
+                setLatestCheckIn(null);
+            }
+
+            setCheckInsError(true);
+        } finally {
+            setLoadingCheckIns(false);
+        }
+    }
+
+
     useEffect(() => {
         loadEnrollments();
         loadCharges();
@@ -325,6 +409,56 @@ export default function StudentDetailsPage() {
             style: "currency",
             currency: "BRL",
         });
+    }
+
+
+    function handleTabChange(tab: StudentTab) {
+        setActiveTab(tab);
+
+        if (tab === "checkins") {
+            setCheckInsPage(1);
+            loadCheckIns(1);
+        }
+    }
+
+
+    function handleCheckInsPageChange(page: number) {
+        setCheckInsPage(page);
+        loadCheckIns(page);
+    }
+
+
+    async function handleRegisterCheckIn(
+        event: React.FormEvent<HTMLFormElement>,
+    ) {
+        event.preventDefault();
+
+        if (!id) {
+            return;
+        }
+
+        try {
+            setRegisteringCheckIn(true);
+
+            await createCheckIn(
+                id,
+                checkInNotes.trim(),
+            );
+
+            setCheckInsPage(1);
+            await loadCheckIns(1);
+
+            setCheckInNotes("");
+            setShowCheckInModal(false);
+        } catch (error) {
+            console.error(error);
+
+            window.alert(
+                "Não foi possível registrar o check-in. Tente novamente.",
+            );
+        } finally {
+            setRegisteringCheckIn(false);
+        }
     }
 
 
@@ -546,10 +680,12 @@ export default function StudentDetailsPage() {
 
 
                     {/* CABEÇALHO DO ALUNO */}
-                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="relative overflow-hidden rounded-[1.6rem] border border-slate-200/80 bg-white p-5 shadow-[0_20px_50px_-34px_rgba(15,23,42,0.3)] sm:p-6">
+                        <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-blue-600 via-cyan-400 to-transparent" />
+
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex items-center gap-5">
-                                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-2xl font-bold text-blue-600">
+                                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-2xl font-black text-white shadow-[0_16px_35px_-18px_rgba(37,99,235,0.8)]">
                                     {student.name
                                         .trim()
                                         .charAt(0)
@@ -649,19 +785,19 @@ export default function StudentDetailsPage() {
 
 
                     {/* ABAS */}
-                    <div className="border-b border-slate-200">
-                        <nav className="flex gap-8 overflow-x-auto">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white px-4 pt-1 shadow-[0_14px_35px_-30px_rgba(15,23,42,0.25)]">
+                        <nav className="flex gap-7 overflow-x-auto">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     type="button"
                                     onClick={() =>
-                                        setActiveTab(tab.id)
+                                        handleTabChange(tab.id)
                                     }
                                     className={
                                         activeTab === tab.id
-                                            ? "whitespace-nowrap border-b-2 border-blue-600 px-1 pb-3 text-sm font-semibold text-blue-600"
-                                            : "whitespace-nowrap border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-slate-500 transition hover:text-slate-900"
+                                            ? "whitespace-nowrap border-b-2 border-blue-600 px-1 py-3.5 text-sm font-semibold text-blue-600"
+                                            : "whitespace-nowrap border-b-2 border-transparent px-1 py-3.5 text-sm font-medium text-slate-500 transition hover:text-slate-900"
                                     }
                                 >
                                     {tab.label}
@@ -1245,6 +1381,196 @@ export default function StudentDetailsPage() {
                     )}
 
 
+                    {/* CHECK-INS */}
+                    {activeTab === "checkins" && (
+                        <div className="space-y-5">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-slate-900">
+                                        Histórico de check-ins
+                                    </h2>
+
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        Consulte os acessos registrados para este aluno.
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowCheckInModal(true)
+                                    }
+                                    disabled={registeringCheckIn}
+                                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <DoorOpen size={17} />
+
+                                    {registeringCheckIn
+                                        ? "Registrando..."
+                                        : "Registrar check-in"}
+                                </button>
+                            </div>
+
+                            {loadingCheckIns ? (
+                                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
+                                    Carregando check-ins...
+                                </div>
+                            ) : checkInsError ? (
+                                <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+                                    <h3 className="font-semibold text-red-700">
+                                        Não foi possível carregar os check-ins
+                                    </h3>
+
+                                    <p className="mt-1 text-sm text-red-600">
+                                        Tente novamente ou atualize a página.
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            loadCheckIns(checkInsPage)
+                                        }
+                                        className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-4 text-xs font-semibold text-white transition hover:bg-red-700"
+                                    >
+                                        Tentar novamente
+                                    </button>
+                                </div>
+                            ) : checkInsCount === 0 ? (
+                                <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+                                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                        <DoorOpen size={20} />
+                                    </div>
+
+                                    <h3 className="mt-4 font-semibold text-slate-900">
+                                        Nenhum check-in registrado
+                                    </h3>
+
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        Os próximos acessos deste aluno aparecerão aqui.
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                            <p className="text-sm font-medium text-slate-500">
+                                                Total de check-ins
+                                            </p>
+
+                                            <p className="mt-2 text-2xl font-bold text-slate-900">
+                                                {checkInsCount}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                            <p className="text-sm font-medium text-slate-500">
+                                                Último check-in
+                                            </p>
+
+                                            <p className="mt-2 text-base font-bold text-blue-600">
+                                                {latestCheckIn
+                                                    ? formatDateTime(
+                                                        latestCheckIn.checked_in_at,
+                                                    )
+                                                    : "—"}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead className="border-b border-slate-200 bg-slate-50">
+                                                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                        <th className="px-6 py-4">
+                                                            Data e horário
+                                                        </th>
+                                                        <th className="px-6 py-4">
+                                                            Origem
+                                                        </th>
+                                                        <th className="px-6 py-4">
+                                                            Observação
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {checkIns.map((checkIn) => (
+                                                        <tr
+                                                            key={checkIn.id}
+                                                            className="text-sm text-slate-700"
+                                                        >
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                                                        <Clock3 size={17} />
+                                                                    </div>
+
+                                                                    <span className="font-semibold text-slate-900">
+                                                                        {formatDateTime(
+                                                                            checkIn.checked_in_at,
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+
+                                                            <td className="px-6 py-4">
+                                                                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                                                                    {checkIn.source_label}
+                                                                </span>
+                                                            </td>
+
+                                                            <td className="px-6 py-4 text-slate-500">
+                                                                {checkIn.notes || "—"}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {(checkInsPrevious || checkInsNext) && (
+                                            <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+                                                <p className="text-sm text-slate-500">
+                                                    Página {checkInsPage}
+                                                </p>
+
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleCheckInsPageChange(
+                                                                Math.max(1, checkInsPage - 1),
+                                                            )
+                                                        }
+                                                        disabled={!checkInsPrevious}
+                                                        className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    >
+                                                        Anterior
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleCheckInsPageChange(
+                                                                checkInsPage + 1,
+                                                            )
+                                                        }
+                                                        disabled={!checkInsNext}
+                                                        className="inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    >
+                                                        Próxima
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+
                     {/* HISTÓRICO GERAL */}
                     {activeTab === "history" && (
                         <div className="space-y-5">
@@ -1392,6 +1718,7 @@ export default function StudentDetailsPage() {
                     {activeTab !== "overview" &&
                         activeTab !== "plans" &&
                         activeTab !== "financial" &&
+                        activeTab !== "checkins" &&
                         activeTab !== "history" && (
                             <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                                 <h2 className="text-lg font-semibold text-slate-900">
@@ -1455,6 +1782,79 @@ export default function StudentDetailsPage() {
                     />
                 </Modal>
             )}
+
+
+            <Modal
+                open={showCheckInModal}
+                title="Registrar check-in"
+                maxWidth="md"
+                onClose={() => {
+                    if (!registeringCheckIn) {
+                        setShowCheckInModal(false);
+                        setCheckInNotes("");
+                    }
+                }}
+            >
+                <form onSubmit={handleRegisterCheckIn}>
+                    <p className="text-sm leading-6 text-slate-500">
+                        Confirme o acesso de {student?.name}. A observação é opcional.
+                    </p>
+
+                    <div className="mt-5">
+                        <div className="flex items-center justify-between gap-4">
+                            <label
+                                htmlFor="checkin-notes"
+                                className="text-sm font-semibold text-slate-700"
+                            >
+                                Observação ou motivo
+                            </label>
+
+                            <span className="text-xs text-slate-400">
+                                {checkInNotes.length}/255
+                            </span>
+                        </div>
+
+                        <textarea
+                            id="checkin-notes"
+                            value={checkInNotes}
+                            onChange={(event) =>
+                                setCheckInNotes(event.target.value)
+                            }
+                            maxLength={255}
+                            rows={4}
+                            disabled={registeringCheckIn}
+                            placeholder="Ex.: Entrada liberada manualmente pela recepção."
+                            className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        />
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowCheckInModal(false);
+                                setCheckInNotes("");
+                            }}
+                            disabled={registeringCheckIn}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Cancelar
+                        </button>
+
+                        <button
+                            type="submit"
+                            disabled={registeringCheckIn}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <DoorOpen size={17} />
+
+                            {registeringCheckIn
+                                ? "Registrando..."
+                                : "Confirmar check-in"}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </DashboardLayout>
     );
 }

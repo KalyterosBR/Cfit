@@ -36,18 +36,31 @@ const formatCurrency = (value: number) => {
 
 export default function RevenueChart() {
     return (
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-6">
-                <h2 className="text-lg font-bold text-slate-900">
-                    Receita mensal
-                </h2>
+        <div className="relative overflow-hidden rounded-[1.6rem] border border-white/[0.08] bg-[#071225] p-5 text-white shadow-[0_30px_70px_-42px_rgba(15,23,42,0.8)] sm:p-6">
+            <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-600/20 blur-[90px]" />
+            <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/10 blur-[90px]" />
 
-                <p className="text-sm text-slate-500">
-                    Evolução da receita nos últimos meses
-                </p>
+            <div className="relative mb-6 flex items-start justify-between gap-4">
+                <div>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+                        Visão financeira
+                    </p>
+
+                    <h2 className="mt-2 text-lg font-bold text-white">
+                        Receita mensal
+                    </h2>
+
+                    <p className="mt-1 text-sm text-slate-400">
+                        Evolução da receita nos últimos meses
+                    </p>
+                </div>
+
+                <span className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[10px] font-semibold text-slate-300">
+                    Últimos 8 meses
+                </span>
             </div>
 
-            <div className="h-72 w-full">
+            <div className="relative h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data}>
                         <defs>
@@ -60,8 +73,8 @@ export default function RevenueChart() {
                             >
                                 <stop
                                     offset="5%"
-                                    stopColor="#2563eb"
-                                    stopOpacity={0.25}
+                                    stopColor="#22d3ee"
+                                    stopOpacity={0.3}
                                 />
 
                                 <stop
@@ -75,12 +88,14 @@ export default function RevenueChart() {
                         <CartesianGrid
                             strokeDasharray="3 3"
                             vertical={false}
+                            stroke="rgba(148,163,184,0.15)"
                         />
 
                         <XAxis
                             dataKey="month"
                             axisLine={false}
                             tickLine={false}
+                            tick={{ fill: "#94a3b8", fontSize: 12 }}
                         />
 
                         <YAxis
@@ -88,6 +103,7 @@ export default function RevenueChart() {
                             tickLine={false}
                             tickFormatter={formatAxisValue}
                             width={85}
+                            tick={{ fill: "#94a3b8", fontSize: 11 }}
                         />
 
                         <Tooltip
@@ -100,7 +116,7 @@ export default function RevenueChart() {
                         <Area
                             type="monotone"
                             dataKey="revenue"
-                            stroke="#2563eb"
+                            stroke="#22d3ee"
                             strokeWidth={3}
                             fill="url(#revenueGradient)"
                         />

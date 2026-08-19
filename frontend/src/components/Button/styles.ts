@@ -1,9 +1,9 @@
 export const buttonVariants = {
     primary:
-        "bg-blue-600 hover:bg-blue-700 text-white",
+        "border-0 bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_12px_28px_-14px_rgba(37,99,235,0.8)] hover:-translate-y-px hover:from-blue-500 hover:to-cyan-400",
 
     secondary:
-        "border border-slate-300 bg-white hover:bg-slate-100 text-slate-700",
+        "border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-blue-200 hover:bg-blue-50/50 hover:text-blue-700",
 
     danger:
         "bg-red-600 hover:bg-red-700 text-white",
@@ -11,10 +11,11 @@ export const buttonVariants = {
 
 export const baseButtonStyles = `
 px-5
-py-3
+py-2.5
 rounded-xl
-font-medium
-transition
+text-sm
+font-semibold
+transition-all
 disabled:opacity-50
 disabled:cursor-not-allowed
 `;

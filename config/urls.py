@@ -45,6 +45,11 @@ urlpatterns = [
         "api/financial/",
         include("apps.financial.api.urls"),
     ),
+    # API - Check-ins
+    path(
+        "api/checkins/",
+        include("apps.checkins.api.urls"),
+    ),
     # Autenticação
     path(
         "api/auth/login/",

@@ -5,10 +5,55 @@ from apps.plans.serializers import PlanSerializer
 
 
 class PlanViewSet(viewsets.ModelViewSet):
-    queryset = Plan.objects.filter(active=True)
     serializer_class = PlanSerializer
 
     filter_backends = [
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
+
+    search_fields = [
+        "name",
+        "description",
+    ]
+
+    ordering_fields = [
+        "name",
+        "price",
+        "duration_months",
+        "created_at",
+    ]
+
+    ordering = [
+        "name",
+    ]
+
+    def get_queryset(self):
+        queryset = Plan.objects.all()
+
+        if self.action != "list":
+            return queryset
+
+        include_inactive = self.request.query_params.get(
+            "include_inactive",
+            "false",
+        ).lower() == "true"
+
+        if not include_inactive:
+            queryset = queryset.filter(
+                active=True,
+            )
+
+        active = self.request.query_params.get(
+            "active",
+        )
+
+        if active in {
+            "true",
+            "false",
+        }:
+            queryset = queryset.filter(
+                active=active == "true",
+            )
+
+        return queryset

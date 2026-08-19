@@ -25,7 +25,7 @@ export default function StudentsTable({
     if (students.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                     <User size={22} />
                 </div>
 
@@ -41,10 +41,10 @@ export default function StudentsTable({
     }
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-slate-200">
+        <div className="overflow-hidden rounded-[1.15rem] border border-slate-200/90">
             <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                    <thead className="bg-slate-50">
+                    <thead className="bg-[#f8fafc]">
                         <tr className="border-b border-slate-200">
                             <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
                                 Aluno
@@ -72,7 +72,7 @@ export default function StudentsTable({
                         {students.map((student) => (
                             <tr
                                 key={student.id}
-                                className="transition-colors hover:bg-slate-50/80"
+                                className="transition-colors hover:bg-blue-50/35"
                             >
                                 <td className="px-5 py-4">
                                     <button
@@ -84,7 +84,7 @@ export default function StudentsTable({
                                         }
                                         className="flex items-center gap-3 text-left"
                                     >
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 font-semibold text-blue-600">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 font-bold text-white shadow-[0_8px_20px_-12px_rgba(37,99,235,0.75)]">
                                             {student.name
                                                 .trim()
                                                 .charAt(0)
@@ -96,8 +96,8 @@ export default function StudentsTable({
                                                 {student.name}
                                             </p>
 
-                                            <p className="text-xs text-slate-500">
-                                                #{student.id}
+                                            <p className="mt-0.5 max-w-32 truncate text-[10px] font-medium text-slate-400">
+                                                ID {student.id}
                                             </p>
                                         </div>
                                     </button>

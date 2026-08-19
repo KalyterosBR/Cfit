@@ -127,7 +127,7 @@ export default function StudentsListPage() {
                                 e.target.value as StudentStatusFilter,
                             )
                         }
-                        className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        className="h-10 rounded-xl border border-slate-200 bg-slate-50/80 px-4 text-sm font-semibold text-slate-700 outline-none transition hover:bg-white focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
                     >
                         <option value="all">
                             Todos

@@ -26,29 +26,33 @@ export default function Dashboard() {
                 <StatCard
                     title="Alunos ativos"
                     value="1.248"
-                    icon={<Users size={28} />}
+                    icon={<Users size={21} />}
                     description="+12 este mês"
+                    tone="blue"
                 />
 
                 <StatCard
                     title="Receita mensal"
                     value="R$ 89.250"
-                    icon={<DollarSign size={28} />}
+                    icon={<DollarSign size={21} />}
                     description="+8% em relação ao mês anterior"
+                    tone="emerald"
                 />
 
                 <StatCard
                     title="Check-ins hoje"
                     value="352"
-                    icon={<Dumbbell size={28} />}
+                    icon={<Dumbbell size={21} />}
                     description="Até o momento"
+                    tone="cyan"
                 />
 
                 <StatCard
                     title="Crescimento"
                     value="+12%"
-                    icon={<TrendingUp size={28} />}
+                    icon={<TrendingUp size={21} />}
                     description="Últimos 30 dias"
+                    tone="violet"
                 />
             </div>
 
