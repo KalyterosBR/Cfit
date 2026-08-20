@@ -17,6 +17,11 @@ const routeLabels: Record<string, string> = {
     "/dashboard": "Visão geral",
     "/students": "Gestão de alunos",
     "/plans": "Planos e contratos",
+    "/finance": "Gestão financeira",
+    "/workouts": "Treinos",
+    "/schedule": "Agenda",
+    "/reports": "Relatórios",
+    "/settings": "Configurações",
 };
 
 

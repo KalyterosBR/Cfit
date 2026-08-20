@@ -70,6 +70,15 @@ Repositório principal: `KalyterosBR/Cfit`
 
 Branch principal: `main`
 
+Workspace oficial atual:
+```text
+/home/kalyteros/projetos/Cfit
+```
+
+O projeto foi migrado de `/mnt/c/Users/Conecta_Suporte/Desktop/Projeto/Cfit` para o sistema de arquivos nativo do WSL porque arquivos no bind mount do Windows estavam sendo apresentados como `root`/`nobody`, impedindo gravações consistentes pelo VS Code e pelo Codex.
+
+Usar somente o workspace em `/home/kalyteros/projetos/Cfit` para desenvolvimento. A cópia antiga em `/mnt/c/.../Cfit` foi preservada apenas como segurança e não deve receber novas alterações.
+
 Fluxo normal:
 ```bash
 git status
@@ -94,6 +103,13 @@ Serviços principais:
 - Porta interna PostgreSQL: `5432`
 - Django: `8000`
 - Frontend/Vite: `5173`
+
+Os serviços `django` e `frontend` usam no `docker-compose.yml`:
+```yaml
+user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+```
+
+Isso evita que arquivos gerados nos bind mounts sejam criados como `root`. O PostgreSQL continua usando o usuário próprio da imagem.
 
 Evitar exigir instalação local de Python, PostgreSQL ou dependências já encapsuladas no Docker.
 
@@ -147,6 +163,7 @@ apps/plans
 apps/users
 apps/enrollments
 apps/financial
+apps/checkins
 ```
 
 Também está habilitado `django.contrib.postgres`.
@@ -367,7 +384,7 @@ Responsabilidades:
 - e-mail;
 - senha;
 - mostrar/ocultar senha;
-- lembrar-me visual;
+- opção funcional “Manter conectado”;
 - esqueci senha visual;
 - Turnstile;
 - login;
@@ -386,9 +403,12 @@ const data = await login({
 
 Após sucesso:
 ```ts
-saveTokens(data.access, data.refresh);
+saveTokens(data.access, data.refresh, keepConnected);
 navigate("/dashboard", { replace: true });
 ```
+
+Com “Manter conectado” desmarcado, os tokens ficam no `sessionStorage`. Com a opção marcada, ficam no `localStorage`.
+
 Após falha da requisição de login:
 ```ts
 setTurnstileToken("");
@@ -410,12 +430,25 @@ Ao alterar `LoginForm.tsx`, não remover essa correção. O input deve continuar
 ---
 
 ## 19. Tokens frontend
-JWT usa localStorage.
+JWT usa `sessionStorage` ou `localStorage`, conforme a escolha feita no login.
 
 Chaves:
 ```text
 cfit_access_token
 cfit_refresh_token
+```
+
+Comportamento atual:
+- “Manter conectado” desmarcado → access e refresh em `sessionStorage`;
+- “Manter conectado” marcado → access e refresh em `localStorage`;
+- ao salvar uma sessão, o serviço limpa os tokens do outro storage;
+- a renovação do access token preserva o storage da sessão atual;
+- a leitura procura primeiro no `sessionStorage` e depois no `localStorage`;
+- o logout limpa os dois storages.
+
+Arquivo responsável:
+```text
+frontend/src/features/auth/services/token.service.ts
 ```
 
 Já existem funções para salvar, recuperar e apagar tokens. Não criar implementação paralela.
@@ -434,6 +467,8 @@ Comportamento:
 
 Fluxo já testado. Logout remove token e retorna ao login. Não alterar sem necessidade.
 
+O interceptor HTTP adiciona o access token às requisições privadas. Em resposta `401`, tenta renovar a sessão com o refresh token e repete a requisição original. Se não houver refresh token ou a renovação falhar, limpa os dois storages e redireciona para `/`.
+
 ---
 
 ## 21. Rotas frontend
@@ -443,9 +478,30 @@ Fluxo já testado. Logout remove token e retorna ao login. Não alterar sem nece
 /students          Lista de alunos
 /students/:id      Detalhes do aluno
 /plans             Planos
+/finance           Gestão financeira
+/workouts          Em desenvolvimento: Treinos
+/schedule          Em desenvolvimento: Agenda
+/reports           Em desenvolvimento: Relatórios
+/settings          Em desenvolvimento: Configurações
 ```
 
 A rota `/` é homepage institucional + login, não só login.
+
+Todas essas rotas estão registradas em `frontend/src/routes/index.tsx`. Treinos, Agenda, Relatórios e Configurações usam o componente compartilhado `ComingSoon` para evitar páginas brancas, mas não devem ser documentados como módulos funcionais.
+
+Estrutura atual relevante do frontend:
+```text
+frontend/src/components             componentes compartilhados
+frontend/src/components/dashboard   componentes visuais da Dashboard
+frontend/src/components/layout      Sidebar e Topbar
+frontend/src/features/auth           homepage, login e autenticação
+frontend/src/features/students       alunos, matrículas, financeiro e check-ins do aluno
+frontend/src/layouts                 layout da área interna
+frontend/src/pages                   páginas principais
+frontend/src/routes                  configuração das rotas
+frontend/src/services                cliente HTTP, interceptors e toast
+frontend/src/theme                   tokens visuais
+```
 
 ---
 
@@ -669,14 +725,17 @@ O fechamento antes do scroll é intencional.
 ---
 
 ## 31. Dashboard
-Dashboard ainda usa dados demonstrativos em algumas áreas. Isso é intencional.
+O Dashboard possui integração parcial com dados reais: resumo financeiro, histórico de receita, pagamentos recentes, check-ins recentes e cobranças em atraso usam as APIs operacionais. Alguns indicadores e conteúdos ainda permanecem demonstrativos.
 
-Prioridade recente:
-```text
-Homepage + identidade visual + login
-```
+Não apresentar a parte demonstrativa como consolidação real e não conectar ou redesenhar todo o Dashboard sem solicitação.
 
-Não conectar todo o Dashboard ao backend sem solicitação.
+Visual atual:
+- fundo interno claro `#f4f7fb`, com iluminação azul/ciano controlada;
+- largura de conteúdo limitada a `1600px`;
+- cards brancos com bordas suaves, cantos grandes e sombras discretas;
+- títulos fortes e compactos;
+- azul e ciano como assinatura, com cores semânticas nos indicadores;
+- layout responsivo em grids de uma, duas ou quatro colunas conforme a largura.
 
 Componentes principais:
 ```text
@@ -690,6 +749,49 @@ PendingStudents
 ```
 
 Alguns são reutilizados na homepage.
+
+Preservar a linguagem visual atual e não substituir os dados demonstrativos por integrações de backend sem solicitação específica.
+
+---
+
+## 31.1 Sidebar, Topbar e layout interno
+Arquivos principais:
+```text
+frontend/src/layouts/DashboardLayout.tsx
+frontend/src/components/layout/Sidebar.tsx
+frontend/src/components/layout/Topbar.tsx
+frontend/src/components/branding/Logo.tsx
+```
+
+O `DashboardLayout` mantém a Sidebar e a Topbar ao redor de uma área de conteúdo rolável. A página ocupa a altura da viewport e evita scroll concorrente no contêiner externo.
+
+Sidebar atual:
+- azul quase preto, alinhada à identidade premium do Cfit;
+- largura de `280px`;
+- fixa e visível em telas grandes;
+- menu lateral sobreposto em telas menores;
+- overlay fecha o menu mobile;
+- selecionar um item também fecha o menu mobile;
+- item da rota atual usa gradiente azul e destaque visual;
+- bloco “Ambiente seguro” no rodapé;
+- botão “Sair da conta” no rodapé.
+
+Fluxo de logout:
+```text
+clique em “Sair da conta”
+↓
+clearTokens()
+↓
+limpeza de localStorage e sessionStorage
+↓
+fechamento da Sidebar mobile
+↓
+navegação para / com replace
+```
+
+A Topbar mostra o contexto da rota, botão de abertura da Sidebar no mobile, busca visual, notificações e identificação visual do administrador. A busca, notificações e menu do usuário não possuem comportamento funcional implementado no código atual.
+
+Não mover o logout para uma implementação paralela e não remover o comportamento responsivo sem solicitação.
 
 ---
 
@@ -753,21 +855,117 @@ Matrículas devem preservar histórico. Evitar exclusões destrutivas que elimin
 ---
 
 ## 37. Regras de negócio — Financeiro
-Previsto:
-- pagamentos;
-- pendências;
-- entradas;
-- saídas;
-- caixa;
-- inadimplência;
-- recorrência.
+O módulo central de gestão financeira está implementado na rota protegida:
+```text
+/finance
+```
+
+Arquivos principais:
+```text
+apps/financial/api/serializers.py
+apps/financial/api/viewsets.py
+apps/financial/tests.py
+frontend/src/pages/Financial.tsx
+frontend/src/features/students/services/financial.service.ts
+frontend/src/routes/index.tsx
+```
+
+Comportamento implementado:
+- listagem paginada de cobranças de toda a academia;
+- busca server-side por aluno, descrição da cobrança ou plano;
+- categorias operacionais para cobranças vencidas, a vencer, futuras, pagas, canceladas e inconsistentes;
+- filtros por vencimento, competência, plano, meio de pagamento, faixa de atraso e conciliação;
+- visão individual ou agrupada por aluno e matrícula;
+- resumo do filtro atual com totais recebidos, em aberto e atrasados;
+- registro de pagamento individual ou em lote, sempre com meio de pagamento;
+- cancelamento com confirmação e motivo obrigatório;
+- conciliação com identificação de divergência;
+- exportação CSV;
+- previsão de receita em 3, 6 ou 12 meses;
+- fluxo de caixa com entradas, saídas, realizado e projetado;
+- registro e acompanhamento de tentativas de recorrência;
+- central de inconsistências calculada a partir de dados reais, com prioridade, causa e próxima ação;
+- auditoria de pagamento, cancelamento e conciliação;
+- acesso ao detalhe do aluno a partir da cobrança;
+- estados de carregamento, vazio, erro e nova tentativa;
+- feedback de sucesso ou erro por toast.
+
+Endpoints usados:
+```text
+GET  /api/financial/charges/
+GET  /api/financial/charges/summary/
+GET  /api/financial/charges/grouped/
+GET  /api/financial/charges/forecast/
+GET  /api/financial/charges/inconsistencies/
+GET  /api/financial/charges/export/
+POST /api/financial/charges/:id/pay/
+POST /api/financial/charges/bulk-pay/
+POST /api/financial/charges/:id/reconcile/
+POST /api/financial/charges/:id/cancel/
+GET  /api/financial/recurring-attempts/
+POST /api/financial/recurring-attempts/
+GET  /api/financial/cash-transactions/
+POST /api/financial/cash-transactions/
+```
+
+As ações “Registrar pagamento” e “Cancelar” foram removidas da aba Financeiro do detalhe do aluno. Essa aba permanece como consulta contextual do histórico individual; as ações operacionais ficam centralizadas em `/finance`.
+
+Não duplicar regras financeiras no frontend. A página central e o detalhe do aluno devem continuar usando o mesmo serviço e a mesma API.
+
+Ainda previsto para evolução futura:
+- permissões financeiras por perfil;
+- filtros por unidade e responsável quando esses domínios estiverem disponíveis;
+- fila inteligente de recuperação;
+- relatórios financeiros gerenciais mais amplos.
 
 Tolerância inicial planejada: `7 dias`, configurável futuramente.
 
 ---
 
 ## 38. Check-in
-Primeira versão: check-in básico.
+Check-in básico está implementado dentro do cadastro/detalhes do aluno.
+
+Backend:
+```text
+apps/checkins/models.py
+apps/checkins/api/serializers.py
+apps/checkins/api/viewsets.py
+apps/checkins/api/urls.py
+apps/checkins/tests.py
+```
+
+Frontend:
+```text
+frontend/src/features/students/pages/StudentDetailsPage.tsx
+frontend/src/features/students/services/checkin.service.ts
+```
+
+Rota privada:
+```text
+GET  /api/checkins/
+POST /api/checkins/
+```
+
+Comportamento atual:
+- a aba “Check-ins” do detalhe do aluno carrega o histórico filtrado pelo identificador do aluno;
+- o histórico é ordenado do acesso mais recente para o mais antigo;
+- a interface exibe total, último check-in, origem e observação;
+- a listagem usa a paginação padrão da API;
+- o usuário pode registrar manualmente um check-in;
+- a observação é opcional e limitada a `255` caracteres;
+- após o registro, a primeira página é recarregada;
+- existem estados de carregamento, vazio, erro e nova tentativa.
+
+O modelo `CheckIn` preserva:
+- aluno com `ForeignKey(..., on_delete=models.PROTECT)`;
+- data e horário em `checked_in_at`;
+- origem `manual`, `access_control` ou `facial_recognition`;
+- observação opcional;
+- índice por aluno e data do check-in.
+
+A API permite somente leitura e criação por HTTP (`GET` e `POST`). Não adicionar alteração ou exclusão sem uma decisão explícita sobre preservação do histórico.
+
+Existem testes para autenticação obrigatória, filtro/ordenação do histórico e persistência de um novo check-in.
 
 Futuro: reconhecimento facial.
 
@@ -775,8 +973,8 @@ Aluno deve possuir identificador único adequado para essa evolução.
 
 ---
 
-## 39. Logs
-Ações importantes deverão ser registradas futuramente, por exemplo:
+## 39. Logs e auditoria
+Já existem registros de histórico e auditoria para ações relevantes de aluno, matrícula e financeiro. A cobertura deve continuar evoluindo para incluir integralmente:
 - alteração de matrícula;
 - alteração financeira;
 - cancelamentos;
@@ -892,71 +1090,775 @@ não reescrever antes de identificar a causa.
 ---
 
 ## 47. Estado atual resumido
-O último estado funcional registrado do projeto é via Docker.
+Estado confirmado no código e nas validações de encerramento de 20/08/2026:
+- homepage institucional e identidade visual premium implementadas;
+- login JWT protegido por Cloudflare Turnstile;
+- reset automático do Turnstile após falha de login implementado;
+- rotas privadas protegidas por `ProtectedRoute`;
+- renovação automática do access token por interceptor HTTP;
+- opção “Manter conectado” funcional com escolha entre `sessionStorage` e `localStorage`;
+- logout funcional na Sidebar, limpando os dois storages;
+- novo layout interno responsivo com Sidebar escura, Topbar clara e área de conteúdo padronizada;
+- Dashboard redesenhada e parcialmente conectada às APIs de check-ins e financeiro, mantendo parte dos indicadores demonstrativos;
+- gestão de alunos com busca por nome ou CPF tolerante a acentos e caixa, filtros rápidos, estados estáveis, validações, máscaras e histórico de ativação/inativação;
+- ficha 360º com resumo operacional, matrículas, cobranças, check-ins e linha do tempo combinada;
+- planos com campos comerciais, cobrança, recorrência, fidelidade, renovação, benefícios, regras de acesso, contrato e análise de impacto;
+- matrícula guiada com preço contratado, desconto, vencimento, aceite contratual, prévia e auditoria comercial;
+- módulo Financeiro central em `/finance`, com filtros avançados, competência, agrupamento, seleção segura, pagamento em lote, exportação, conciliação, previsão, caixa, recorrências e central de inconsistências;
+- aba Financeiro do detalhe do aluno mantida somente para consulta contextual;
+- Check-in manual e histórico de check-ins funcionais no detalhe do aluno;
+- rotas `/workouts`, `/schedule`, `/reports` e `/settings` registradas com páginas seguras de `Em desenvolvimento`;
+- títulos das páginas apresentados em português no documento do navegador;
+- README atualizado para refletir arquitetura, setup, rotas, APIs e validações atuais;
+- artefatos gerados, assets padrão, templates server-side antigos e arquivos comprovadamente órfãos removidos da estrutura;
+- app `apps/checkins`, API privada, migração e testes adicionados ao backend;
+- workspace oficial migrado para `/home/kalyteros/projetos/Cfit`;
+- Django e frontend executam nos containers com UID/GID `1000`;
+- arquivos gerados `frontend/node_modules` e `frontend/dist` pertencem a `kalyteros`;
+- containers Django, frontend e PostgreSQL estão ativos a partir do novo workspace.
 
-- Homepage institucional implementada.
-- Login JWT funcionando.
-- ProtectedRoute funcionando.
-- Cloudflare Turnstile integrado visualmente.
-- Cloudflare Turnstile validado no backend.
-- Login completo testado com sucesso.
-- Reset automático do Turnstile após falha de login implementado no frontend.
-
-Estado atual:
-```text
-Turnstile
-✅ frontend
-✅ envio do token
-✅ backend
-✅ Siteverify
-✅ JWT
-✅ acesso ao Dashboard
-✅ limpeza do token após falha
-✅ chamada de reset do widget após falha
-⏳ validação manual da segunda tentativa de login
-```
-
-Validação realizada na sessão da implementação:
-- `git diff --check` passou para a alteração;
-- `npm run lint` foi executado;
-- o lint encontrou `9 erros` e `4 avisos` já presentes em outros arquivos do frontend;
-- `LoginForm.tsx` e `TurnstileWidget.tsx` não apareceram entre os erros do lint;
-- não foi possível validar os containers porque a sessão Codex recebeu `permission denied` ao acessar `/var/run/docker.sock`.
-
----
-
-## 48. PRÓXIMA TAREFA
-Ao iniciar nova sessão, começar daqui:
-```text
-Validar manualmente o reset/renovação do Cloudflare Turnstile após uma tentativa de login com credenciais incorretas.
-```
-
-Fluxo que precisa ser confirmado no navegador:
-```text
-gerar token Turnstile
-↓
-tentar login com credenciais incorretas
-↓
-receber erro de autenticação
-↓
-invalidar token atual e resetar o widget
-↓
-obter novo token
-↓
-permitir uma segunda tentativa sem recarregar a página
-```
-
-Antes de qualquer ajuste adicional, ler:
-```text
-frontend/src/features/auth/components/TurnstileWidget.tsx
-frontend/src/features/auth/components/LoginForm.tsx
-```
-
-Se o fluxo funcionar, considerar esta correção concluída e escolher a próxima tarefa funcional. Se falhar, diagnosticar a causa antes de alterar o código. Preservar integralmente o layout atual.
+Limites atuais confirmados:
+- Treinos, Agenda, Relatórios e Configurações possuem somente páginas de `Em desenvolvimento`;
+- a aba “Treinos” do detalhe do aluno ainda é apresentada como área futura;
+- busca, notificações e menu do usuário da Topbar são apenas visuais;
+- o Dashboard ainda não possui período configurável, metas, personalização por função ou seção completa `Requer atenção`;
+- permissões continuam na primeira etapa de Administrador, sem RBAC avançado;
+- o lint do frontend possui pendências preexistentes, principalmente pela regra `react-hooks/set-state-in-effect`.
 
 ---
 
-## 49. Instrução final
+## 48. PONTO EXATO DE RETOMADA
+O workspace oficial agora é:
+```text
+/home/kalyteros/projetos/Cfit
+```
+
+Na próxima sessão, começar com:
+```text
+Leia o AGENTS.md para entender o contexto geral.
+```
+
+Depois, confirmar com `pwd` que a sessão está no novo workspace e executar `git status` antes de qualquer alteração.
+
+Estado encerrado nesta sessão:
+- migração para o WSL concluída;
+- fundações de alunos, planos, matrículas e financeiro evoluídas conforme descrito na seção 47;
+- migrations novas criadas para histórico de aluno, modelo comercial/contratual de planos e matrículas, pagamento, competência, auditoria, conciliação, caixa e recorrências;
+- limpeza conservadora da estrutura concluída;
+- README atualizado;
+- 55 testes de backend passaram para financeiro, planos, alunos e check-ins;
+- `python manage.py check` passou;
+- `makemigrations --check --dry-run` não detectou alterações pendentes;
+- build de produção do frontend passou;
+- `git diff --check` passou;
+- lint executado, mas ainda falha por pendências registradas na seção 47.
+
+Avisos observados no build, sem falha:
+- `frontend/index.html` possui o script do Turnstile antes da tag `<head>`, gerando aviso `misplaced-start-tag-for-head-element`;
+- o bundle principal ultrapassa `500 kB` após minificação;
+- Vite informa que resolução nativa de paths pode substituir futuramente `vite-tsconfig-paths`.
+
+Não corrigir esses avisos automaticamente sem uma tarefa específica.
+
+Ao iniciar uma nova sessão:
+1. confirmar a tarefa desejada com o usuário;
+2. ler os arquivos diretamente envolvidos;
+3. considerar como incompletas apenas as áreas explicitamente confirmadas no estado atual;
+4. não escolher automaticamente um módulo futuro como prioridade.
+
+Próximo ponto recomendado do roadmap, sujeito à confirmação do usuário:
+1. tornar o Dashboard acionável, conectado e personalizável;
+2. primeiro auditar cada indicador para separar explicitamente dado real de demonstrativo;
+3. depois implementar período, comparação, detalhamento por clique e seção `Requer atenção` em tarefas pequenas;
+4. não conectar ou substituir todos os indicadores em uma única alteração.
+
+Pendências visíveis adicionais:
+- busca universal e command palette ainda não implementadas;
+- monitor de acessos e integrações de check-in ainda não implementados;
+- Customer Health Score ainda não implementado;
+- aba Treinos ainda futura;
+- busca, notificações e menu do usuário da Topbar permanecem visuais.
+
+O reset do Turnstile, a persistência opcional do login, o logout da Sidebar, o Check-in básico e o módulo Financeiro central já estão implementados. Diagnosticar antes de alterar caso algum desses fluxos apresente falha em validação manual.
+
+---
+
+## 48.1 Diretrizes de Produto, UX e Roadmap do Cfit
+
+### 48.1.1 Natureza e uso destas diretrizes
+Esta seção consolida o diagnóstico de produto, UX/UI e prioridades do Cfit como referência oficial para decisões futuras.
+
+Ela deve ser tratada como diretriz de produto e orientação de roadmap, não como autorização automática para implementar todos os itens, alterar o escopo de uma tarefa ou realizar grandes refactors. Cada evolução continua sujeita a solicitação específica, inspeção do código atual, validação técnica e de negócio, implementação incremental e testes proporcionais ao risco.
+
+As classificações usadas nesta seção são:
+- **Já existe:** implementação visível ou comportamento confirmado, que deve ser preservado e verificado no código antes de qualquer alteração.
+- **Precisa ser corrigido:** inconsistência, risco ou estado inadequado que deve ser tratado antes de aprofundar o módulo relacionado.
+- **Precisa ser melhorado:** evolução de uma base já existente.
+- **Ainda não implementado:** capacidade futura ou espaço reservado; não documentar como funcional até confirmação no código.
+
+Quando esta seção descrever uma capacidade futura, ela não substitui as seções de estado atual deste arquivo. O código permanece como fonte de verdade.
+
+### 48.1.2 Contexto e posicionamento do produto
+O Cfit é um sistema de gestão de academias com identidade própria baseada em:
+- tecnologia;
+- performance;
+- gestão premium;
+- clareza operacional;
+- experiência moderna;
+- decisões orientadas por dados.
+
+O produto não deve copiar identidade visual, textos, telas, layouts proprietários ou implementações de concorrentes. Referências externas devem ser traduzidas para soluções coerentes com a arquitetura, a identidade visual e os objetivos do Cfit.
+
+O Cfit deve absorver profundidade operacional sem se tornar excessivamente complexo. A meta é oferecer uma experiência mais clara, proativa, integrada e orientada a decisões do que sistemas tradicionais de gestão de academias.
+
+### 48.1.3 Princípios gerais de produto e UX
+1. Orientar o usuário para decisões e próximas ações, não apenas exibir registros.
+2. Mostrar o que precisa de atenção agora.
+3. Manter a jornada do aluno centralizada em uma ficha 360º.
+4. Reduzir navegação desnecessária por meio de busca universal e ações rápidas.
+5. Manter dashboards personalizados por função e contexto.
+6. Usar linguagem visual premium, com densidade controlada e excelente legibilidade.
+7. Explicar bloqueios, falhas e inconsistências com causa e próxima ação.
+8. Transformar relatórios em análises exploráveis e acionáveis.
+9. Oferecer automações transparentes, com histórico e auditoria.
+10. Combinar tecnologia e performance por meio de metas, tendências, comparações e indicadores preditivos.
+11. Manter uma única fonte de dados entre dashboard, alunos, matrículas, planos, financeiro, check-ins e relatórios.
+12. Não permitir que o aumento da profundidade funcional destrua a simplicidade atual do Cfit.
+13. Diferenciar sempre dados reais, demonstrativos, simulados e ainda não conectados.
+14. Evitar IDs técnicos, termos internos e detalhes de implementação na interface cotidiana.
+15. Toda ação sensível deve possuir confirmação, permissões adequadas e registro de auditoria.
+
+### 48.1.4 Estado atual observado
+**Já possuem implementação visível:**
+- Dashboard;
+- Gestão de alunos;
+- Cadastro de aluno;
+- Ficha detalhada do aluno;
+- Planos;
+- Cadastro de plano;
+- Financeiro.
+
+**Possuem item de navegação ou espaço reservado, mas estão incompletos:**
+- Treinos;
+- Agenda;
+- Relatórios;
+- Configurações.
+
+No estado técnico confirmado, esses quatro itens aparecem na Sidebar e possuem rotas com páginas de `Em desenvolvimento`. Devem ser considerados espaços futuros, não módulos funcionais.
+
+A ficha do aluno já possui abas para:
+- Visão geral;
+- Planos;
+- Financeiro;
+- Check-ins;
+- Treinos;
+- Histórico.
+
+A aba Treinos ainda informa que será desenvolvida. Check-ins possui estrutura inicial, histórico e registro manual, incluindo estado vazio. O histórico atual contém principalmente movimentações de matrícula.
+
+### 48.1.5 Prioridade alta — fundações e consistência
+
+#### A. Consistência dos dados
+**Precisa ser corrigido antes de aprofundar integrações:** assegurar que os dados apresentados no Dashboard coincidam com os módulos operacionais.
+
+Diretrizes:
+- Dashboard, alunos, planos, financeiro e check-ins devem utilizar uma única fonte de dados.
+- Não apresentar métricas demonstrativas como se fossem dados reais.
+- Identificar claramente ambientes, dados simulados e informações ainda não conectadas.
+- Evitar divergências entre totais do Dashboard e registros encontrados nas listagens.
+- Criar estados de erro quando uma métrica não puder ser calculada.
+- Garantir que filtros, períodos e regras de cálculo sejam claros e auditáveis.
+
+Dependência: esta fundação antecede dashboards conectados, relatórios, comparações entre unidades, indicadores preditivos e automações orientadas por dados.
+
+#### B. Dashboard acionável e personalizável
+**Já existe:** alunos ativos, receita mensal, check-ins, crescimento, evolução de receita, pagamentos recentes, check-ins recentes e pagamentos pendentes, atualmente com dados demonstrativos conforme documentado anteriormente.
+
+**Precisa ser melhorado:**
+- permitir escolha de período;
+- exibir comparação com período anterior;
+- exibir metas;
+- explicar exatamente o significado de “crescimento”;
+- mostrar tendência e causa provável;
+- transformar cards em links para listagens já filtradas;
+- permitir detalhamento de cada indicador;
+- fazer pagamentos pendentes abrirem diretamente a cobrança ou a ficha do aluno;
+- criar uma seção `Requer atenção`;
+- permitir personalização por função: gestor, recepção, financeiro, professor e comercial.
+
+A seção `Requer atenção` deve considerar:
+- cobranças vencidas;
+- recorrências com falha;
+- inconsistências financeiras;
+- alunos com baixa frequência;
+- alunos com risco de evasão;
+- matrículas próximas do fim;
+- alunos sem plano;
+- alunos sem treino;
+- alunos sem avaliação;
+- planos com baixa adesão;
+- falhas ou bloqueios de acesso.
+
+Dependências: consistência e fonte única dos dados, regras de cálculo auditáveis, módulos operacionais correspondentes e definição gradual de permissões por função.
+
+#### C. Ficha 360º do aluno
+A ficha 360º deve ser um dos principais diferenciais do Cfit.
+
+**Já existe e deve ser preservado:**
+- cabeçalho com identificação e status;
+- Visão geral;
+- Planos;
+- Financeiro;
+- Check-ins;
+- Treinos;
+- Histórico;
+- dados pessoais;
+- endereço;
+- contato de emergência;
+- matrículas vinculadas;
+- cobranças;
+- histórico de matrícula.
+
+**Precisa ser melhorado:**
+- reduzir repetição de dados entre o cabeçalho e a Visão geral;
+- criar um cabeçalho compacto e realmente operacional;
+- garantir que o status financeiro seja calculado com base nas cobranças;
+- substituir textos vagos, como “Clique para gerenciar”, por ações explícitas;
+- incluir ações contextuais no topo;
+- integrar relacionamento, avaliações, frequência, treino e risco de evasão;
+- transformar o histórico em uma linha do tempo completa;
+- mostrar responsáveis e usuários envolvidos nas movimentações.
+
+O resumo superior deve incluir:
+- status do aluno;
+- plano atual;
+- próximo vencimento;
+- situação financeira;
+- último check-in;
+- frequência nos últimos 30 dias;
+- treino atual;
+- próxima avaliação;
+- responsável;
+- indicador de risco de evasão.
+
+Ações contextuais sugeridas:
+- editar aluno;
+- adicionar ou trocar plano;
+- renovar matrícula;
+- trancar ou cancelar matrícula;
+- registrar pagamento;
+- registrar check-in;
+- criar contato;
+- adicionar observação;
+- atribuir treino;
+- agendar avaliação.
+
+A linha do tempo deve combinar:
+- alterações cadastrais;
+- matrícula;
+- renovação;
+- trancamento;
+- cancelamento;
+- cobranças;
+- pagamentos;
+- check-ins;
+- treinos;
+- avaliações;
+- contatos;
+- observações;
+- automações;
+- alterações realizadas por usuários.
+
+Dependências: fonte única de dados, auditoria, responsáveis/usuários identificáveis e evolução gradual dos módulos ainda ausentes.
+
+#### D. Gestão de alunos
+**Já existe:** pesquisa, filtro por ativo e inativo, tabela, cadastro, edição, inativação e acesso ao detalhe.
+
+**Precisa ser corrigido:**
+- remover IDs técnicos da tabela e não expor identificadores internos sem necessidade;
+- proteger ações como inativação;
+- solicitar motivo ao inativar;
+- registrar a inativação no histórico;
+- evitar falso estado vazio durante carregamento.
+
+**Precisa ser melhorado:**
+- adicionar colunas configuráveis;
+- melhorar filtros e segmentação;
+- permitir salvar filtros;
+- permitir compartilhamento de visões entre equipes;
+- preencher endereço automaticamente a partir do CEP;
+- melhorar validações e máscaras dos formulários.
+
+Colunas configuráveis sugeridas:
+- plano atual;
+- vencimento;
+- status financeiro;
+- último check-in;
+- frequência;
+- responsável;
+- situação do treino;
+- última avaliação;
+- risco de evasão;
+- origem;
+- unidade.
+
+Filtros rápidos sugeridos:
+- ativos;
+- inativos;
+- inadimplentes;
+- sem plano;
+- plano próximo do vencimento;
+- sem check-in há determinado período;
+- baixa frequência;
+- sem treino;
+- sem avaliação;
+- aniversariantes;
+- acesso bloqueado;
+- aplicativo não instalado;
+- com pendências cadastrais;
+- risco de evasão;
+- por responsável;
+- por plano;
+- por unidade.
+
+#### E. Planos, contratos e matrículas
+**Já existe:** listagem em cards, busca, filtro por ativo e inativo, alunos ativos, criação, edição, inativação, campos comerciais de cobrança, recorrência, fidelidade, renovação, modalidades, benefícios, regras de acesso e contrato. O fluxo de matrícula possui prévia das cobranças, preço contratado, desconto, aceite contratual e resumo de impacto.
+
+**Precisa ser melhorado:**
+- permitir comparação entre planos;
+- mostrar receita gerada, adesão e tendência;
+- verificar impacto antes de alterar um plano com alunos ativos.
+
+Editor de plano recomendado em etapas:
+1. Identidade e posicionamento.
+2. Preço e forma de cobrança.
+3. Duração, renovação e fidelidade.
+4. Modalidades e regras de acesso.
+5. Benefícios e serviços.
+6. Contrato e regras.
+7. Pré-visualização.
+8. Resumo do impacto antes da publicação.
+
+Cada card de plano pode mostrar:
+- valor;
+- mensalidade equivalente;
+- duração;
+- recorrência;
+- alunos ativos;
+- receita recorrente;
+- tendência de adesão;
+- status;
+- disponibilidade para novas matrículas.
+
+O fluxo de matrícula deve ser guiado e manter um resumo lateral com:
+- aluno;
+- plano;
+- preço;
+- desconto;
+- recorrência;
+- vencimento;
+- vigência;
+- benefícios;
+- contrato;
+- total previsto;
+- cobranças que serão geradas.
+
+Dependências: definição do modelo comercial, regras contratuais, impacto sobre cobranças, preservação de histórico e auditoria.
+
+#### F. Financeiro
+**Já existe:** indicadores, pesquisa, categorias operacionais, filtros por datas e competência, plano, pagamento, atraso e conciliação, tabela, paginação, agrupamento, pagamento individual e em lote, cancelamento com motivo, exportação, conciliação, previsão, fluxo de caixa, recorrências, central de inconsistências, auditoria e acesso à ficha do aluno.
+
+**Precisa ser corrigido ou separado:**
+- aplicar permissões por perfil.
+
+**Precisa ser melhorado:**
+- adicionar filtros por unidade e responsável quando esses domínios estiverem disponíveis;
+- ampliar relatórios financeiros e análise de recuperação;
+- aplicar permissões e auditoria aos novos perfis quando o RBAC for definido.
+
+Organização sugerida:
+- Visão geral;
+- Cobranças;
+- Recebimentos;
+- Inadimplência;
+- Recorrências;
+- Inconsistências;
+- Fluxo de caixa.
+
+Criar futuramente uma fila inteligente de recuperação baseada em:
+- dias de atraso;
+- valor;
+- histórico de pagamento;
+- quantidade de parcelas;
+- plano;
+- frequência;
+- probabilidade de recuperação;
+- prioridade comercial.
+
+Dependências: consistência financeira, competência e vencimento definidos, recorrências, permissões, auditoria e dados suficientes para modelos de prioridade.
+
+#### G. Estados de carregamento, erro e vazio
+**Precisa ser corrigido:** impedir que a interface mostre “nenhum registro” enquanto os dados ainda estão carregando.
+
+Estados obrigatórios:
+- carregando;
+- carregado com dados;
+- vazio sem registros;
+- vazio devido aos filtros;
+- erro de carregamento;
+- sem permissão;
+- módulo ainda não implementado;
+- sessão expirada.
+
+Diretrizes:
+- usar skeletons estáveis;
+- não mostrar estado vazio antes da conclusão da consulta;
+- manter filtros e paginação durante atualizações;
+- oferecer `Tentar novamente` em erros;
+- explicar como sair de um estado vazio;
+- não deixar rotas completamente brancas;
+- áreas não implementadas devem exibir página de `Em desenvolvimento`, descrição e retorno seguro;
+- em produção, ocultar módulos indisponíveis ou marcá-los claramente como `Em breve`.
+
+#### H. Busca universal e ações rápidas
+**Já existe:** a busca global aparece visualmente na Topbar, mas ainda não possui comportamento funcional.
+
+**Ainda não implementado:** transformar a busca em uma funcionalidade central capaz de localizar:
+- alunos;
+- planos;
+- matrículas;
+- cobranças;
+- pagamentos;
+- check-ins;
+- treinos;
+- avaliações;
+- relatórios;
+- configurações.
+
+Criar também uma command palette para:
+- novo aluno;
+- adicionar plano;
+- matricular aluno;
+- registrar pagamento;
+- registrar check-in;
+- agendar avaliação;
+- criar contato;
+- abrir cobrança;
+- acessar aluno;
+- executar ações frequentes.
+
+Dependências: rotas e módulos correspondentes, indexação/contrato de busca, permissões e ações operacionais estáveis.
+
+### 48.1.6 Prioridade alta após as fundações
+
+#### A. Check-ins e acessos
+**Já existe:** aba de Check-ins na ficha do aluno, API privada, histórico e registro manual conforme a seção 38.
+
+**Precisa ser melhorado:**
+- histórico de check-ins;
+- último acesso;
+- frequência por período;
+- origem da liberação;
+- liberação manual ou automática;
+- acesso por integração;
+- motivo de bloqueio;
+- equipamento utilizado;
+- resposta do equipamento;
+- unidade e local;
+- ação de contingência;
+- monitor de acesso em tempo real.
+
+O sistema deve explicar bloqueios em linguagem operacional e indicar a próxima ação.
+
+Integrações a considerar:
+- catracas;
+- leitores;
+- reconhecimento facial;
+- Wellhub;
+- TotalPass.
+
+Dependências: modelo multiunidade, política de acesso, integrações e observabilidade/auditoria de dispositivos.
+
+#### B. Customer Health Score e risco de evasão
+**Ainda não implementado:** criar um indicador explicável de saúde do aluno utilizando:
+- frequência;
+- tempo desde o último check-in;
+- atrasos;
+- recorrências com falha;
+- plano próximo do fim;
+- uso do aplicativo;
+- treino ativo;
+- avaliação;
+- contatos;
+- satisfação;
+- histórico de trancamento;
+- duração da matrícula.
+
+O indicador deve mostrar os fatores que contribuíram para a classificação e nunca ser uma caixa-preta.
+
+Dependências: consistência dos dados, frequência confiável, financeiro conectado, treinos, avaliações, relacionamento e histórico suficiente para validar as regras.
+
+### 48.1.7 Prioridade média-alta
+
+#### A. Treinos
+**Ainda não implementado:** a rota exibe uma página segura de `Em desenvolvimento` e a ficha do aluno reserva uma aba futura.
+
+Começar pela ficha do aluno:
+- treino atual;
+- professor responsável;
+- objetivo;
+- data da última atualização;
+- aderência;
+- exercícios;
+- carga;
+- séries e repetições;
+- progressão;
+- próxima revisão;
+- histórico.
+
+Depois evoluir para:
+- gestão global de fichas;
+- biblioteca de exercícios;
+- modelos de treino;
+- treinos predefinidos;
+- acompanhamento de evolução;
+- comparação entre períodos;
+- impressão e acesso pelo aplicativo.
+
+#### B. Agenda unificada
+**Ainda não implementado:** a rota exibe uma página segura de `Em desenvolvimento`.
+
+Evitar fragmentar atividades em agendas diferentes. Criar uma agenda unificada para:
+- aulas;
+- turmas;
+- avaliações;
+- contatos comerciais;
+- visitas;
+- tarefas;
+- horários de professores;
+- salas;
+- recursos.
+
+Funcionalidades esperadas:
+- visualização diária, semanal e mensal;
+- filtros por unidade, profissional e tipo;
+- disponibilidade e conflitos;
+- confirmação e lembretes;
+- estados como novo, em andamento, realizado e cancelado.
+
+#### C. Relatórios orientados a perguntas
+**Ainda não implementado:** a rota exibe uma página segura de `Em desenvolvimento`.
+
+Evitar começar por um catálogo extenso e estático. Priorizar perguntas gerenciais:
+- quais alunos estão em risco de evasão?
+- quais planos geram mais receita?
+- qual é a inadimplência por plano?
+- qual é a taxa de renovação?
+- quais horários têm maior ocupação?
+- qual é a frequência média?
+- qual é a conversão de visitas em matrículas?
+- quais alunos possuem documentos ou avaliações vencidas?
+- quais alunos são mais frequentes?
+- qual é a permanência média?
+- quais são os principais motivos de cancelamento?
+- qual é a receita por plano, modalidade e unidade?
+
+Os relatórios devem:
+- permitir filtros e detalhamento;
+- abrir as listas que originaram o indicador;
+- aceitar favoritos e visões salvas;
+- permitir exportação;
+- manter coerência com os indicadores do Dashboard.
+
+Dependências: fonte única de dados, regras de cálculo auditáveis e módulos operacionais correspondentes.
+
+#### D. Configurações
+**Ainda não implementado:** a rota exibe uma página segura de `Em desenvolvimento`.
+
+Organizar em:
+- Academia e unidades;
+- Usuários e permissões;
+- Planos e contratos;
+- Financeiro;
+- Acessos e integrações;
+- Comunicação;
+- Motivos e classificações;
+- Auditoria e segurança.
+
+Diretrizes:
+- oferecer busca;
+- explicar impacto das alterações;
+- separar parâmetros técnicos de regras do negócio;
+- evitar uma página única muito extensa;
+- permitir motivos configuráveis para cancelamento, trancamento, bloqueio e inativação;
+- permitir tags, configuração de horários e módulos opcionais;
+- registrar alterações em auditoria.
+
+#### E. Ajuda contextual e onboarding
+**Ainda não implementado:** criar onboarding diferente por função:
+- gestor;
+- recepção;
+- financeiro;
+- professor;
+- comercial.
+
+Adicionar:
+- checklist inicial;
+- ajuda contextual discreta;
+- explicações relacionadas à tela atual;
+- estados vazios educativos;
+- progresso de configuração;
+- atalhos para concluir configurações pendentes.
+
+A ajuda não deve ocupar permanentemente espaço da operação.
+
+#### F. Comparação entre unidades e performance
+**Ainda não implementado:** para operações com múltiplas unidades:
+- comparar métricas normalizadas;
+- acompanhar metas;
+- criar benchmarks internos;
+- comparar frequência, inadimplência, conversão, receita por aluno e ocupação;
+- identificar melhores práticas.
+
+Dependências: arquitetura multiacademia/multiunidade, isolamento dos dados, métricas normalizadas e fonte única confiável.
+
+### 48.1.8 Prioridade média
+
+#### A. Automações orientadas por eventos
+Considerar automações para:
+- ausência prolongada;
+- cobrança vencida;
+- recorrência rejeitada;
+- aniversário;
+- fim de plano;
+- renovação próxima;
+- avaliação vencida;
+- treino sem atualização;
+- visita sem retorno;
+- risco de evasão.
+
+As automações devem possuir explicação, histórico, responsável, estado, possibilidade de desativação, auditoria e controle de permissões.
+
+Dependências: eventos confiáveis, módulos de origem implementados, permissões e auditoria.
+
+#### B. Dashboard por função
+Criar visões específicas:
+- gestor: metas, receita, crescimento, retenção e riscos;
+- recepção: check-ins, bloqueios, pendências e agenda;
+- financeiro: cobranças, atrasos, recorrências e fluxo;
+- professor: alunos, treinos, avaliações e agenda;
+- comercial: visitas, contatos, conversão e follow-ups.
+
+Dependências: definição de perfis e permissões, módulos correspondentes e Dashboard conectado a dados reais.
+
+#### C. Auditoria explicável
+Registrar:
+- quem realizou a ação;
+- o que foi alterado;
+- quando;
+- valor anterior;
+- valor posterior;
+- motivo;
+- origem;
+- entidade afetada.
+
+A auditoria deve cobrir especialmente:
+- cadastro;
+- matrícula;
+- plano;
+- cobrança;
+- pagamento;
+- cancelamento;
+- inativação;
+- acesso;
+- configurações;
+- permissões.
+
+### 48.1.9 Prioridade baixa e itens que não devem ser priorizados
+Evitar ou deixar para depois:
+- índice alfabético A–Z como principal mecanismo de busca;
+- catálogo enorme de relatórios estáticos;
+- reprodução extensa de atalhos tradicionais por teclas de função;
+- personalizações periféricas antes de consolidar os fluxos centrais;
+- muitos ícones sem rótulos;
+- menus excessivamente densos;
+- configurações extensas em página única;
+- fragmentação de tarefas relacionadas;
+- IDs técnicos visíveis;
+- textos vagos como única indicação de ação;
+- páginas brancas;
+- ajuda ocupando espaço excessivo;
+- cópia de telas, textos ou identidade visual de concorrentes.
+
+### 48.1.10 Ordem recomendada de execução
+Esta sequência orienta o roadmap, mas permanece sujeita à validação técnica e de negócio e não autoriza execução automática:
+1. Corrigir consistência e fonte única dos dados.
+2. Corrigir estados de carregamento, erro, vazio e páginas não implementadas.
+3. Consolidar a ficha 360º e a linha do tempo do aluno.
+4. Evoluir filtros, segmentos e listagem de alunos.
+5. Completar o modelo comercial de planos, contratos e matrículas.
+6. Separar operação financeira, inadimplência, recorrência, inconsistências e projeção.
+7. Tornar o Dashboard acionável, conectado e personalizável.
+8. Implementar busca universal e command palette.
+9. Implementar check-ins e monitor de acessos.
+10. Criar Customer Health Score e risco de evasão.
+11. Implementar Treinos inicialmente dentro da ficha do aluno.
+12. Construir a Agenda unificada.
+13. Desenvolver Relatórios orientados a perguntas.
+14. Desenvolver Configurações pesquisáveis e organizadas.
+15. Adicionar automações, comparação entre unidades e dashboards por função.
+
+### 48.1.11 Critérios para futuras implementações
+Ao desenvolver qualquer item do roadmap:
+1. Inspecione a implementação existente antes de propor mudanças.
+2. Preserve a identidade visual do Cfit.
+3. Reutilize componentes e padrões já consolidados.
+4. Verifique responsividade, acessibilidade e estados de interação.
+5. Não implemente dados demonstrativos como se fossem reais.
+6. Inclua carregamento, vazio, erro e sem permissão.
+7. Avalie permissões e auditoria.
+8. Mantenha consistência entre módulos.
+9. Prefira ações explícitas e linguagem clara.
+10. Valide visualmente o resultado.
+11. Teste o fluxo principal e casos de borda.
+12. Não implemente todo o roadmap em uma única alteração.
+13. Transforme cada prioridade em tarefas menores, verificáveis e com critérios de aceite.
+
+---
+
+## 49. Protocolo de encerramento da sessão
+Frase-gatilho exata:
+```text
+Vamos encerrar por hoje
+```
+
+Ao receber essa frase, NÃO executar imediatamente alterações, commit ou push.
+
+Primeiro:
+1. revisar o trabalho realizado na sessão;
+2. consultar `git status` e o diff atual;
+3. apresentar um resumo curto do que será registrado no `AGENTS.md`, dos testes relevantes e dos arquivos que entrarão no commit;
+4. perguntar explicitamente se o usuário realmente deseja prosseguir com o encerramento completo.
+
+Somente após uma confirmação clara do usuário:
+1. atualizar o `AGENTS.md` com fatos confirmados no código e no histórico da sessão;
+2. preservar decisões anteriores que continuem válidas;
+3. registrar o estado atual, validações executadas, pendências reais e o ponto exato de retomada;
+4. não incluir hipóteses, tarefas concluídas como pendentes ou informações não verificadas;
+5. executar os testes e verificações relevantes possíveis;
+6. revisar `git diff`, `git diff --check` e `git status`;
+7. garantir que secrets, arquivos `.env` e alterações alheias ao trabalho não sejam incluídos;
+8. criar um commit com mensagem coerente com as mudanças da sessão;
+9. enviar o commit para `origin main`;
+10. informar o hash do commit, o resultado do push e qualquer validação que não tenha sido possível executar.
+
+A confirmação vale apenas para o encerramento solicitado naquela ocasião. A frase-gatilho deve exigir nova confirmação em cada sessão e não concede autorização permanente para commits ou pushes futuros.
+
+Se houver alterações inesperadas, conflito, teste relevante falhando ou dúvida sobre o que deve entrar no commit, interromper o encerramento antes do commit/push e pedir orientação.
+
+---
+
+## 50. Instrução final
 Antes de qualquer alteração no Cfit:
 ```text
 Leia AGENTS.md.

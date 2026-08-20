@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    cancelCharge,
     getStudentCharges,
-    payCharge,
     type Charge,
 } from "../services/financial.service";
 
@@ -26,16 +24,24 @@ import {
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import StudentForm from "../components/StudentForm";
 import Modal from "../../../components/Modal";
+import {
+    getRequestErrorKind,
+    type RequestErrorKind,
+} from "../../../services/http/request-error";
 import AddEnrollmentModal from "../components/AddEnrollmentModal";
 import ManageEnrollmentModal from "../components/ManageEnrollmentModal";
 
-import { getStudent } from "../services/student.service";
+import {
+    getStudent,
+    getStudentOperationalSummary,
+    getStudentTimeline,
+    type StudentOperationalSummary,
+    type StudentTimelineEvent,
+} from "../services/student.service";
 
 import {
-    getStudentEnrollmentHistory,
     getStudentEnrollments,
     type Enrollment,
-    type EnrollmentHistory,
 } from "../services/enrollment.service";
 
 import type { Student } from "../types/student";
@@ -84,7 +90,35 @@ const tabs: {
             id: "history",
             label: "Histórico",
         },
-    ];
+];
+
+
+function OperationalItem({
+    label,
+    value,
+    tone = "default",
+}: {
+    label: string;
+    value: string;
+    tone?: "default" | "danger" | "muted";
+}) {
+    const valueClass = {
+        default: "text-slate-900",
+        danger: "text-red-600",
+        muted: "text-slate-500",
+    }[tone];
+
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                {label}
+            </p>
+            <p className={`mt-1 text-sm font-semibold ${valueClass}`}>
+                {value}
+            </p>
+        </div>
+    );
+}
 
 
 export default function StudentDetailsPage() {
@@ -97,6 +131,14 @@ export default function StudentDetailsPage() {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    const [studentErrorKind, setStudentErrorKind] =
+        useState<RequestErrorKind>("generic");
+    const [operationalSummary, setOperationalSummary] =
+        useState<StudentOperationalSummary | null>(null);
+    const [loadingOperationalSummary, setLoadingOperationalSummary] =
+        useState(false);
+    const [operationalSummaryError, setOperationalSummaryError] =
+        useState(false);
 
     const [activeTab, setActiveTab] =
         useState<StudentTab>("overview");
@@ -106,6 +148,8 @@ export default function StudentDetailsPage() {
 
     const [loadingEnrollments, setLoadingEnrollments] =
         useState(false);
+    const [enrollmentsErrorKind, setEnrollmentsErrorKind] =
+        useState<RequestErrorKind | null>(null);
     const [charges, setCharges] =
         useState<Charge[]>([]);
 
@@ -115,14 +159,8 @@ export default function StudentDetailsPage() {
     const [chargesError, setChargesError] =
         useState(false);
 
-    const [payingChargeId, setPayingChargeId] =
-        useState<string | null>(null);
-
-    const [cancelingChargeId, setCancelingChargeId] =
-        useState<string | null>(null);
-
-    const [enrollmentHistory, setEnrollmentHistory] =
-        useState<EnrollmentHistory[]>([]);
+    const [timeline, setTimeline] =
+        useState<StudentTimelineEvent[]>([]);
 
     const [loadingHistory, setLoadingHistory] =
         useState(false);
@@ -173,6 +211,7 @@ export default function StudentDetailsPage() {
     async function loadStudent() {
         if (!id) {
             setError(true);
+            setStudentErrorKind("not_found");
             setLoading(false);
             return;
         }
@@ -186,7 +225,9 @@ export default function StudentDetailsPage() {
             setStudent(data);
         } catch (error) {
             console.error(error);
+            setStudent(null);
             setError(true);
+            setStudentErrorKind(getRequestErrorKind(error));
         } finally {
             setLoading(false);
         }
@@ -203,6 +244,7 @@ export default function StudentDetailsPage() {
 
         try {
             setLoadingEnrollments(true);
+            setEnrollmentsErrorKind(null);
 
             const data =
                 await getStudentEnrollments(id);
@@ -212,6 +254,7 @@ export default function StudentDetailsPage() {
             console.error(error);
 
             setEnrollments([]);
+            setEnrollmentsErrorKind(getRequestErrorKind(error));
         } finally {
             setLoadingEnrollments(false);
         }
@@ -241,67 +284,7 @@ export default function StudentDetailsPage() {
     }
 
 
-    async function handlePayCharge(charge: Charge) {
-        const confirmed = window.confirm(
-            `Confirmar o pagamento de ${formatMoney(charge.amount)}?`,
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            setPayingChargeId(charge.id);
-
-            await payCharge(charge.id);
-
-            await Promise.all([
-                loadCharges(),
-                loadStudent(),
-            ]);
-        } catch (error) {
-            console.error(error);
-
-            window.alert(
-                "Não foi possível registrar o pagamento. Tente novamente.",
-            );
-        } finally {
-            setPayingChargeId(null);
-        }
-    }
-
-
-    async function handleCancelCharge(charge: Charge) {
-        const confirmed = window.confirm(
-            `Cancelar a cobrança "${charge.description}" no valor de ${formatMoney(charge.amount)}?`,
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
-        try {
-            setCancelingChargeId(charge.id);
-
-            await cancelCharge(charge.id);
-
-            await Promise.all([
-                loadCharges(),
-                loadStudent(),
-            ]);
-        } catch (error) {
-            console.error(error);
-
-            window.alert(
-                "Não foi possível cancelar a cobrança. Tente novamente.",
-            );
-        } finally {
-            setCancelingChargeId(null);
-        }
-    }
-
-
-    async function loadEnrollmentHistory() {
+    async function loadTimeline() {
         if (!id) {
             return;
         }
@@ -310,17 +293,38 @@ export default function StudentDetailsPage() {
             setLoadingHistory(true);
             setHistoryError(false);
 
-            const data =
-                await getStudentEnrollmentHistory(id);
+            const data = await getStudentTimeline(id);
 
-            setEnrollmentHistory(data);
+            setTimeline(data);
         } catch (error) {
             console.error(error);
 
-            setEnrollmentHistory([]);
+            setTimeline([]);
             setHistoryError(true);
         } finally {
             setLoadingHistory(false);
+        }
+    }
+
+
+    async function loadOperationalSummary() {
+        if (!id) {
+            return;
+        }
+
+        try {
+            setLoadingOperationalSummary(true);
+            setOperationalSummaryError(false);
+
+            const data = await getStudentOperationalSummary(id);
+
+            setOperationalSummary(data);
+        } catch (error) {
+            console.error(error);
+            setOperationalSummary(null);
+            setOperationalSummaryError(true);
+        } finally {
+            setLoadingOperationalSummary(false);
         }
     }
 
@@ -371,7 +375,8 @@ export default function StudentDetailsPage() {
     useEffect(() => {
         loadEnrollments();
         loadCharges();
-        loadEnrollmentHistory();
+        loadTimeline();
+        loadOperationalSummary();
     }, [id]);
 
 
@@ -447,6 +452,8 @@ export default function StudentDetailsPage() {
 
             setCheckInsPage(1);
             await loadCheckIns(1);
+            await loadOperationalSummary();
+            await loadTimeline();
 
             setCheckInNotes("");
             setShowCheckInModal(false);
@@ -557,10 +564,10 @@ export default function StudentDetailsPage() {
 
 
     function getHistoryEventStyle(
-        eventType: EnrollmentHistory["event_type"],
+        eventType: StudentTimelineEvent["type"],
     ) {
         switch (eventType) {
-            case "created":
+            case "enrollment_created":
                 return {
                     icon: PlusCircle,
                     iconClass:
@@ -569,7 +576,7 @@ export default function StudentDetailsPage() {
                         "bg-emerald-50 text-emerald-700",
                 };
 
-            case "frozen":
+            case "enrollment_frozen":
                 return {
                     icon: PauseCircle,
                     iconClass:
@@ -578,7 +585,7 @@ export default function StudentDetailsPage() {
                         "bg-blue-50 text-blue-700",
                 };
 
-            case "reactivated":
+            case "enrollment_reactivated":
                 return {
                     icon: PlayCircle,
                     iconClass:
@@ -587,7 +594,8 @@ export default function StudentDetailsPage() {
                         "bg-emerald-50 text-emerald-700",
                 };
 
-            case "canceled":
+            case "enrollment_canceled":
+            case "charge_canceled":
                 return {
                     icon: CircleX,
                     iconClass:
@@ -596,13 +604,37 @@ export default function StudentDetailsPage() {
                         "bg-red-50 text-red-700",
                 };
 
-            case "finished":
+            case "enrollment_finished":
+            case "payment_registered":
                 return {
                     icon: CircleCheck,
                     iconClass:
                         "bg-slate-100 text-slate-600",
                     badgeClass:
                         "bg-slate-100 text-slate-600",
+                };
+
+            case "checkin_registered":
+                return {
+                    icon: DoorOpen,
+                    iconClass:
+                        "bg-blue-50 text-blue-600",
+                    badgeClass:
+                        "bg-blue-50 text-blue-700",
+                };
+
+            case "student_deactivated":
+                return {
+                    icon: CircleX,
+                    iconClass: "bg-red-50 text-red-600",
+                    badgeClass: "bg-red-50 text-red-700",
+                };
+
+            case "student_reactivated":
+                return {
+                    icon: PlayCircle,
+                    iconClass: "bg-emerald-50 text-emerald-600",
+                    badgeClass: "bg-emerald-50 text-emerald-700",
                 };
 
             default:
@@ -637,19 +669,41 @@ export default function StudentDetailsPage() {
     return (
         <DashboardLayout>
             {loading ? (
-                <div className="py-10 text-sm text-slate-500">
-                    Carregando aluno...
+                <div className="space-y-4" aria-label="Carregando ficha do aluno">
+                    <div className="h-40 animate-pulse rounded-[1.6rem] bg-slate-100" />
+                    <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="h-48 animate-pulse rounded-2xl bg-slate-100" />
+                        <div className="h-48 animate-pulse rounded-2xl bg-slate-100" />
+                    </div>
                 </div>
             ) : error || !student ? (
-                <div className="py-10">
+                <div className="rounded-2xl border border-slate-200 bg-white p-8">
                     <h2 className="text-xl font-bold text-slate-900">
-                        Aluno não encontrado
+                        {studentErrorKind === "forbidden"
+                            ? "Acesso não permitido"
+                            : studentErrorKind === "not_found"
+                                ? "Aluno não encontrado"
+                                : "Não foi possível carregar o aluno"}
                     </h2>
 
                     <p className="mt-2 text-sm text-slate-500">
-                        Não foi possível carregar os dados deste
-                        aluno.
+                        {studentErrorKind === "forbidden"
+                            ? "Seu usuário não possui permissão para consultar esta ficha."
+                            : studentErrorKind === "not_found"
+                                ? "O cadastro pode ter sido removido ou o endereço está incorreto."
+                                : "Verifique a conexão e tente novamente."}
                     </p>
+
+                    {studentErrorKind === "generic" && (
+                        <button
+                            type="button"
+                            onClick={loadStudent}
+                            className="mt-4 mr-5 text-sm font-semibold text-red-600 hover:text-red-700"
+                        >
+                            Tentar novamente
+                        </button>
+                    )}
 
                     <button
                         type="button"
@@ -770,7 +824,27 @@ export default function StudentDetailsPage() {
                                 </div>
                             </div>
 
-                            <div className="shrink-0">
+                            <div className="flex shrink-0 flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowEnrollmentModal(true)
+                                    }
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                >
+                                    <PlusCircle size={16} />
+                                    Adicionar plano
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCheckInModal(true)}
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    <DoorOpen size={16} />
+                                    Registrar check-in
+                                </button>
+
                                 <button
                                     type="button"
                                     onClick={() => setOpenEditModal(true)}
@@ -780,6 +854,99 @@ export default function StudentDetailsPage() {
                                     Editar aluno
                                 </button>
                             </div>
+                        </div>
+
+                        <div className="mt-6 border-t border-slate-100 pt-5">
+                            <div className="mb-4 flex items-center justify-between gap-4">
+                                <div>
+                                    <h2 className="text-sm font-semibold text-slate-900">
+                                        Resumo operacional
+                                    </h2>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Situação atual calculada a partir dos dados registrados.
+                                    </p>
+                                </div>
+
+                                {operationalSummaryError && (
+                                    <button
+                                        type="button"
+                                        onClick={loadOperationalSummary}
+                                        className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                    >
+                                        Tentar novamente
+                                    </button>
+                                )}
+                            </div>
+
+                            {loadingOperationalSummary ? (
+                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Carregando resumo operacional">
+                                    {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
+                                        <div key={item} className="h-20 animate-pulse rounded-xl bg-slate-100" />
+                                    ))}
+                                </div>
+                            ) : operationalSummaryError || !operationalSummary ? (
+                                <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                                    O resumo operacional não está disponível no momento.
+                                </p>
+                            ) : (
+                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                    <OperationalItem
+                                        label="Plano atual"
+                                        value={
+                                            operationalSummary.active_plans.length > 0
+                                                ? operationalSummary.active_plans
+                                                    .map((plan) => plan.name)
+                                                    .join(", ")
+                                                : "Sem plano ativo"
+                                        }
+                                    />
+                                    <OperationalItem
+                                        label="Próximo vencimento"
+                                        value={
+                                            operationalSummary.next_charge
+                                                ? `${formatDate(operationalSummary.next_charge.due_date)} · ${formatMoney(operationalSummary.next_charge.amount)}`
+                                                : "Sem cobrança em aberto"
+                                        }
+                                        tone={
+                                            operationalSummary.next_charge?.status === "overdue"
+                                                ? "danger"
+                                                : "default"
+                                        }
+                                    />
+                                    <OperationalItem
+                                        label="Último check-in"
+                                        value={
+                                            operationalSummary.latest_checkin_at
+                                                ? formatDateTime(operationalSummary.latest_checkin_at)
+                                                : "Nenhum check-in"
+                                        }
+                                    />
+                                    <OperationalItem
+                                        label="Frequência · 30 dias"
+                                        value={`${operationalSummary.checkins_last_30_days} ${operationalSummary.checkins_last_30_days === 1 ? "check-in" : "check-ins"}`}
+                                    />
+                                    <OperationalItem
+                                        label="Treino atual"
+                                        value="Ainda não disponível"
+                                        tone="muted"
+                                    />
+                                    <OperationalItem
+                                        label="Próxima avaliação"
+                                        value="Ainda não disponível"
+                                        tone="muted"
+                                    />
+                                    <OperationalItem
+                                        label="Responsável"
+                                        value="Ainda não disponível"
+                                        tone="muted"
+                                    />
+                                    <OperationalItem
+                                        label="Risco de evasão"
+                                        value="Ainda não calculado"
+                                        tone="muted"
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -1042,8 +1209,32 @@ export default function StudentDetailsPage() {
                             </div>
 
                             {loadingEnrollments ? (
-                                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
-                                    Carregando planos...
+                                <div className="space-y-3" aria-label="Carregando planos do aluno">
+                                    {[1, 2].map((item) => (
+                                        <div key={item} className="h-32 animate-pulse rounded-2xl bg-slate-100" />
+                                    ))}
+                                </div>
+                            ) : enrollmentsErrorKind ? (
+                                <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+                                    <h3 className="font-semibold text-red-700">
+                                        {enrollmentsErrorKind === "forbidden"
+                                            ? "Acesso não permitido"
+                                            : "Não foi possível carregar os planos"}
+                                    </h3>
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {enrollmentsErrorKind === "forbidden"
+                                            ? "Seu usuário não possui permissão para consultar as matrículas."
+                                            : "Verifique a conexão e tente novamente."}
+                                    </p>
+                                    {enrollmentsErrorKind !== "forbidden" && (
+                                        <button
+                                            type="button"
+                                            onClick={loadEnrollments}
+                                            className="mt-4 text-sm font-semibold text-red-700 underline underline-offset-4"
+                                        >
+                                            Tentar novamente
+                                        </button>
+                                    )}
                                 </div>
                             ) : enrollments.length === 0 ? (
                                 <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -1166,8 +1357,13 @@ export default function StudentDetailsPage() {
                             </div>
 
                             {loadingCharges ? (
-                                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
-                                    Carregando financeiro...
+                                <div className="space-y-3" aria-label="Carregando financeiro do aluno">
+                                    <div className="grid gap-3 md:grid-cols-3">
+                                        {[1, 2, 3].map((item) => (
+                                            <div key={item} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+                                        ))}
+                                    </div>
+                                    <div className="h-40 animate-pulse rounded-2xl bg-slate-100" />
                                 </div>
                             ) : chargesError ? (
                                 <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
@@ -1176,8 +1372,16 @@ export default function StudentDetailsPage() {
                                     </h3>
 
                                     <p className="mt-1 text-sm text-red-600">
-                                        Tente atualizar a página.
+                                        Verifique a conexão e tente novamente.
                                     </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={loadCharges}
+                                        className="mt-4 text-sm font-semibold text-red-700 underline underline-offset-4"
+                                    >
+                                        Tentar novamente
+                                    </button>
                                 </div>
                             ) : (
                                 <>
@@ -1274,9 +1478,6 @@ export default function StudentDetailsPage() {
                                                             <th className="px-6 py-4">
                                                                 Pagamento
                                                             </th>
-                                                            <th className="px-6 py-4 text-right">
-                                                                Ações
-                                                            </th>
                                                         </tr>
                                                     </thead>
 
@@ -1326,48 +1527,6 @@ export default function StudentDetailsPage() {
                                                                         : "—"}
                                                                 </td>
 
-                                                                <td className="px-6 py-4 text-right">
-                                                                    {(charge.status === "pending" ||
-                                                                        charge.status === "overdue") ? (
-                                                                        <div className="flex items-center justify-end gap-2">
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() =>
-                                                                                    handlePayCharge(charge)
-                                                                                }
-                                                                                disabled={
-                                                                                    payingChargeId === charge.id ||
-                                                                                    cancelingChargeId === charge.id
-                                                                                }
-                                                                                className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                            >
-                                                                                {payingChargeId === charge.id
-                                                                                    ? "Registrando..."
-                                                                                    : "Registrar pagamento"}
-                                                                            </button>
-
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() =>
-                                                                                    handleCancelCharge(charge)
-                                                                                }
-                                                                                disabled={
-                                                                                    payingChargeId === charge.id ||
-                                                                                    cancelingChargeId === charge.id
-                                                                                }
-                                                                                className="inline-flex h-9 items-center justify-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                            >
-                                                                                {cancelingChargeId === charge.id
-                                                                                    ? "Cancelando..."
-                                                                                    : "Cancelar"}
-                                                                            </button>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="text-slate-400">
-                                                                            —
-                                                                        </span>
-                                                                    )}
-                                                                </td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -1412,8 +1571,10 @@ export default function StudentDetailsPage() {
                             </div>
 
                             {loadingCheckIns ? (
-                                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
-                                    Carregando check-ins...
+                                <div className="space-y-3" aria-label="Carregando check-ins do aluno">
+                                    {[1, 2, 3].map((item) => (
+                                        <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />
+                                    ))}
                                 </div>
                             ) : checkInsError ? (
                                 <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
@@ -1580,14 +1741,15 @@ export default function StudentDetailsPage() {
                                 </h2>
 
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Linha do tempo das movimentações
-                                    realizadas nas matrículas.
+                                    Matrículas, cobranças, pagamentos e check-ins em uma única sequência.
                                 </p>
                             </div>
 
                             {loadingHistory ? (
-                                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
-                                    Carregando histórico...
+                                <div className="space-y-3" aria-label="Carregando histórico do aluno">
+                                    {[1, 2, 3].map((item) => (
+                                        <div key={item} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+                                    ))}
                                 </div>
                             ) : historyError ? (
                                 <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
@@ -1597,10 +1759,18 @@ export default function StudentDetailsPage() {
                                     </h3>
 
                                     <p className="mt-1 text-sm text-red-600">
-                                        Tente atualizar a página.
+                                        Verifique a conexão e tente novamente.
                                     </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={loadTimeline}
+                                        className="mt-4 text-sm font-semibold text-red-700 underline underline-offset-4"
+                                    >
+                                        Tentar novamente
+                                    </button>
                                 </div>
-                            ) : enrollmentHistory.length === 0 ? (
+                            ) : timeline.length === 0 ? (
                                 <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
                                         <History size={20} />
@@ -1611,19 +1781,17 @@ export default function StudentDetailsPage() {
                                     </h3>
 
                                     <p className="mt-1 text-sm text-slate-500">
-                                        Ainda não existem
-                                        movimentações registradas para
-                                        este aluno.
+                                        Ainda não existem eventos operacionais registrados para este aluno.
                                     </p>
                                 </div>
                             ) : (
                                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                                     <div className="space-y-0">
-                                        {enrollmentHistory.map(
+                                        {timeline.map(
                                             (historyItem, index) => {
                                                 const eventStyle =
                                                     getHistoryEventStyle(
-                                                        historyItem.event_type,
+                                                        historyItem.type,
                                                     );
 
                                                 const EventIcon =
@@ -1631,7 +1799,7 @@ export default function StudentDetailsPage() {
 
                                                 const isLast =
                                                     index ===
-                                                    enrollmentHistory.length -
+                                                    timeline.length -
                                                     1;
 
                                                 return (
@@ -1668,7 +1836,7 @@ export default function StudentDetailsPage() {
                                                                     <div className="flex flex-wrap items-center gap-2">
                                                                         <h3 className="font-semibold text-slate-900">
                                                                             {
-                                                                                historyItem.event_label
+                                                                                historyItem.title
                                                                             }
                                                                         </h3>
 
@@ -1676,7 +1844,7 @@ export default function StudentDetailsPage() {
                                                                             className={`rounded-full px-2.5 py-1 text-xs font-semibold ${eventStyle.badgeClass}`}
                                                                         >
                                                                             {
-                                                                                historyItem.plan_name
+                                                                                historyItem.category
                                                                             }
                                                                         </span>
                                                                     </div>
@@ -1688,6 +1856,16 @@ export default function StudentDetailsPage() {
                                                                             }
                                                                         </p>
                                                                     )}
+
+                                                                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                                                                        <span>{historyItem.context}</span>
+                                                                        <span aria-hidden="true">•</span>
+                                                                        <span>
+                                                                            {historyItem.actor_name
+                                                                                ? `Por ${historyItem.actor_name}`
+                                                                                : "Responsável não registrado"}
+                                                                        </span>
+                                                                    </div>
                                                                 </div>
 
                                                                 <div className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-500">
@@ -1698,7 +1876,7 @@ export default function StudentDetailsPage() {
                                                                     />
 
                                                                     {formatDateTime(
-                                                                        historyItem.created_at,
+                                                                        historyItem.occurred_at,
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -1745,7 +1923,8 @@ export default function StudentDetailsPage() {
                     }
                     onSuccess={async () => {
                         await loadEnrollments();
-                        await loadEnrollmentHistory();
+                        await loadTimeline();
+                        await loadOperationalSummary();
                     }}
                 />
             )}
@@ -1760,7 +1939,8 @@ export default function StudentDetailsPage() {
                     }
                     onSuccess={async () => {
                         await loadEnrollments();
-                        await loadEnrollmentHistory();
+                        await loadTimeline();
+                        await loadOperationalSummary();
 
                         setSelectedEnrollment(null);
                     }}

@@ -1,64 +1,66 @@
-import {
-    CheckCircle2,
-    Clock3,
-    AlertCircle,
-} from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
-const payments = [
+import type { Charge } from "@/features/students/services/financial.service";
+
+
+type PaymentItem = Pick<
+    Charge,
+    "id" | "student" | "student_name" | "plan_name" | "amount" | "payment_method"
+>;
+
+
+type RecentPaymentsProps = {
+    payments?: PaymentItem[];
+    loading?: boolean;
+    error?: boolean;
+    onRetry?: () => void;
+};
+
+
+const paymentMethodLabels: Record<string, string> = {
+    pix: "Pix",
+    cash: "Dinheiro",
+    debit_card: "Cartão de débito",
+    credit_card: "Cartão de crédito",
+    bank_transfer: "Transferência bancária",
+};
+
+
+const demoPayments: PaymentItem[] = [
     {
-        name: "Carlos Henrique",
-        plan: "Plano Mensal",
-        value: "R$ 119,90",
-        status: "Pago",
+        id: "demo-1",
+        student: "",
+        student_name: "Carlos Henrique",
+        plan_name: "Plano Mensal",
+        amount: "119.90",
+        payment_method: "pix",
     },
     {
-        name: "Mariana Souza",
-        plan: "Plano Trimestral",
-        value: "R$ 299,90",
-        status: "Pago",
-    },
-    {
-        name: "Lucas Almeida",
-        plan: "Plano Mensal",
-        value: "R$ 119,90",
-        status: "Pendente",
-    },
-    {
-        name: "Fernanda Lima",
-        plan: "Plano Semestral",
-        value: "R$ 549,90",
-        status: "Atrasado",
+        id: "demo-2",
+        student: "",
+        student_name: "Mariana Souza",
+        plan_name: "Plano Trimestral",
+        amount: "299.90",
+        payment_method: "credit_card",
     },
 ];
 
-function Status({ status }: { status: string }) {
-    if (status === "Pago") {
-        return (
-            <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
-                <CheckCircle2 size={16} />
-                Pago
-            </span>
-        );
-    }
 
-    if (status === "Pendente") {
-        return (
-            <span className="flex items-center gap-1.5 text-sm font-medium text-amber-600">
-                <Clock3 size={16} />
-                Pendente
-            </span>
-        );
-    }
-
-    return (
-        <span className="flex items-center gap-1.5 text-sm font-medium text-red-600">
-            <AlertCircle size={16} />
-            Atrasado
-        </span>
-    );
+function formatMoney(value: string) {
+    return Number(value).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+    });
 }
 
-export default function RecentPayments() {
+
+export default function RecentPayments({
+    payments = demoPayments,
+    loading = false,
+    error = false,
+    onRetry = () => undefined,
+}: RecentPaymentsProps) {
     return (
         <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:p-6">
             <div className="mb-5">
@@ -67,36 +69,70 @@ export default function RecentPayments() {
                 </h2>
 
                 <p className="mt-1 text-xs text-slate-500">
-                    Últimas movimentações registradas
+                    Últimos recebimentos registrados
                 </p>
             </div>
 
-            <div className="divide-y divide-slate-100">
-                {payments.map((payment) => (
-                    <div
-                        key={payment.name}
-                        className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
+            {loading ? (
+                <div className="space-y-3" aria-label="Carregando pagamentos recentes">
+                    {[1, 2, 3].map((item) => (
+                        <div key={item} className="h-14 animate-pulse rounded-xl bg-slate-100" />
+                    ))}
+                </div>
+            ) : error ? (
+                <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
+                    <p>Não foi possível carregar os pagamentos recentes.</p>
+                    <button
+                        type="button"
+                        onClick={onRetry}
+                        className="mt-2 font-semibold underline underline-offset-4"
                     >
-                        <div className="min-w-0">
-                            <p className="truncate font-semibold text-slate-900">
-                                {payment.name}
-                            </p>
+                        Tentar novamente
+                    </button>
+                </div>
+            ) : payments.length === 0 ? (
+                <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+                    Nenhum pagamento foi registrado até o momento.
+                </div>
+            ) : (
+                <div className="divide-y divide-slate-100">
+                    {payments.map((payment) => (
+                        <Link
+                            key={payment.id}
+                            to={payment.student
+                                ? `/students/${payment.student}`
+                                : "#"}
+                            onClick={(event) => {
+                                if (!payment.student) event.preventDefault();
+                            }}
+                            className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
+                        >
+                            <div className="min-w-0">
+                                <p className="truncate font-semibold text-slate-900">
+                                    {payment.student_name}
+                                </p>
 
-                            <p className="text-sm text-slate-500">
-                                {payment.plan}
-                            </p>
-                        </div>
+                                <p className="truncate text-sm text-slate-500">
+                                    {payment.plan_name}
+                                </p>
+                            </div>
 
-                        <div className="text-right">
-                            <p className="font-semibold text-slate-900">
-                                {payment.value}
-                            </p>
+                            <div className="text-right">
+                                <p className="font-semibold text-slate-900">
+                                    {formatMoney(payment.amount)}
+                                </p>
 
-                            <Status status={payment.status} />
-                        </div>
-                    </div>
-                ))}
-            </div>
+                                <span className="flex items-center justify-end gap-1.5 text-xs font-medium text-emerald-600">
+                                    <CheckCircle2 size={14} />
+                                    {payment.payment_method
+                                        ? paymentMethodLabels[payment.payment_method]
+                                        : "Pago"}
+                                </span>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

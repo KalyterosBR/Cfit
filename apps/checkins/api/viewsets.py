@@ -1,4 +1,8 @@
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from django.utils import timezone
 
 from apps.checkins.api.serializers import CheckInSerializer
 from apps.checkins.models import CheckIn
@@ -29,3 +33,24 @@ class CheckInViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="dashboard-summary",
+    )
+    def dashboard_summary(self, request):
+        queryset = self.get_queryset()
+        recent_checkins = queryset[:4]
+
+        return Response(
+            {
+                "today_count": queryset.filter(
+                    checked_in_at__date=timezone.localdate(),
+                ).count(),
+                "recent_checkins": self.get_serializer(
+                    recent_checkins,
+                    many=True,
+                ).data,
+            }
+        )

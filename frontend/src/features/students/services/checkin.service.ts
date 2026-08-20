@@ -28,6 +28,12 @@ export interface CheckInsResponse {
 }
 
 
+export interface DashboardCheckInSummary {
+    today_count: number;
+    recent_checkins: CheckIn[];
+}
+
+
 export async function getStudentCheckIns(
     studentId: string,
     page: number,
@@ -57,6 +63,15 @@ export async function createCheckIn(
             source: "manual",
             notes,
         },
+    );
+
+    return response.data;
+}
+
+
+export async function getDashboardCheckInSummary(): Promise<DashboardCheckInSummary> {
+    const response = await Api.get<DashboardCheckInSummary>(
+        "/checkins/dashboard-summary/",
     );
 
     return response.data;

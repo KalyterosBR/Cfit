@@ -19,10 +19,66 @@ type StudentPayload = {
     emergency_phone: string | null;
 };
 
-export async function getStudents(search = "") {
+export type StudentStatus = "all" | "active" | "inactive";
+export type StudentSegment =
+    | "all"
+    | "defaulting"
+    | "without_plan"
+    | "without_recent_checkin";
+
+export interface StudentOperationalSummary {
+    active_plans: Array<{
+        id: string;
+        name: string;
+    }>;
+    next_charge: {
+        id: string;
+        due_date: string;
+        amount: string;
+        status: "pending" | "overdue";
+    } | null;
+    latest_checkin_at: string | null;
+    checkins_last_30_days: number;
+}
+
+export type StudentTimelineEventType =
+    | "enrollment_created"
+    | "enrollment_frozen"
+    | "enrollment_reactivated"
+    | "enrollment_canceled"
+    | "enrollment_finished"
+    | "charge_created"
+    | "payment_registered"
+    | "charge_canceled"
+    | "checkin_registered"
+    | "student_deactivated"
+    | "student_reactivated";
+
+export interface StudentTimelineEvent {
+    id: string;
+    type: StudentTimelineEventType;
+    category: "Matrícula" | "Financeiro" | "Check-in" | "Cadastro";
+    title: string;
+    description: string;
+    occurred_at: string;
+    context: string;
+    actor_name: string | null;
+}
+
+
+export async function getStudents(
+    search = "",
+    status: StudentStatus = "all",
+    segment: StudentSegment = "all",
+) {
     const response = await Api.get("/students/", {
         params: {
             search,
+            active:
+                status === "all"
+                    ? undefined
+                    : status === "active",
+            segment: segment === "all" ? undefined : segment,
         },
     });
 
@@ -60,9 +116,10 @@ export async function updateStudent(
     return response.data;
 }
 
-export async function deactivateStudent(id: string) {
+export async function deactivateStudent(id: string, reason: string) {
     const response = await Api.post(
         `/students/${id}/deactivate/`,
+        { reason },
     );
 
     return response.data;
@@ -78,4 +135,38 @@ export async function activateStudent(id: string) {
 
 export async function deleteStudent(id: string) {
     await Api.delete(`/students/${id}/`);
+}
+
+export async function getStudentOperationalSummary(
+    id: string,
+): Promise<StudentOperationalSummary> {
+    const response = await Api.get<StudentOperationalSummary>(
+        `/students/${id}/operational-summary/`,
+    );
+
+    return response.data;
+}
+
+export async function getStudentTimeline(
+    id: string,
+): Promise<StudentTimelineEvent[]> {
+    const response = await Api.get<{
+        events: StudentTimelineEvent[];
+    }>(`/students/${id}/timeline/`);
+
+    return response.data.events;
+}
+
+
+export async function getActiveStudentsCount(): Promise<number> {
+    const response = await Api.get<{ count: number }>(
+        "/students/summary/",
+        {
+            params: {
+                active: true,
+            },
+        },
+    );
+
+    return response.data.count;
 }

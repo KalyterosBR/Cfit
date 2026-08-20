@@ -1,3 +1,5 @@
+from django.db.models import Count, Q
+
 from rest_framework import filters, viewsets
 
 from apps.plans.models import Plan
@@ -29,7 +31,13 @@ class PlanViewSet(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        queryset = Plan.objects.all()
+        queryset = Plan.objects.annotate(
+            active_students_count=Count(
+                "enrollments__student",
+                filter=Q(enrollments__status="active"),
+                distinct=True,
+            )
+        )
 
         if self.action != "list":
             return queryset

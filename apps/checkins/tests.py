@@ -119,3 +119,31 @@ class CheckInApiTests(APITestCase):
                 notes="Entrada pela recepção",
             ).exists(),
         )
+
+    def test_dashboard_summary_returns_today_count_and_recent_checkins(self):
+        yesterday = CheckIn.objects.create(
+            student=self.student,
+            checked_in_at=timezone.now() - timedelta(days=1),
+        )
+        current = CheckIn.objects.create(
+            student=self.other_student,
+            checked_in_at=timezone.now(),
+            source=CheckIn.Source.ACCESS_CONTROL,
+        )
+
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get(
+            reverse("checkin-dashboard-summary"),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["today_count"], 1)
+        self.assertEqual(
+            response.data["recent_checkins"][0]["id"],
+            str(current.id),
+        )
+        self.assertIn(
+            str(yesterday.id),
+            [item["id"] for item in response.data["recent_checkins"]],
+        )

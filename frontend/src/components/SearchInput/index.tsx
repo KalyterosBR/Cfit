@@ -7,8 +7,8 @@ export default function SearchInput({
 }: SearchInputProps) {
     return (
         <input
-            {...props}
             placeholder="Pesquisar..."
+            {...props}
             className={`
                 ${searchInputStyles}
                 ${className}

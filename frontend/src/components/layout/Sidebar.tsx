@@ -40,6 +40,7 @@ const menu = [
         title: "Treinos",
         icon: Dumbbell,
         path: "/workouts",
+        comingSoon: true,
     },
     {
         title: "Financeiro",
@@ -50,16 +51,19 @@ const menu = [
         title: "Agenda",
         icon: Calendar,
         path: "/schedule",
+        comingSoon: true,
     },
     {
         title: "Relatórios",
         icon: BarChart3,
         path: "/reports",
+        comingSoon: true,
     },
     {
         title: "Configurações",
         icon: Settings,
         path: "/settings",
+        comingSoon: true,
     },
 ];
 
@@ -160,6 +164,12 @@ export default function Sidebar({
                                     />
 
                                     <span>{item.title}</span>
+
+                                    {item.comingSoon && (
+                                        <span className="ml-auto rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-cyan-200/80">
+                                            Em breve
+                                        </span>
+                                    )}
                                 </NavLink>
                             );
                         })}

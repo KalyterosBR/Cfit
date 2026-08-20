@@ -65,6 +65,61 @@ class Enrollment(BaseModel):
         verbose_name="Observações",
     )
 
+    original_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Valor original",
+    )
+
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Desconto",
+    )
+
+    discount_reason = models.TextField(
+        blank=True,
+        verbose_name="Justificativa do desconto",
+    )
+
+    contract_version = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Versão do contrato aceita",
+    )
+
+    contract_snapshot = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Cópia do contrato aceito",
+    )
+
+    contract_accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Contrato aceito em",
+    )
+
+    contract_accepted_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="accepted_enrollment_contracts",
+        verbose_name="Aceite registrado por",
+    )
+
+    created_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="created_enrollments",
+        verbose_name="Matrícula criada por",
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(

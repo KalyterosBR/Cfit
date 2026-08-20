@@ -53,6 +53,7 @@ export default function StudentForm({
         setEmergencyPhone,
 
         loading,
+        loadingCep,
         errors,
         handleSubmit,
     } = useStudentForm({
@@ -71,14 +72,15 @@ export default function StudentForm({
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                        Informações principais do aluno.
+                        Informações principais do aluno. Campos com * são obrigatórios.
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
                     <div className="lg:col-span-4">
                         <Input
-                            label="Nome"
+                            label="Nome *"
+                            required
                             placeholder="Digite o nome do aluno"
                             value={name}
                             error={errors.name}
@@ -90,7 +92,8 @@ export default function StudentForm({
 
                     <div>
                         <Input
-                            label="CPF"
+                            label="CPF *"
+                            required
                             placeholder="000.000.000-00"
                             value={cpf}
                             error={errors.cpf}
@@ -104,9 +107,11 @@ export default function StudentForm({
 
                     <div>
                         <Input
-                            label="Telefone"
+                            label="Telefone *"
+                            required
                             placeholder="(84) 99999-9999"
                             value={phone}
+                            error={errors.phone}
                             onChange={(e) =>
                                 setPhone(
                                     phoneMask(e.target.value),
@@ -117,9 +122,12 @@ export default function StudentForm({
 
                     <div>
                         <Input
-                            label="Data de nascimento"
+                            label="Data de nascimento *"
+                            required
                             type="date"
                             value={birthDate}
+                            error={errors.birthDate}
+                            max={new Date().toISOString().slice(0, 10)}
                             onChange={(e) =>
                                 setBirthDate(e.target.value)
                             }
@@ -160,6 +168,11 @@ export default function StudentForm({
                             placeholder="00000-000"
                             value={cep}
                             error={errors.cep}
+                            helperText={
+                                loadingCep
+                                    ? "Consultando CEP..."
+                                    : undefined
+                            }
                             onChange={(e) =>
                                 setCep(
                                     cepMask(e.target.value),
@@ -219,6 +232,7 @@ export default function StudentForm({
                             label="UF"
                             placeholder="RN"
                             value={state}
+                            error={errors.state}
                             onChange={(e) =>
                                 setState(
                                     e.target.value
@@ -262,6 +276,7 @@ export default function StudentForm({
                             label="Telefone"
                             placeholder="(84) 99999-9999"
                             value={emergencyPhone}
+                            error={errors.emergencyPhone}
                             onChange={(e) =>
                                 setEmergencyPhone(
                                     phoneMask(e.target.value),
@@ -278,7 +293,7 @@ export default function StudentForm({
                     type="button"
                     variant="secondary"
                     onClick={onCancel}
-                    disabled={loading}
+                    disabled={loading || loadingCep}
                 >
                     Cancelar
                 </Button>
@@ -286,6 +301,7 @@ export default function StudentForm({
                 <Button
                     type="button"
                     loading={loading}
+                    disabled={loadingCep}
                     onClick={handleSubmit}
                 >
                     {student ? "Atualizar" : "Salvar"}

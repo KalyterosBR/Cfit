@@ -11,16 +11,52 @@ import type { Student } from "../types/student";
 
 interface StudentsTableProps {
     students: Student[];
+    emptyTitle?: string;
+    emptyDescription?: string;
     onEdit: (student: Student) => void;
     onToggleActive: (student: Student) => void;
 }
 
 export default function StudentsTable({
     students,
+    emptyTitle = "Nenhum aluno encontrado",
+    emptyDescription = "Tente alterar a busca ou cadastre um novo aluno.",
     onEdit,
     onToggleActive,
 }: StudentsTableProps) {
     const navigate = useNavigate();
+
+    function formatDate(date: string | null) {
+        if (!date) return "—";
+
+        return new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR");
+    }
+
+    function formatDateTime(date: string | null) {
+        if (!date) return "Sem check-in";
+
+        return new Date(date).toLocaleString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    }
+
+    const financialStatus = {
+        regular: {
+            label: "Regular",
+            className: "bg-emerald-50 text-emerald-700",
+        },
+        grace_period: {
+            label: "Em tolerância",
+            className: "bg-amber-50 text-amber-700",
+        },
+        defaulting: {
+            label: "Inadimplente",
+            className: "bg-red-50 text-red-700",
+        },
+    } as const;
 
     if (students.length === 0) {
         return (
@@ -30,11 +66,11 @@ export default function StudentsTable({
                 </div>
 
                 <h3 className="font-semibold text-slate-900">
-                    Nenhum aluno encontrado
+                    {emptyTitle}
                 </h3>
 
                 <p className="mt-1 text-sm text-slate-500">
-                    Tente alterar a busca ou cadastre um novo aluno.
+                    {emptyDescription}
                 </p>
             </div>
         );
@@ -51,11 +87,19 @@ export default function StudentsTable({
                             </th>
 
                             <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                CPF
+                                Plano atual
                             </th>
 
                             <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                Telefone
+                                Financeiro
+                            </th>
+
+                            <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Próximo vencimento
+                            </th>
+
+                            <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Frequência
                             </th>
 
                             <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -95,20 +139,37 @@ export default function StudentsTable({
                                             <p className="font-semibold text-slate-900 transition hover:text-blue-600">
                                                 {student.name}
                                             </p>
-
-                                            <p className="mt-0.5 max-w-32 truncate text-[10px] font-medium text-slate-400">
-                                                ID {student.id}
+                                            <p className="mt-0.5 whitespace-nowrap text-xs text-slate-400">
+                                                {student.cpf ?? "CPF não informado"}
+                                                {student.phone ? ` · ${student.phone}` : ""}
                                             </p>
                                         </div>
                                     </button>
                                 </td>
 
-                                <td className="px-5 py-4 text-sm text-slate-600">
-                                    {student.cpf ?? "-"}
+                                <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                                    {student.current_plan_name ?? "Sem plano ativo"}
                                 </td>
 
-                                <td className="px-5 py-4 text-sm text-slate-600">
-                                    {student.phone ?? "-"}
+                                <td className="px-5 py-4">
+                                    <span
+                                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${financialStatus[student.financial_status].className}`}
+                                    >
+                                        {financialStatus[student.financial_status].label}
+                                    </span>
+                                </td>
+
+                                <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                                    {formatDate(student.next_due_date)}
+                                </td>
+
+                                <td className="px-5 py-4">
+                                    <p className="whitespace-nowrap text-sm font-semibold text-slate-700">
+                                        {student.checkins_last_30_days} em 30 dias
+                                    </p>
+                                    <p className="mt-0.5 whitespace-nowrap text-xs text-slate-400">
+                                        Último: {formatDateTime(student.last_checkin_at)}
+                                    </p>
                                 </td>
 
                                 <td className="px-5 py-4">

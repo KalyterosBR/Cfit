@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 
 import { Toast } from "../../../services/toast";
 
@@ -45,8 +46,12 @@ export default function useStudentForm({
     const [errors, setErrors] = useState({
         name: "",
         cpf: "",
+        phone: "",
+        birthDate: "",
         email: "",
         cep: "",
+        state: "",
+        emergencyPhone: "",
     });
 
     useEffect(() => {
@@ -75,8 +80,12 @@ export default function useStudentForm({
         setErrors({
             name: "",
             cpf: "",
+            phone: "",
+            birthDate: "",
             email: "",
             cep: "",
+            state: "",
+            emergencyPhone: "",
         });
     }, [student]);
 
@@ -84,6 +93,11 @@ export default function useStudentForm({
         const cleanCep = cep.replace(/\D/g, "");
 
         if (cleanCep.length !== 8) {
+            setLoadingCep(false);
+            setErrors((current) => ({
+                ...current,
+                cep: "",
+            }));
             return;
         }
 
@@ -132,8 +146,12 @@ export default function useStudentForm({
         const newErrors = {
             name: "",
             cpf: "",
+            phone: "",
+            birthDate: "",
             email: "",
-            cep: errors.cep,
+            cep: "",
+            state: "",
+            emergencyPhone: "",
         };
 
         if (!name.trim()) {
@@ -148,6 +166,20 @@ export default function useStudentForm({
                 "Informe um CPF válido.";
         }
 
+        const phoneDigits = phone.replace(/\D/g, "");
+
+        if (!phoneDigits) {
+            newErrors.phone = "Informe o telefone do aluno.";
+        } else if (![10, 11].includes(phoneDigits.length)) {
+            newErrors.phone = "Informe um telefone com DDD válido.";
+        }
+
+        if (!birthDate) {
+            newErrors.birthDate = "Informe a data de nascimento.";
+        } else if (new Date(`${birthDate}T00:00:00`) > new Date()) {
+            newErrors.birthDate = "A data de nascimento não pode ser futura.";
+        }
+
         if (
             email.trim() &&
             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
@@ -158,13 +190,40 @@ export default function useStudentForm({
                 "Informe um e-mail válido.";
         }
 
+        const cepDigits = cep.replace(/\D/g, "");
+
+        if (cepDigits && cepDigits.length !== 8) {
+            newErrors.cep = "Informe um CEP completo.";
+        } else if (errors.cep) {
+            newErrors.cep = errors.cep;
+        }
+
+        if (state.trim() && !/^[A-Za-z]{2}$/.test(state.trim())) {
+            newErrors.state = "Informe uma UF válida.";
+        }
+
+        const emergencyPhoneDigits = emergencyPhone.replace(/\D/g, "");
+
+        if (
+            emergencyPhoneDigits &&
+            ![10, 11].includes(emergencyPhoneDigits.length)
+        ) {
+            newErrors.emergencyPhone =
+                "Informe um telefone com DDD válido.";
+        }
+
         setErrors(newErrors);
 
         if (
             newErrors.name ||
             newErrors.cpf ||
+            newErrors.phone ||
+            newErrors.birthDate ||
             newErrors.email ||
-            newErrors.cep
+            newErrors.cep ||
+            newErrors.state ||
+            newErrors.emergencyPhone ||
+            loadingCep
         ) {
             return;
         }
@@ -215,6 +274,33 @@ export default function useStudentForm({
             onCancel();
         } catch (error) {
             console.error(error);
+
+            if (axios.isAxiosError(error) && error.response?.data) {
+                const apiErrors = error.response.data as Record<
+                    string,
+                    string[] | string
+                >;
+                const firstMessage = (field: string) => {
+                    const value = apiErrors[field];
+
+                    return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+                };
+
+                setErrors((current) => ({
+                    ...current,
+                    name: firstMessage("name") || current.name,
+                    cpf: firstMessage("cpf") || current.cpf,
+                    phone: firstMessage("phone") || current.phone,
+                    birthDate:
+                        firstMessage("birth_date") || current.birthDate,
+                    email: firstMessage("email") || current.email,
+                    cep: firstMessage("cep") || current.cep,
+                    state: firstMessage("state") || current.state,
+                    emergencyPhone:
+                        firstMessage("emergency_phone") ||
+                        current.emergencyPhone,
+                }));
+            }
 
             if (student) {
                 Toast.error.updated("Aluno");

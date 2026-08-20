@@ -8,12 +8,23 @@ export default function Input({
     className = "",
     ...props
 }: InputProps) {
+    const requiredLabel =
+        typeof label === "string" && label.endsWith(" *");
+    const labelText = requiredLabel
+        ? label.slice(0, -2)
+        : label;
+
     return (
         <div>
 
             {label && (
                 <label className={inputStyles.label}>
-                    {label}
+                    {labelText}
+                    {requiredLabel && (
+                        <span className="ml-1 text-red-500" aria-hidden="true">
+                            *
+                        </span>
+                    )}
                 </label>
             )}
 

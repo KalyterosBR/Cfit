@@ -10,6 +10,13 @@ class Charge(models.Model):
         OVERDUE = "overdue", "Atrasado"
         CANCELED = "canceled", "Cancelado"
 
+    class PaymentMethod(models.TextChoices):
+        PIX = "pix", "Pix"
+        CASH = "cash", "Dinheiro"
+        DEBIT_CARD = "debit_card", "Cartão de débito"
+        CREDIT_CARD = "credit_card", "Cartão de crédito"
+        BANK_TRANSFER = "bank_transfer", "Transferência bancária"
+
     enrollment = models.ForeignKey(
         Enrollment,
         on_delete=models.PROTECT,
@@ -32,6 +39,11 @@ class Charge(models.Model):
         verbose_name="Vencimento",
     )
 
+    competence_date = models.DateField(
+        verbose_name="Competência",
+        help_text="Mês de referência financeira da cobrança.",
+    )
+
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -43,6 +55,14 @@ class Charge(models.Model):
         null=True,
         blank=True,
         verbose_name="Pago em",
+    )
+
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PaymentMethod.choices,
+        null=True,
+        blank=True,
+        verbose_name="Método de pagamento",
     )
 
     notes = models.TextField(

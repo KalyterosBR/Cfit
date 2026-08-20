@@ -15,11 +15,6 @@ urlpatterns = [
         "admin/",
         admin.site.urls,
     ),
-    # Página antiga de planos
-    path(
-        "plans/",
-        include("apps.plans.urls"),
-    ),
     # API - Academias
     path(
         "api/academies/",

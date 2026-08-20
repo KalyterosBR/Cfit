@@ -9,7 +9,28 @@ export interface Plan {
     description: string;
 
     price: string;
+    monthly_equivalent: string;
     duration_months: number;
+    billing_period:
+        | "monthly"
+        | "quarterly"
+        | "semiannual"
+        | "annual"
+        | "one_time";
+    billing_period_label: string;
+    recurring: boolean;
+    enrollment_fee: string;
+    minimum_commitment_months: number;
+    auto_renew: boolean;
+    available_for_enrollment: boolean;
+    modalities: string;
+    benefits: string;
+    access_rules: string;
+    cancellation_rules: string;
+    freeze_rules: string;
+    contract_text: string;
+    contract_version: number;
+    active_students_count: number;
 
     created_at: string;
     updated_at: string;
@@ -29,6 +50,18 @@ export interface SavePlanPayload {
     description: string;
     price: string;
     duration_months: number;
+    billing_period: Plan["billing_period"];
+    recurring: boolean;
+    enrollment_fee: string;
+    minimum_commitment_months: number;
+    auto_renew: boolean;
+    available_for_enrollment: boolean;
+    modalities: string;
+    benefits: string;
+    access_rules: string;
+    cancellation_rules: string;
+    freeze_rules: string;
+    contract_text: string;
 }
 
 

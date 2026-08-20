@@ -11,6 +11,7 @@ import {
     Power,
     RotateCcw,
     Search,
+    Users,
 } from "lucide-react";
 
 import DashboardLayout from "../layouts/DashboardLayout";
@@ -20,6 +21,7 @@ import Modal from "../components/Modal";
 import PageHeader from "../components/PageHeader";
 
 import { Toast } from "../services/toast";
+import { getRequestErrorKind } from "../services/http/request-error";
 
 import {
     createPlan,
@@ -36,6 +38,18 @@ const initialForm: SavePlanPayload = {
     description: "",
     price: "",
     duration_months: 1,
+    billing_period: "monthly",
+    recurring: true,
+    enrollment_fee: "0.00",
+    minimum_commitment_months: 0,
+    auto_renew: true,
+    available_for_enrollment: true,
+    modalities: "",
+    benefits: "",
+    access_rules: "",
+    cancellation_rules: "",
+    freeze_rules: "",
+    contract_text: "",
 };
 
 
@@ -47,6 +61,8 @@ export default function Plans() {
         useState(true);
 
     const [error, setError] =
+        useState(false);
+    const [permissionDenied, setPermissionDenied] =
         useState(false);
 
     const [page, setPage] =
@@ -107,6 +123,7 @@ export default function Plans() {
                 setNext(data.next);
                 setPrevious(data.previous);
                 setError(false);
+                setPermissionDenied(false);
             })
             .catch((requestError) => {
                 console.error(requestError);
@@ -120,6 +137,9 @@ export default function Plans() {
                 setNext(null);
                 setPrevious(null);
                 setError(true);
+                setPermissionDenied(
+                    getRequestErrorKind(requestError) === "forbidden",
+                );
             })
             .finally(() => {
                 if (current) {
@@ -185,6 +205,18 @@ export default function Plans() {
             description: plan.description,
             price: plan.price,
             duration_months: plan.duration_months,
+            billing_period: plan.billing_period,
+            recurring: plan.recurring,
+            enrollment_fee: plan.enrollment_fee,
+            minimum_commitment_months: plan.minimum_commitment_months,
+            auto_renew: plan.auto_renew,
+            available_for_enrollment: plan.available_for_enrollment,
+            modalities: plan.modalities,
+            benefits: plan.benefits,
+            access_rules: plan.access_rules,
+            cancellation_rules: plan.cancellation_rules,
+            freeze_rules: plan.freeze_rules,
+            contract_text: plan.contract_text,
         });
         setOpenModal(true);
     }
@@ -210,6 +242,12 @@ export default function Plans() {
             !form.name.trim() ||
             Number(form.price) <= 0 ||
             form.duration_months < 1
+            || Number(form.enrollment_fee) < 0
+            || form.minimum_commitment_months < 0
+            || form.minimum_commitment_months > form.duration_months
+            || (form.billing_period === "one_time" && form.recurring)
+            || (form.auto_renew && !form.recurring)
+            || !form.contract_text.trim()
         ) {
             return;
         }
@@ -219,7 +257,42 @@ export default function Plans() {
             name: form.name.trim(),
             description: form.description.trim(),
             price: Number(form.price).toFixed(2),
+            enrollment_fee: Number(form.enrollment_fee).toFixed(2),
+            modalities: form.modalities.trim(),
+            benefits: form.benefits.trim(),
+            access_rules: form.access_rules.trim(),
+            cancellation_rules: form.cancellation_rules.trim(),
+            freeze_rules: form.freeze_rules.trim(),
+            contract_text: form.contract_text.trim(),
         };
+
+        if (
+            editingPlan &&
+            editingPlan.active_students_count > 0 &&
+            (
+                editingPlan.price !== payload.price ||
+                editingPlan.duration_months !== payload.duration_months ||
+                editingPlan.billing_period !== payload.billing_period ||
+                editingPlan.recurring !== payload.recurring ||
+                editingPlan.enrollment_fee !== payload.enrollment_fee ||
+                editingPlan.minimum_commitment_months !== payload.minimum_commitment_months ||
+                editingPlan.auto_renew !== payload.auto_renew
+                || editingPlan.modalities !== payload.modalities
+                || editingPlan.benefits !== payload.benefits
+                || editingPlan.access_rules !== payload.access_rules
+                || editingPlan.cancellation_rules !== payload.cancellation_rules
+                || editingPlan.freeze_rules !== payload.freeze_rules
+                || editingPlan.contract_text !== payload.contract_text
+            )
+        ) {
+            const confirmed = window.confirm(
+                `Este plano possui ${editingPlan.active_students_count} ${editingPlan.active_students_count === 1 ? "aluno ativo" : "alunos ativos"}. As matrículas existentes preservam os valores já contratados, mas as novas condições serão usadas nas próximas matrículas. Deseja continuar?`,
+            );
+
+            if (!confirmed) {
+                return;
+            }
+        }
 
         try {
             setSaving(true);
@@ -374,8 +447,19 @@ export default function Plans() {
 
                 <div className="mt-6 border-t border-slate-100 pt-6">
                     {loading ? (
-                        <div className="py-16 text-center text-sm text-slate-500">
-                            Carregando planos...
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3" aria-label="Carregando planos">
+                            {[1, 2, 3].map((item) => (
+                                <div key={item} className="h-52 animate-pulse rounded-[1.35rem] bg-slate-100" />
+                            ))}
+                        </div>
+                    ) : permissionDenied ? (
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+                            <h2 className="font-semibold text-amber-800">
+                                Acesso não permitido
+                            </h2>
+                            <p className="mt-1 text-sm text-amber-700">
+                                Seu usuário não possui permissão para consultar os planos.
+                            </p>
                         </div>
                     ) : error ? (
                         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
@@ -402,11 +486,15 @@ export default function Plans() {
                             </div>
 
                             <h2 className="mt-4 font-semibold text-slate-900">
-                                Nenhum plano encontrado
+                                {appliedSearch || statusFilter !== "all"
+                                    ? "Nenhum plano corresponde aos filtros"
+                                    : "Nenhum plano cadastrado"}
                             </h2>
 
                             <p className="mt-1 max-w-sm text-sm text-slate-500">
-                                Ajuste os filtros ou cadastre o primeiro plano da academia.
+                                {appliedSearch || statusFilter !== "all"
+                                    ? "Altere a busca ou os filtros para consultar outros planos."
+                                    : "Cadastre o primeiro plano para iniciar a gestão comercial."}
                             </p>
                         </div>
                     ) : (
@@ -447,6 +535,12 @@ export default function Plans() {
                                                     />
                                                     {plan.active ? "Ativo" : "Inativo"}
                                                 </span>
+
+                                                {!plan.available_for_enrollment && (
+                                                    <span className="ml-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                                                        Matrículas pausadas
+                                                    </span>
+                                                )}
 
                                                 <h2 className="mt-3 truncate text-lg font-black tracking-[-0.025em] text-slate-950">
                                                     {plan.name}
@@ -491,14 +585,34 @@ export default function Plans() {
                                             {plan.description || "Sem descrição cadastrada."}
                                         </p>
 
-                                        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+                                        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-3">
                                             <div>
                                                 <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                                                    Valor
+                                                    Valor total
                                                 </p>
 
                                                 <p className="mt-1 text-lg font-black tracking-[-0.02em] text-blue-600">
                                                     {formatMoney(plan.price)}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                                    Mensalidade equivalente
+                                                </p>
+
+                                                <p className="mt-1 text-sm font-bold text-slate-700">
+                                                    {formatMoney(plan.monthly_equivalent)}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                                    Cobrança
+                                                </p>
+
+                                                <p className="mt-1 text-sm font-bold text-slate-700">
+                                                    {plan.billing_period_label}
                                                 </p>
                                             </div>
 
@@ -515,6 +629,44 @@ export default function Plans() {
                                                     {getDurationLabel(plan.duration_months)}
                                                 </p>
                                             </div>
+
+                                            <div>
+                                                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                                    Alunos ativos
+                                                </p>
+
+                                                <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-slate-700">
+                                                    <Users
+                                                        size={15}
+                                                        className="text-blue-500"
+                                                    />
+                                                    {plan.active_students_count}
+                                                </p>
+                                            </div>
+
+                                            <div>
+                                                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                                    Taxa de matrícula
+                                                </p>
+
+                                                <p className="mt-1 text-sm font-bold text-slate-700">
+                                                    {formatMoney(plan.enrollment_fee)}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4 text-[10px] font-semibold text-slate-500">
+                                            <span className="rounded-lg bg-slate-100 px-2.5 py-1.5">
+                                                {plan.recurring ? "Recorrente" : "Não recorrente"}
+                                            </span>
+                                            <span className="rounded-lg bg-slate-100 px-2.5 py-1.5">
+                                                {plan.minimum_commitment_months > 0
+                                                    ? `${plan.minimum_commitment_months} meses de fidelidade`
+                                                    : "Sem fidelidade"}
+                                            </span>
+                                            <span className="rounded-lg bg-slate-100 px-2.5 py-1.5">
+                                                {plan.auto_renew ? "Renovação automática" : "Renovação manual"}
+                                            </span>
                                         </div>
                                     </article>
                                 ))}
@@ -561,7 +713,7 @@ export default function Plans() {
             <Modal
                 open={openModal}
                 title={editingPlan ? "Editar plano" : "Novo plano"}
-                maxWidth="lg"
+                maxWidth="xl"
                 onClose={closeModal}
             >
                 <form onSubmit={handleSavePlan}>
@@ -597,7 +749,7 @@ export default function Plans() {
                                 htmlFor="plan-price"
                                 className="text-sm font-semibold text-slate-700"
                             >
-                                Valor
+                                Valor total
                             </label>
 
                             <input
@@ -617,6 +769,134 @@ export default function Plans() {
                                 placeholder="0,00"
                                 className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
                             />
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="plan-billing-period"
+                                className="text-sm font-semibold text-slate-700"
+                            >
+                                Periodicidade da cobrança
+                            </label>
+
+                            <select
+                                id="plan-billing-period"
+                                value={form.billing_period}
+                                onChange={(event) => {
+                                    const billingPeriod = event.target.value as SavePlanPayload["billing_period"];
+
+                                    setForm((current) => ({
+                                        ...current,
+                                        billing_period: billingPeriod,
+                                        recurring:
+                                            billingPeriod === "one_time"
+                                                ? false
+                                                : current.recurring,
+                                        auto_renew:
+                                            billingPeriod === "one_time"
+                                                ? false
+                                                : current.auto_renew,
+                                    }));
+                                }}
+                                disabled={saving}
+                                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                            >
+                                <option value="monthly">Mensal</option>
+                                <option value="quarterly">Trimestral</option>
+                                <option value="semiannual">Semestral</option>
+                                <option value="annual">Anual</option>
+                                <option value="one_time">Pagamento único</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="plan-enrollment-fee"
+                                className="text-sm font-semibold text-slate-700"
+                            >
+                                Taxa de matrícula
+                            </label>
+
+                            <input
+                                id="plan-enrollment-fee"
+                                type="number"
+                                value={form.enrollment_fee}
+                                onChange={(event) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        enrollment_fee: event.target.value,
+                                    }))
+                                }
+                                min="0"
+                                step="0.01"
+                                disabled={saving}
+                                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                htmlFor="plan-commitment"
+                                className="text-sm font-semibold text-slate-700"
+                            >
+                                Fidelidade mínima em meses
+                            </label>
+
+                            <input
+                                id="plan-commitment"
+                                type="number"
+                                value={form.minimum_commitment_months}
+                                onChange={(event) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        minimum_commitment_months: Number(event.target.value),
+                                    }))
+                                }
+                                min={0}
+                                max={form.duration_months}
+                                step={1}
+                                disabled={saving}
+                                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                            />
+                        </div>
+
+                        <div className="sm:col-span-2 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3">
+                            {([
+                                ["recurring", "Cobrança recorrente", "Gerar cobranças de forma continuada."],
+                                ["auto_renew", "Renovação automática", "Renovar ao final da vigência."],
+                                ["available_for_enrollment", "Novas matrículas", "Disponibilizar no fluxo de matrícula."],
+                            ] as const).map(([field, label, description]) => (
+                                <label key={field} className="flex cursor-pointer gap-3 rounded-xl bg-white p-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={form[field]}
+                                        onChange={(event) =>
+                                            setForm((current) => ({
+                                                ...current,
+                                                [field]: event.target.checked,
+                                                ...(field === "recurring" && !event.target.checked
+                                                    ? { auto_renew: false }
+                                                    : {}),
+                                            }))
+                                        }
+                                        disabled={
+                                            saving ||
+                                            ((field === "recurring" || field === "auto_renew") &&
+                                                form.billing_period === "one_time") ||
+                                            (field === "auto_renew" && !form.recurring)
+                                        }
+                                        className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600"
+                                    />
+                                    <span>
+                                        <span className="block text-sm font-semibold text-slate-700">
+                                            {label}
+                                        </span>
+                                        <span className="mt-1 block text-xs leading-4 text-slate-500">
+                                            {description}
+                                        </span>
+                                    </span>
+                                </label>
+                            ))}
                         </div>
 
                         <div>
@@ -673,6 +953,82 @@ export default function Plans() {
                                 placeholder="Descreva as principais condições deste plano."
                                 className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
                             />
+                        </div>
+
+                        <div className="sm:col-span-2 border-t border-slate-200 pt-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h3 className="font-semibold text-slate-900">
+                                        Serviços e regras operacionais
+                                    </h3>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        Estas informações farão parte do resumo e da versão contratual.
+                                    </p>
+                                </div>
+                                {editingPlan && (
+                                    <span className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+                                        Contrato atual · versão {editingPlan.contract_version}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {([
+                            ["modalities", "Modalidades incluídas", "Ex.: musculação, funcional e aulas coletivas."],
+                            ["benefits", "Benefícios e serviços", "Liste avaliações, aplicativos, aulas ou serviços incluídos."],
+                            ["access_rules", "Regras de acesso", "Defina dias, horários, unidades e limites de acesso."],
+                            ["cancellation_rules", "Regras de cancelamento", "Informe prazos, multas e condições para cancelamento."],
+                            ["freeze_rules", "Regras de trancamento", "Informe prazos, limites e condições para congelamento."],
+                        ] as const).map(([field, label, placeholder]) => (
+                            <div key={field}>
+                                <label
+                                    htmlFor={`plan-${field}`}
+                                    className="text-sm font-semibold text-slate-700"
+                                >
+                                    {label}
+                                </label>
+                                <textarea
+                                    id={`plan-${field}`}
+                                    value={form[field]}
+                                    onChange={(event) =>
+                                        setForm((current) => ({
+                                            ...current,
+                                            [field]: event.target.value,
+                                        }))
+                                    }
+                                    rows={4}
+                                    disabled={saving}
+                                    placeholder={placeholder}
+                                    className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                                />
+                            </div>
+                        ))}
+
+                        <div className="sm:col-span-2">
+                            <label
+                                htmlFor="plan-contract"
+                                className="text-sm font-semibold text-slate-700"
+                            >
+                                Texto do contrato <span className="text-red-500">*</span>
+                            </label>
+                            <textarea
+                                id="plan-contract"
+                                value={form.contract_text}
+                                onChange={(event) =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        contract_text: event.target.value,
+                                    }))
+                                }
+                                rows={10}
+                                required
+                                disabled={saving}
+                                placeholder="Insira os termos contratuais que deverão ser aceitos na matrícula."
+                                className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                            />
+                            <p className="mt-2 text-xs text-slate-500">
+                                Alterações neste conteúdo ou nas regras criam uma nova versão. Matrículas existentes preservam a cópia aceita.
+                            </p>
                         </div>
                     </div>
 

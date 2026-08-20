@@ -34,6 +34,11 @@ export interface Student {
 
     grace_days_remaining: number | null;
 
+    current_plan_name: string | null;
+    next_due_date: string | null;
+    last_checkin_at: string | null;
+    checkins_last_30_days: number;
+
     created_at: string;
     updated_at: string;
 }

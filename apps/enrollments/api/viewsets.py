@@ -11,13 +11,17 @@ from apps.enrollments.api.freeze_serializers import (
 from apps.enrollments.api.history_serializers import (
     EnrollmentHistorySerializer,
 )
-from apps.enrollments.api.serializers import EnrollmentSerializer
+from apps.enrollments.api.serializers import (
+    EnrollmentChargePreviewSerializer,
+    EnrollmentSerializer,
+)
 from apps.enrollments.models import (
     Enrollment,
     EnrollmentFreeze,
     EnrollmentHistory,
 )
 from apps.enrollments.selectors import get_student_enrollments
+from apps.financial.services.billing import build_charge_schedule
 
 
 class EnrollmentViewSet(viewsets.ModelViewSet):
@@ -27,6 +31,38 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
     ).all()
 
     serializer_class = EnrollmentSerializer
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="preview-charges",
+    )
+    def preview_charges(self, request):
+        serializer = EnrollmentChargePreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        plan = data["plan"]
+        final_price = plan.price - data["discount_amount"]
+        schedule = build_charge_schedule(
+            plan,
+            final_price,
+            data["due_date"],
+            data["billing_method"],
+        )
+
+        return Response(
+            {
+                "original_price": plan.price,
+                "discount_amount": data["discount_amount"],
+                "final_price": final_price,
+                "enrollment_fee": plan.enrollment_fee,
+                "total_expected": sum(
+                    (item["amount"] for item in schedule),
+                    start=plan.price * 0,
+                ),
+                "charges": schedule,
+            }
+        )
 
     # ==========================================
     # MATRÍCULAS DO ALUNO

@@ -11,6 +11,9 @@ export interface Enrollment {
     plan_name: string;
 
     contracted_price: string;
+    original_price: string;
+    discount_amount: string;
+    discount_reason: string;
 
     start_date: string;
     due_date: string;
@@ -25,6 +28,12 @@ export interface Enrollment {
     billing_method: "monthly" | "full";
 
     notes: string;
+
+    contract_version: number | null;
+    contract_snapshot: Record<string, unknown>;
+    contract_accepted_at: string | null;
+    contract_accepted_by: number | null;
+    created_by: number | null;
 
     created_at: string;
     updated_at: string;
@@ -89,7 +98,8 @@ export interface CreateEnrollmentPayload {
     student: string;
     plan: string;
 
-    contracted_price: string;
+    discount_amount: string;
+    discount_reason: string;
 
     start_date: string;
     due_date: string;
@@ -98,6 +108,20 @@ export interface CreateEnrollmentPayload {
     billing_method: Enrollment["billing_method"];
 
     notes: string;
+    contract_accepted: boolean;
+}
+
+export interface EnrollmentChargePreview {
+    original_price: string;
+    discount_amount: string;
+    final_price: string;
+    enrollment_fee: string;
+    total_expected: string;
+    charges: Array<{
+        description: string;
+        amount: string;
+        due_date: string;
+    }>;
 }
 
 
@@ -248,6 +272,21 @@ export async function finishEnrollment(
 ): Promise<Enrollment> {
     const response = await Api.post<Enrollment>(
         `/enrollments/${enrollmentId}/finish/`,
+    );
+
+    return response.data;
+}
+
+export async function previewEnrollmentCharges(data: {
+    plan: string;
+    discount_amount: string;
+    discount_reason: string;
+    due_date: string;
+    billing_method: Enrollment["billing_method"];
+}): Promise<EnrollmentChargePreview> {
+    const response = await Api.post<EnrollmentChargePreview>(
+        "/enrollments/preview-charges/",
+        data,
     );
 
     return response.data;

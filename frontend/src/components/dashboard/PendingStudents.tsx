@@ -2,45 +2,54 @@ import {
     AlertTriangle,
     ChevronRight,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
-const students = [
-    {
-        name: "Pedro Henrique",
-        plan: "Plano Mensal",
-        daysLate: 2,
-        value: "R$ 119,90",
-    },
-    {
-        name: "Juliana Costa",
-        plan: "Plano Mensal",
-        daysLate: 4,
-        value: "R$ 119,90",
-    },
-    {
-        name: "Bruno Oliveira",
-        plan: "Plano Trimestral",
-        daysLate: 6,
-        value: "R$ 299,90",
-    },
-    {
-        name: "Larissa Mendes",
-        plan: "Plano Mensal",
-        daysLate: 7,
-        value: "R$ 119,90",
-    },
-];
+import type { Charge } from "@/features/students/services/financial.service";
 
-export default function PendingStudents() {
+
+type PendingStudentsProps = {
+    charges: Charge[];
+    loading: boolean;
+    error: boolean;
+    onRetry: () => void;
+};
+
+
+function formatMoney(value: string) {
+    return Number(value).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+    });
+}
+
+
+function getDaysLate(dueDate: string) {
+    const due = new Date(`${dueDate}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return Math.max(
+        1,
+        Math.floor((today.getTime() - due.getTime()) / 86_400_000),
+    );
+}
+
+export default function PendingStudents({
+    charges,
+    loading,
+    error,
+    onRetry,
+}: PendingStudentsProps) {
     return (
         <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:p-6">
             <div className="mb-5 flex items-start justify-between">
                 <div>
                     <h2 className="text-base font-bold text-slate-950">
-                        Pagamentos pendentes
+                        Cobranças vencidas
                     </h2>
 
                     <p className="mt-1 text-xs text-slate-500">
-                        Alunos que precisam de atenção
+                        Prioridade por maior tempo de atraso
                     </p>
                 </div>
 
@@ -49,35 +58,63 @@ export default function PendingStudents() {
                 </div>
             </div>
 
-            <div className="divide-y divide-slate-100">
-                {students.map((student) => (
-                    <div
-                        key={student.name}
-                        className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
+            {loading ? (
+                <div className="space-y-3" aria-label="Carregando cobranças vencidas">
+                    {[1, 2, 3].map((item) => (
+                        <div key={item} className="h-14 animate-pulse rounded-xl bg-slate-100" />
+                    ))}
+                </div>
+            ) : error ? (
+                <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
+                    <p>Não foi possível carregar as cobranças vencidas.</p>
+                    <button
+                        type="button"
+                        onClick={onRetry}
+                        className="mt-2 font-semibold underline underline-offset-4"
                     >
-                        <div className="min-w-0">
-                            <p className="truncate font-semibold text-slate-900">
-                                {student.name}
-                            </p>
+                        Tentar novamente
+                    </button>
+                </div>
+            ) : charges.length === 0 ? (
+                <div className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-700">
+                    Nenhuma cobrança vencida requer atenção agora.
+                </div>
+            ) : (
+                <div className="divide-y divide-slate-100">
+                    {charges.map((charge) => {
+                        const daysLate = getDaysLate(charge.due_date);
 
-                            <p className="text-sm text-slate-500">
-                                {student.plan} • {student.daysLate} dias
-                            </p>
-                        </div>
+                        return (
+                            <Link
+                                key={charge.id}
+                                to={`/students/${charge.student}`}
+                                className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0 hover:text-blue-600"
+                            >
+                                <div className="min-w-0">
+                                    <p className="truncate font-semibold text-slate-900">
+                                        {charge.student_name}
+                                    </p>
 
-                        <div className="flex items-center gap-3">
-                            <span className="whitespace-nowrap font-semibold text-slate-900">
-                                {student.value}
-                            </span>
+                                    <p className="text-sm text-slate-500">
+                                        {charge.plan_name} • {daysLate} {daysLate === 1 ? "dia" : "dias"}
+                                    </p>
+                                </div>
 
-                            <ChevronRight
-                                size={18}
-                                className="text-slate-400"
-                            />
-                        </div>
-                    </div>
-                ))}
-            </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="whitespace-nowrap font-semibold text-slate-900">
+                                        {formatMoney(charge.amount)}
+                                    </span>
+
+                                    <ChevronRight
+                                        size={18}
+                                        className="text-slate-400"
+                                    />
+                                </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import Modal from "../Modal";
 import Button from "../Button";
 
@@ -6,6 +8,8 @@ interface ConfirmDialogProps {
     title: string;
     description: string;
     loading?: boolean;
+    confirmDisabled?: boolean;
+    children?: ReactNode;
     onConfirm: () => void;
     onCancel: () => void;
 }
@@ -15,6 +19,8 @@ export default function ConfirmDialog({
     title,
     description,
     loading = false,
+    confirmDisabled = false,
+    children,
     onConfirm,
     onCancel,
 }: ConfirmDialogProps) {
@@ -28,6 +34,8 @@ export default function ConfirmDialog({
                 {description}
             </p>
 
+            {children}
+
             <div className="flex justify-end gap-3 mt-8">
                 <Button
                     variant="secondary"
@@ -39,6 +47,7 @@ export default function ConfirmDialog({
 
                 <Button
                     loading={loading}
+                    disabled={confirmDisabled}
                     onClick={onConfirm}
                 >
                     Confirmar

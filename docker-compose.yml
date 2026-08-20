@@ -16,6 +16,7 @@ services:
       context: .
       dockerfile: docker/django/Dockerfile
     container_name: cfit_backend
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     ports:
       - "8000:8000"
     volumes:
@@ -29,6 +30,7 @@ services:
       context: .
       dockerfile: docker/frontend/Dockerfile
     container_name: cfit_frontend
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     working_dir: /frontend
     volumes:
       - ./frontend:/frontend
