@@ -45,6 +45,7 @@ import {
 } from "../services/enrollment.service";
 
 import type { Student } from "../types/student";
+import StudentWorkoutSection from "../components/StudentWorkoutSection";
 
 import {
     createCheckIn,
@@ -927,8 +928,8 @@ export default function StudentDetailsPage() {
                                     />
                                     <OperationalItem
                                         label="Treino atual"
-                                        value="Ainda não disponível"
-                                        tone="muted"
+                                        value={operationalSummary.current_workout?.name ?? "Sem treino ativo"}
+                                        tone={operationalSummary.current_workout ? "default" : "muted"}
                                     />
                                     <OperationalItem
                                         label="Próxima avaliação"
@@ -937,8 +938,8 @@ export default function StudentDetailsPage() {
                                     />
                                     <OperationalItem
                                         label="Responsável"
-                                        value="Ainda não disponível"
-                                        tone="muted"
+                                        value={operationalSummary.current_workout?.instructor ?? "Ainda não disponível"}
+                                        tone={operationalSummary.current_workout ? "default" : "muted"}
                                     />
                                     <OperationalItem
                                         label="Risco de evasão"
@@ -1891,12 +1892,17 @@ export default function StudentDetailsPage() {
                         </div>
                     )}
 
+                    {activeTab === "workouts" && id && (
+                        <StudentWorkoutSection studentId={id} />
+                    )}
+
 
                     {/* ABAS QUE AINDA SERÃO DESENVOLVIDAS */}
                     {activeTab !== "overview" &&
                         activeTab !== "plans" &&
                         activeTab !== "financial" &&
                         activeTab !== "checkins" &&
+                        activeTab !== "workouts" &&
                         activeTab !== "history" && (
                             <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                                 <h2 className="text-lg font-semibold text-slate-900">

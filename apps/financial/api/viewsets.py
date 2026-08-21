@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Count, Max, Min, Q, Sum
+from django.db.models import Avg, Count, Max, Min, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.http import StreamingHttpResponse
@@ -20,6 +20,7 @@ from apps.financial.api.serializers import (
     BulkPayChargeSerializer,
     ChargeSerializer,
     ChargeViewCategory,
+    DashboardSummaryFilterSerializer,
     FinancialFilterSerializer,
     PayChargeSerializer,
     ReconcileChargeSerializer,
@@ -140,6 +141,8 @@ class ChargeViewSet(viewsets.ModelViewSet):
             "due_date_to": "due_date__lte",
             "competence_date_from": "competence_date__gte",
             "competence_date_to": "competence_date__lte",
+            "paid_date_from": "paid_at__date__gte",
+            "paid_date_to": "paid_at__date__lte",
         }
 
         for parameter, lookup in date_filters.items():
@@ -147,6 +150,9 @@ class ChargeViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(
                     **{lookup: filters[parameter]},
                 )
+
+        if filters.get("charge"):
+            queryset = queryset.filter(pk=filters["charge"].pk)
 
         charge_status = self.request.query_params.get("status")
 
@@ -875,35 +881,79 @@ class ChargeViewSet(viewsets.ModelViewSet):
     )
     def dashboard_summary(self, request):
         today = timezone.localdate()
-        period_start = today.replace(day=1)
+        filter_serializer = DashboardSummaryFilterSerializer(
+            data=request.query_params,
+        )
+        filter_serializer.is_valid(raise_exception=True)
+        requested_period = filter_serializer.validated_data.get("period")
+        period_start = (
+            date.fromisoformat(f"{requested_period}-01")
+            if requested_period
+            else today.replace(day=1)
+        )
+
+        if period_start > today.replace(day=1):
+            return Response(
+                {"period": ["O período não pode estar no futuro."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         period_end = self.shift_month(period_start, 1)
-        current_comparison_end = today + timedelta(days=1)
+        is_current_period = period_start == today.replace(day=1)
+        current_comparison_end = (
+            today + timedelta(days=1)
+            if is_current_period
+            else period_end
+        )
 
         previous_period_start = self.shift_month(period_start, -1)
         previous_month_last_day = period_start - timedelta(days=1)
+        comparison_day = (
+            today.day
+            if is_current_period
+            else previous_month_last_day.day
+        )
         previous_comparison_day = min(
-            today.day,
+            comparison_day,
             previous_month_last_day.day,
         )
         previous_comparison_end = previous_period_start.replace(
             day=previous_comparison_day,
         ) + timedelta(days=1)
 
-        monthly_revenue = Charge.objects.filter(
+        current_metrics = Charge.objects.filter(
             status=Charge.Status.PAID,
             paid_at__date__gte=period_start,
             paid_at__date__lt=current_comparison_end,
         ).aggregate(
             total=Sum("amount", default=0),
-        )["total"]
+            count=Count("id"),
+            average=Avg("amount", default=0),
+        )
+        monthly_revenue = current_metrics["total"]
 
-        previous_revenue = Charge.objects.filter(
+        previous_metrics = Charge.objects.filter(
             status=Charge.Status.PAID,
             paid_at__date__gte=previous_period_start,
             paid_at__date__lt=previous_comparison_end,
         ).aggregate(
             total=Sum("amount", default=0),
-        )["total"]
+            count=Count("id"),
+            average=Avg("amount", default=0),
+        )
+        previous_revenue = previous_metrics["total"]
+        current_payment_count = current_metrics["count"]
+        previous_payment_count = previous_metrics["count"]
+        current_average_ticket = current_metrics["average"]
+        previous_average_ticket = previous_metrics["average"]
+        revenue_difference = monthly_revenue - previous_revenue
+        volume_effect = (
+            Decimal(current_payment_count - previous_payment_count)
+            * previous_average_ticket
+        )
+        ticket_effect = (
+            current_average_ticket - previous_average_ticket
+        ) * Decimal(current_payment_count)
 
         growth_percentage = None
 
@@ -913,6 +963,29 @@ class ChargeViewSet(viewsets.ModelViewSet):
                 / previous_revenue
                 * Decimal("100")
             ).quantize(Decimal("0.1"))
+
+        if not previous_revenue:
+            growth_driver = "no_comparison"
+        elif revenue_difference == 0:
+            growth_driver = "stable"
+        else:
+            absolute_volume_effect = abs(volume_effect)
+            absolute_ticket_effect = abs(ticket_effect)
+            largest_effect = max(absolute_volume_effect, absolute_ticket_effect)
+            effects_have_same_direction = volume_effect * ticket_effect > 0
+            effects_are_both_material = (
+                largest_effect > 0
+                and min(absolute_volume_effect, absolute_ticket_effect)
+                / largest_effect
+                >= Decimal("0.5")
+            )
+
+            if effects_have_same_direction and effects_are_both_material:
+                growth_driver = "combined"
+            elif absolute_volume_effect >= absolute_ticket_effect:
+                growth_driver = "payment_volume"
+            else:
+                growth_driver = "average_ticket"
 
         history_start = self.shift_month(period_start, -5)
         revenue_by_month = {
@@ -945,6 +1018,8 @@ class ChargeViewSet(viewsets.ModelViewSet):
         recent_payments = self.queryset.filter(
             status=Charge.Status.PAID,
             paid_at__isnull=False,
+            paid_at__date__gte=period_start,
+            paid_at__date__lt=current_comparison_end,
         ).order_by("-paid_at")[:4]
 
         return Response(
@@ -954,6 +1029,14 @@ class ChargeViewSet(viewsets.ModelViewSet):
                 "period_end": period_end.isoformat(),
                 "previous_revenue": previous_revenue,
                 "growth_percentage": growth_percentage,
+                "revenue_difference": revenue_difference,
+                "current_payment_count": current_payment_count,
+                "previous_payment_count": previous_payment_count,
+                "current_average_ticket": current_average_ticket,
+                "previous_average_ticket": previous_average_ticket,
+                "volume_effect": volume_effect.quantize(Decimal("0.01")),
+                "ticket_effect": ticket_effect.quantize(Decimal("0.01")),
+                "growth_driver": growth_driver,
                 "comparison_start": previous_period_start.isoformat(),
                 "comparison_end": previous_comparison_end.isoformat(),
                 "revenue_history": revenue_history,

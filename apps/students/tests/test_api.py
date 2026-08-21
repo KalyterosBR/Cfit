@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.urls import reverse
@@ -8,7 +8,11 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.students.models import Student, StudentStatusHistory
+from apps.students.models import (
+    MonthlyActiveStudentGoal,
+    Student,
+    StudentStatusHistory,
+)
 from apps.checkins.models import CheckIn
 from apps.enrollments.models import Enrollment
 from apps.financial.models import Charge
@@ -32,6 +36,68 @@ class StudentApiTests(APITestCase):
         )
 
         self.client.force_authenticate(user=self.user)
+
+    def test_dashboard_summary_reconstructs_monthly_active_students(self):
+        Student.objects.all().delete()
+        student = Student.objects.create(
+            name="Aluno Histórico",
+            cpf="555.555.555-55",
+            active=True,
+        )
+        Student.objects.filter(pk=student.pk).update(
+            created_at=timezone.make_aware(datetime(2026, 6, 10, 12)),
+        )
+        deactivation = StudentStatusHistory.objects.create(
+            student=student,
+            event_type=StudentStatusHistory.EventType.DEACTIVATED,
+            reason="Pausa",
+            actor=self.user,
+        )
+        StudentStatusHistory.objects.filter(pk=deactivation.pk).update(
+            created_at=timezone.make_aware(datetime(2026, 7, 1, 0)),
+        )
+        reactivation = StudentStatusHistory.objects.create(
+            student=student,
+            event_type=StudentStatusHistory.EventType.REACTIVATED,
+            actor=self.user,
+        )
+        StudentStatusHistory.objects.filter(pk=reactivation.pk).update(
+            created_at=timezone.make_aware(datetime(2026, 8, 10, 12)),
+        )
+
+        response = self.client.get(
+            reverse("students-dashboard-summary"),
+            {"period": "2026-07"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["active_count"], 0)
+        self.assertEqual(response.data["previous_active_count"], 1)
+        self.assertEqual(response.data["change"], -1)
+        self.assertEqual(response.data["change_percentage"], -100.0)
+        self.assertEqual(response.data["created_count"], 0)
+        self.assertEqual(response.data["deactivated_count"], 1)
+        self.assertEqual(response.data["reactivated_count"], 0)
+        self.assertEqual(response.data["event_net_change"], -1)
+        self.assertEqual(response.data["data_quality"], "complete")
+
+    def test_monthly_active_student_goal_is_created_and_updated(self):
+        url = reverse("students-monthly-goal")
+        created = self.client.post(
+            url,
+            {"period": "2026-08", "target_count": 150},
+        )
+        read = self.client.get(url, {"period": "2026-08"})
+        updated = self.client.post(
+            url,
+            {"period": "2026-08", "target_count": 175},
+        )
+
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(read.data["target_count"], 150)
+        self.assertEqual(updated.status_code, status.HTTP_200_OK)
+        self.assertEqual(updated.data["target_count"], 175)
+        self.assertEqual(MonthlyActiveStudentGoal.objects.count(), 1)
 
     def test_list_filters_students_by_active_status(self):
         response = self.client.get(
@@ -366,4 +432,53 @@ class StudentApiTests(APITestCase):
                 item["name"]
                 for item in without_checkin_response.data["results"]
             ],
+        )
+
+    def test_health_score_is_explainable_and_filters_students_at_risk(self):
+        student = Student.objects.create(
+            name="Aluno em Risco",
+            cpf="555.555.555-55",
+        )
+        plan = Plan.objects.create(
+            name="Plano de Risco",
+            price=Decimal("99.90"),
+            duration_months=1,
+        )
+        enrollment = Enrollment.objects.create(
+            student=student,
+            plan=plan,
+            contracted_price=Decimal("99.90"),
+            start_date=timezone.localdate() - timedelta(days=90),
+            due_date=timezone.localdate() - timedelta(days=60),
+            status=Enrollment.Status.CANCELED,
+        )
+        Charge.objects.create(
+            enrollment=enrollment,
+            description="Mensalidade vencida",
+            amount=Decimal("99.90"),
+            due_date=timezone.localdate() - timedelta(days=30),
+            competence_date=timezone.localdate() - timedelta(days=30),
+            status=Charge.Status.OVERDUE,
+        )
+
+        detail = self.client.get(
+            reverse("students-health-score", args=[student.id])
+        )
+        summary = self.client.get(reverse("students-health-summary"))
+        segment = self.client.get(
+            reverse("students-list"),
+            {"active": "true", "segment": "at_risk"},
+        )
+
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertEqual(detail.data["status"], "risk")
+        self.assertEqual(detail.data["score"], 10)
+        self.assertEqual(
+            {factor["code"] for factor in detail.data["factors"]},
+            {"without_plan", "defaulting", "never_checked_in"},
+        )
+        self.assertGreaterEqual(summary.data["risk_count"], 1)
+        self.assertIn(
+            student.name,
+            [item["name"] for item in segment.data["results"]],
         )

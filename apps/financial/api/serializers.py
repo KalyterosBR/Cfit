@@ -27,6 +27,12 @@ class FinancialFilterSerializer(serializers.Serializer):
     due_date_to = serializers.DateField(required=False)
     competence_date_from = serializers.DateField(required=False)
     competence_date_to = serializers.DateField(required=False)
+    paid_date_from = serializers.DateField(required=False)
+    paid_date_to = serializers.DateField(required=False)
+    charge = serializers.PrimaryKeyRelatedField(
+        queryset=Charge.objects.all(),
+        required=False,
+    )
     overdue_range = serializers.ChoiceField(
         choices=OVERDUE_RANGE_CHOICES,
         required=False,
@@ -44,6 +50,7 @@ class FinancialFilterSerializer(serializers.Serializer):
         ranges = [
             ("due_date_from", "due_date_to", "vencimento"),
             ("competence_date_from", "competence_date_to", "competência"),
+            ("paid_date_from", "paid_date_to", "pagamento"),
         ]
 
         for start_field, end_field, label in ranges:
@@ -56,6 +63,16 @@ class FinancialFilterSerializer(serializers.Serializer):
                 )
 
         return attrs
+
+
+class DashboardSummaryFilterSerializer(serializers.Serializer):
+    period = serializers.RegexField(
+        regex=r"^\d{4}-(0[1-9]|1[0-2])$",
+        required=False,
+        error_messages={
+            "invalid": "Informe o período no formato AAAA-MM.",
+        },
+    )
 
 
 class ChargeSerializer(serializers.ModelSerializer):

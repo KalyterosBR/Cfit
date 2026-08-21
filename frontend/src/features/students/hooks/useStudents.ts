@@ -30,7 +30,8 @@ export default function useStudents() {
 
             return segment === "defaulting" ||
                 segment === "without_plan" ||
-                segment === "without_recent_checkin"
+                segment === "without_recent_checkin" ||
+                segment === "at_risk"
                 ? segment
                 : "all";
         });

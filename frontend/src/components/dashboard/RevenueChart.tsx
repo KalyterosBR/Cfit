@@ -20,6 +20,7 @@ type RevenueChartProps = {
     loading?: boolean;
     error?: boolean;
     onRetry?: () => void;
+    rangeLabel?: string;
 };
 
 
@@ -62,6 +63,7 @@ export default function RevenueChart({
     loading = false,
     error = false,
     onRetry = () => undefined,
+    rangeLabel = "Últimos 6 meses",
 }: RevenueChartProps) {
     const data = history.map((item) => ({
         month: formatMonth(item.period),
@@ -89,7 +91,7 @@ export default function RevenueChart({
                 </div>
 
                 <span className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[10px] font-semibold text-slate-300">
-                    Últimos 6 meses
+                    {rangeLabel}
                 </span>
             </div>
 

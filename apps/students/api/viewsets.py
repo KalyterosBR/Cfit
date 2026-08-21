@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
@@ -7,9 +8,17 @@ from rest_framework.response import Response
 
 from apps.enrollments.models import Enrollment, EnrollmentHistory
 from apps.financial.models import Charge, ChargeAudit, RecurringPaymentAttempt
-from apps.students.models import StudentStatusHistory
-from apps.students.selectors import search_students
-from apps.students.serializers import StudentSerializer
+from apps.students.models import MonthlyActiveStudentGoal, Student, StudentStatusHistory
+from apps.students.selectors import (
+    count_active_students_at,
+    get_student_health_score,
+    search_students,
+)
+from apps.students.serializers import (
+    ActiveStudentGoalInputSerializer,
+    ActiveStudentGoalQuerySerializer,
+    StudentSerializer,
+)
 from apps.students.services.student_service import (
     activate_student,
     create_student,
@@ -17,6 +26,7 @@ from apps.students.services.student_service import (
     delete_student,
     update_student,
 )
+from apps.workouts.models import WorkoutPlan
 
 
 class StudentViewSet(viewsets.ModelViewSet):
@@ -48,10 +58,41 @@ class StudentViewSet(viewsets.ModelViewSet):
             "defaulting",
             "without_plan",
             "without_recent_checkin",
+            "at_risk",
         }:
             segment = None
 
         return search_students(search, active, segment)
+
+    @action(detail=True, methods=["get"], url_path="health-score")
+    def health_score(self, request, pk=None):
+        return Response(get_student_health_score(self.get_object()))
+
+    @action(detail=False, methods=["get"], url_path="health-summary")
+    def health_summary(self, request):
+        scores = [
+            get_student_health_score(student)
+            for student in Student.objects.filter(active=True).order_by("name")
+        ]
+        return Response(
+            {
+                "total_count": len(scores),
+                "healthy_count": sum(item["status"] == "healthy" for item in scores),
+                "attention_count": sum(item["status"] == "attention" for item in scores),
+                "risk_count": sum(item["status"] == "risk" for item in scores),
+                "at_risk": sorted(scores, key=lambda item: item["score"])[:10],
+                "methodology": {
+                    "base_score": 100,
+                    "thresholds": {"healthy": 70, "attention": 40},
+                    "factors": {
+                        "without_plan": -30,
+                        "defaulting": -30,
+                        "never_checked_in": -30,
+                        "inactive_30_days": -25,
+                    },
+                },
+            }
+        )
 
     def perform_create(self, serializer):
         return create_student(serializer.validated_data)
@@ -116,6 +157,138 @@ class StudentViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["get"], url_path="dashboard-summary")
+    def dashboard_summary(self, request):
+        period = request.query_params.get(
+            "period",
+            timezone.localdate().strftime("%Y-%m"),
+        )
+
+        try:
+            period_start = date.fromisoformat(f"{period}-01")
+        except ValueError:
+            return Response(
+                {"period": ["Informe o período no formato AAAA-MM."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        next_month = (
+            period_start.replace(year=period_start.year + 1, month=1)
+            if period_start.month == 12
+            else period_start.replace(month=period_start.month + 1)
+        )
+        previous_month = (
+            period_start.replace(year=period_start.year - 1, month=12)
+            if period_start.month == 1
+            else period_start.replace(month=period_start.month - 1)
+        )
+        period_end = timezone.make_aware(datetime.combine(next_month, time.min))
+        previous_period_end = timezone.make_aware(
+            datetime.combine(period_start, time.min)
+        )
+        period_end_datetime = period_end
+        created_count = self.get_queryset().filter(
+            created_at__gte=previous_period_end,
+            created_at__lt=period_end_datetime,
+        ).count()
+        status_events = StudentStatusHistory.objects.filter(
+            created_at__gte=previous_period_end,
+            created_at__lt=period_end_datetime,
+        )
+        deactivated_count = status_events.filter(
+            event_type=StudentStatusHistory.EventType.DEACTIVATED,
+        ).count()
+        reactivated_count = status_events.filter(
+            event_type=StudentStatusHistory.EventType.REACTIVATED,
+        ).count()
+        active_count = count_active_students_at(period_end)
+        previous_active_count = count_active_students_at(previous_period_end)
+        change = active_count - previous_active_count
+        change_percentage = (
+            round(change / previous_active_count * 100, 1)
+            if previous_active_count
+            else None
+        )
+        first_status_event = StudentStatusHistory.objects.order_by(
+            "created_at"
+        ).values_list("created_at", flat=True).first()
+        data_quality = (
+            "complete"
+            if first_status_event and period_start >= first_status_event.date()
+            else "partial"
+        )
+
+        return Response(
+            {
+                "period": period,
+                "period_start": period_start,
+                "period_end": next_month,
+                "active_count": active_count,
+                "previous_period": previous_month.strftime("%Y-%m"),
+                "previous_active_count": previous_active_count,
+                "change": change,
+                "change_percentage": change_percentage,
+                "created_count": created_count,
+                "deactivated_count": deactivated_count,
+                "reactivated_count": reactivated_count,
+                "event_net_change": (
+                    created_count - deactivated_count + reactivated_count
+                ),
+                "data_quality": data_quality,
+                "history_available_from": first_status_event,
+            }
+        )
+
+    @action(detail=False, methods=["get", "post"], url_path="monthly-goal")
+    @transaction.atomic
+    def monthly_goal(self, request):
+        serializer_class = (
+            ActiveStudentGoalInputSerializer
+            if request.method == "POST"
+            else ActiveStudentGoalQuerySerializer
+        )
+        serializer = serializer_class(
+            data=request.data if request.method == "POST" else request.query_params
+        )
+        serializer.is_valid(raise_exception=True)
+        period = serializer.validated_data["period"]
+        period_date = date.fromisoformat(f"{period}-01")
+        goal = MonthlyActiveStudentGoal.objects.filter(
+            academy__isnull=True,
+            period=period_date,
+        ).select_related("updated_by").first()
+        response_status = status.HTTP_200_OK
+
+        if request.method == "POST":
+            goal, created = MonthlyActiveStudentGoal.objects.get_or_create(
+                academy=None,
+                period=period_date,
+                defaults={
+                    "target_count": serializer.validated_data["target_count"],
+                    "created_by": request.user,
+                    "updated_by": request.user,
+                },
+            )
+            if not created:
+                goal.target_count = serializer.validated_data["target_count"]
+                goal.updated_by = request.user
+                goal.save(
+                    update_fields=["target_count", "updated_by", "updated_at"]
+                )
+            response_status = (
+                status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            )
+
+        return Response(
+            {
+                "period": period,
+                "target_count": goal.target_count if goal else None,
+                "updated_at": goal.updated_at if goal else None,
+                "updated_by": goal.updated_by.email if goal else None,
+            },
+            status=response_status,
+        )
+
     @action(
         detail=True,
         methods=["get"],
@@ -149,6 +322,10 @@ class StudentViewSet(viewsets.ModelViewSet):
             "-checked_in_at",
         ).first()
         frequency_since = timezone.now() - timedelta(days=30)
+        current_workout = WorkoutPlan.objects.filter(
+            student=student,
+            status=WorkoutPlan.Status.ACTIVE,
+        ).select_related("instructor").first()
 
         return Response(
             {
@@ -177,6 +354,17 @@ class StudentViewSet(viewsets.ModelViewSet):
                 "checkins_last_30_days": student.checkins.filter(
                     checked_in_at__gte=frequency_since,
                 ).count(),
+                "current_workout": (
+                    {
+                        "id": current_workout.id,
+                        "name": current_workout.name,
+                        "objective": current_workout.objective,
+                        "review_date": current_workout.review_date,
+                        "instructor": current_workout.instructor.email,
+                    }
+                    if current_workout
+                    else None
+                ),
             }
         )
 

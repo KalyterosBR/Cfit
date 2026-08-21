@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { Toast } from "../../../services/toast";
 
@@ -36,9 +37,11 @@ const segmentOptions: Array<{
         value: "without_recent_checkin",
         label: "Sem check-in há 30 dias",
     },
+    { value: "at_risk", label: "Saúde em risco" },
 ];
 
 export default function StudentsListPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
     const {
         students,
         loading,
@@ -59,6 +62,15 @@ export default function StudentsListPage() {
     const [loadingStatus, setLoadingStatus] = useState(false);
     const [studentToToggle, setStudentToToggle] = useState<Student | null>(null);
     const [deactivationReason, setDeactivationReason] = useState("");
+
+    useEffect(() => {
+        if (searchParams.get("action") !== "new") return;
+        setSelectedStudent(null);
+        setOpenModal(true);
+        const next = new URLSearchParams(searchParams);
+        next.delete("action");
+        setSearchParams(next, { replace: true });
+    }, [searchParams, setSearchParams]);
 
     function handleEdit(student: Student) {
         setSelectedStudent(student);

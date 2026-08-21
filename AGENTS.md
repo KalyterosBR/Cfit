@@ -164,6 +164,7 @@ apps/users
 apps/enrollments
 apps/financial
 apps/checkins
+apps/workouts
 ```
 
 Também está habilitado `django.contrib.postgres`.
@@ -479,7 +480,7 @@ O interceptor HTTP adiciona o access token às requisições privadas. Em respos
 /students/:id      Detalhes do aluno
 /plans             Planos
 /finance           Gestão financeira
-/workouts          Em desenvolvimento: Treinos
+/workouts          Gestão de treinos e biblioteca de exercícios
 /schedule          Em desenvolvimento: Agenda
 /reports           Em desenvolvimento: Relatórios
 /settings          Em desenvolvimento: Configurações
@@ -487,7 +488,7 @@ O interceptor HTTP adiciona o access token às requisições privadas. Em respos
 
 A rota `/` é homepage institucional + login, não só login.
 
-Todas essas rotas estão registradas em `frontend/src/routes/index.tsx`. Treinos, Agenda, Relatórios e Configurações usam o componente compartilhado `ComingSoon` para evitar páginas brancas, mas não devem ser documentados como módulos funcionais.
+Todas essas rotas estão registradas em `frontend/src/routes/index.tsx`. Agenda, Relatórios e Configurações usam o componente compartilhado `ComingSoon` para evitar páginas brancas, mas não devem ser documentados como módulos funcionais.
 
 Estrutura atual relevante do frontend:
 ```text
@@ -789,7 +790,7 @@ fechamento da Sidebar mobile
 navegação para / com replace
 ```
 
-A Topbar mostra o contexto da rota, botão de abertura da Sidebar no mobile, busca visual, notificações e identificação visual do administrador. A busca, notificações e menu do usuário não possuem comportamento funcional implementado no código atual.
+A Topbar mostra o contexto da rota, botão de abertura da Sidebar no mobile, busca universal, notificações visuais e identificação do administrador. A busca localiza alunos, planos e cobranças e funciona também como command palette. O sino abre somente o estado visual `Notificações serão exibidas aqui`; ainda não existe sistema real de notificações. O menu do perfil contém o logout funcional.
 
 Não mover o logout para uma implementação paralela e não remover o comportamento responsivo sem solicitação.
 
@@ -1107,7 +1108,8 @@ Estado confirmado no código e nas validações de encerramento de 20/08/2026:
 - módulo Financeiro central em `/finance`, com filtros avançados, competência, agrupamento, seleção segura, pagamento em lote, exportação, conciliação, previsão, caixa, recorrências e central de inconsistências;
 - aba Financeiro do detalhe do aluno mantida somente para consulta contextual;
 - Check-in manual e histórico de check-ins funcionais no detalhe do aluno;
-- rotas `/workouts`, `/schedule`, `/reports` e `/settings` registradas com páginas seguras de `Em desenvolvimento`;
+- rota `/workouts` funcional para gestão global de treinos e biblioteca de exercícios;
+- rotas `/schedule`, `/reports` e `/settings` registradas com páginas seguras de `Em desenvolvimento`;
 - títulos das páginas apresentados em português no documento do navegador;
 - README atualizado para refletir arquitetura, setup, rotas, APIs e validações atuais;
 - artefatos gerados, assets padrão, templates server-side antigos e arquivos comprovadamente órfãos removidos da estrutura;
@@ -1118,10 +1120,10 @@ Estado confirmado no código e nas validações de encerramento de 20/08/2026:
 - containers Django, frontend e PostgreSQL estão ativos a partir do novo workspace.
 
 Limites atuais confirmados:
-- Treinos, Agenda, Relatórios e Configurações possuem somente páginas de `Em desenvolvimento`;
-- a aba “Treinos” do detalhe do aluno ainda é apresentada como área futura;
+- Agenda, Relatórios e Configurações possuem somente páginas de `Em desenvolvimento`;
+- a aba “Treinos” do detalhe do aluno possui treino atual, criação, conclusão e histórico;
 - busca, notificações e menu do usuário da Topbar são apenas visuais;
-- o Dashboard ainda não possui período configurável, metas, personalização por função ou seção completa `Requer atenção`;
+- o Dashboard possui período configurável, comparações, metas, personalização visual por função e seção `Requer atenção`; a personalização ainda não representa RBAC;
 - permissões continuam na primeira etapa de Administrador, sem RBAC avançado;
 - o lint do frontend possui pendências preexistentes, principalmente pela regra `react-hooks/set-state-in-effect`.
 
@@ -1173,10 +1175,10 @@ Próximo ponto recomendado do roadmap, sujeito à confirmação do usuário:
 4. não conectar ou substituir todos os indicadores em uma única alteração.
 
 Pendências visíveis adicionais:
-- busca universal e command palette ainda não implementadas;
+- busca universal e command palette implementadas para alunos, planos, cobranças e ações rápidas;
 - monitor de acessos e integrações de check-in ainda não implementados;
 - Customer Health Score ainda não implementado;
-- aba Treinos ainda futura;
+- gestão de Treinos implementada em primeira etapa;
 - busca, notificações e menu do usuário da Topbar permanecem visuais.
 
 O reset do Turnstile, a persistência opcional do login, o logout da Sidebar, o Check-in básico e o módulo Financeiro central já estão implementados. Diagnosticar antes de alterar caso algum desses fluxos apresente falha em validação manual.
@@ -1521,7 +1523,7 @@ Diretrizes:
 - em produção, ocultar módulos indisponíveis ou marcá-los claramente como `Em breve`.
 
 #### H. Busca universal e ações rápidas
-**Já existe:** a busca global aparece visualmente na Topbar, mas ainda não possui comportamento funcional.
+**Já existe:** busca global funcional na Topbar para alunos, planos e cobranças, com command palette e ações rápidas.
 
 **Ainda não implementado:** transformar a busca em uma funcionalidade central capaz de localizar:
 - alunos;
@@ -1601,7 +1603,7 @@ Dependências: consistência dos dados, frequência confiável, financeiro conec
 ### 48.1.7 Prioridade média-alta
 
 #### A. Treinos
-**Ainda não implementado:** a rota exibe uma página segura de `Em desenvolvimento` e a ficha do aluno reserva uma aba futura.
+**Implementado em primeira etapa:** a rota possui gestão global de prescrições e biblioteca de exercícios; a ficha do aluno possui treino atual, criação, conclusão e histórico. O backend preserva exercícios, modelos, itens do treino e registros de evolução.
 
 Começar pela ficha do aluno:
 - treino atual;
@@ -1823,6 +1825,35 @@ Ao desenvolver qualquer item do roadmap:
 11. Teste o fluxo principal e casos de borda.
 12. Não implemente todo o roadmap em uma única alteração.
 13. Transforme cada prioridade em tarefas menores, verificáveis e com critérios de aceite.
+
+### 48.2 Estado confirmado em 21/08/2026 — Dashboard, busca, acessos e Treinos
+
+Entregas consolidadas nesta etapa:
+- Dashboard conectado com período mensal, comparação, causas da variação, metas de receita, check-ins e alunos ativos;
+- indicadores acionáveis e seção `Requer atenção` baseada em dados reais;
+- personalização visual do Dashboard para gestor, recepção, financeiro, professor e comercial, sem representar permissões RBAC;
+- busca universal e command palette por `Ctrl/Cmd + K` para alunos, planos, cobranças e ações rápidas;
+- monitor global de acessos em `/checkins`, com período, origem, resultado liberado/bloqueado, motivo e equipamento;
+- Customer Health Score inicial e explicável baseado em plano ativo, inadimplência e frequência;
+- Sidebar organizada por áreas, sem menus sanfonados; logout transferido para o menu de perfil da Topbar;
+- favicon regenerado em tamanhos proporcionais a partir de matriz quadrada transparente;
+- app `apps/workouts` criado com exercícios, modelos, planos, itens do treino e registros de evolução;
+- aba Treinos da ficha do aluno funcional para criar, consultar, concluir e preservar histórico;
+- rota `/workouts` funcional com gestão global das prescrições e biblioteca pesquisável de exercícios.
+
+Validações confirmadas:
+- 71 testes passaram para Treinos, alunos, check-ins, financeiro e planos;
+- `python manage.py check` passou;
+- `makemigrations --check --dry-run` não encontrou alterações pendentes;
+- build de produção do frontend passou;
+- lint direcionado dos componentes novos passou;
+- `git diff --check` passou.
+
+Ponto exato de retomada do lote solicitado de 10 itens:
+1. itens 1–3 concluídos em uma fundação integrada de Treinos;
+2. próximo item: construir a Agenda unificada;
+3. depois: Relatórios, Configurações, RBAC, auditoria administrativa, automações e preparação multiunidade;
+4. não considerar essas sete etapas restantes como implementadas.
 
 ---
 

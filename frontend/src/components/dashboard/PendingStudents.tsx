@@ -87,7 +87,7 @@ export default function PendingStudents({
                         return (
                             <Link
                                 key={charge.id}
-                                to={`/students/${charge.student}`}
+                                to={`/finance?charge=${charge.id}#charges`}
                                 className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0 hover:text-blue-600"
                             >
                                 <div className="min-w-0">

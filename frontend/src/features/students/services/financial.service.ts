@@ -274,6 +274,19 @@ export interface DashboardFinancialSummary {
     period_end: string;
     previous_revenue: string;
     growth_percentage: string | null;
+    revenue_difference: string;
+    current_payment_count: number;
+    previous_payment_count: number;
+    current_average_ticket: string;
+    previous_average_ticket: string;
+    volume_effect: string;
+    ticket_effect: string;
+    growth_driver:
+        | "payment_volume"
+        | "average_ticket"
+        | "combined"
+        | "stable"
+        | "no_comparison";
     comparison_start: string;
     comparison_end: string;
     revenue_history: Array<{
@@ -281,6 +294,14 @@ export interface DashboardFinancialSummary {
         revenue: string;
     }>;
     recent_payments: Charge[];
+}
+
+
+export interface MonthlyRevenueGoal {
+    period: string;
+    target_amount: string | null;
+    updated_at: string | null;
+    updated_by: string | null;
 }
 
 
@@ -292,6 +313,9 @@ export interface ChargeFilters {
     dueDateTo: string;
     competenceDateFrom: string;
     competenceDateTo: string;
+    paidDateFrom: string;
+    paidDateTo: string;
+    charge: string;
     plan: string;
     paymentMethod: "all" | PaymentMethod;
     overdueRange: OverdueRangeFilter;
@@ -307,6 +331,9 @@ function buildFilters({
     dueDateTo,
     competenceDateFrom,
     competenceDateTo,
+    paidDateFrom,
+    paidDateTo,
+    charge,
     plan,
     paymentMethod,
     overdueRange,
@@ -328,6 +355,9 @@ function buildFilters({
         ...(competenceDateTo
             ? { competence_date_to: competenceDateTo }
             : {}),
+        ...(paidDateFrom ? { paid_date_from: paidDateFrom } : {}),
+        ...(paidDateTo ? { paid_date_to: paidDateTo } : {}),
+        ...(charge ? { charge } : {}),
         ...(plan ? { plan } : {}),
         ...(paymentMethod !== "all"
             ? { payment_method: paymentMethod }
@@ -464,9 +494,14 @@ export async function getFinancialFilterOptions(): Promise<FinancialFilterOption
 }
 
 
-export async function getDashboardFinancialSummary(): Promise<DashboardFinancialSummary> {
+export async function getDashboardFinancialSummary(
+    period?: string,
+): Promise<DashboardFinancialSummary> {
     const response = await Api.get<DashboardFinancialSummary>(
         "/financial/charges/dashboard-summary/",
+        {
+            params: period ? { period } : undefined,
+        },
     );
 
     return response.data;
@@ -486,4 +521,44 @@ export async function getDashboardOverdueCharges(): Promise<Charge[]> {
     );
 
     return response.data.results;
+}
+
+
+export async function getDashboardOverdueSummary(): Promise<FinancialSummary> {
+    const response = await Api.get<FinancialSummary>(
+        "/financial/charges/summary/",
+        {
+            params: { category: "overdue" },
+        },
+    );
+
+    return response.data;
+}
+
+
+export async function getMonthlyRevenueGoal(
+    period: string,
+): Promise<MonthlyRevenueGoal> {
+    const response = await Api.get<MonthlyRevenueGoal>(
+        "/financial/revenue-goals/",
+        { params: { period } },
+    );
+
+    return response.data;
+}
+
+
+export async function saveMonthlyRevenueGoal(
+    period: string,
+    targetAmount: string,
+): Promise<MonthlyRevenueGoal> {
+    const response = await Api.post<MonthlyRevenueGoal>(
+        "/financial/revenue-goals/",
+        {
+            period,
+            target_amount: targetAmount,
+        },
+    );
+
+    return response.data;
 }

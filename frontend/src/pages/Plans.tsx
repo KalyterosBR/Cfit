@@ -13,6 +13,7 @@ import {
     Search,
     Users,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 import DashboardLayout from "../layouts/DashboardLayout";
 import Button from "../components/Button";
@@ -54,6 +55,7 @@ const initialForm: SavePlanPayload = {
 
 
 export default function Plans() {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [plans, setPlans] =
         useState<Plan[]>([]);
 
@@ -84,7 +86,10 @@ export default function Plans() {
         useState("");
 
     const [statusFilter, setStatusFilter] =
-        useState<PlanStatusFilter>("all");
+        useState<PlanStatusFilter>(() => {
+            const status = searchParams.get("status");
+            return status === "active" || status === "inactive" ? status : "all";
+        });
 
     const [reloadKey, setReloadKey] =
         useState(0);
@@ -103,6 +108,24 @@ export default function Plans() {
 
     const [togglingPlanId, setTogglingPlanId] =
         useState<string | null>(null);
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            const requestedStatus = searchParams.get("status");
+            const nextStatus = requestedStatus === "active" || requestedStatus === "inactive"
+                ? requestedStatus
+                : "all";
+            setStatusFilter(nextStatus);
+            setPage(1);
+            if (searchParams.get("action") === "new") {
+                openCreateModal();
+                const next = new URLSearchParams(searchParams);
+                next.delete("action");
+                setSearchParams(next, { replace: true });
+            }
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [searchParams, setSearchParams]);
 
 
     useEffect(() => {
@@ -182,6 +205,10 @@ export default function Plans() {
         setLoading(true);
         setPage(1);
         setStatusFilter(value);
+        const next = new URLSearchParams(searchParams);
+        if (value === "all") next.delete("status");
+        else next.set("status", value);
+        setSearchParams(next, { replace: true });
     }
 
 

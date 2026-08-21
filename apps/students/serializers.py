@@ -226,3 +226,11 @@ class StudentSerializer(serializers.ModelSerializer):
             return 0
 
         return (defaulting_date - today).days
+
+
+class ActiveStudentGoalQuerySerializer(serializers.Serializer):
+    period = serializers.RegexField(regex=r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+class ActiveStudentGoalInputSerializer(ActiveStudentGoalQuerySerializer):
+    target_count = serializers.IntegerField(min_value=1)

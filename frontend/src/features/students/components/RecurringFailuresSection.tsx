@@ -91,7 +91,10 @@ export default function RecurringFailuresSection() {
     }, [load]);
 
     return (
-        <section className="mt-6 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.3)]">
+        <section
+            id="recurring-failures"
+            className="mt-6 scroll-mt-6 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.3)]"
+        >
             <div className="flex flex-col gap-4 border-b border-slate-200/80 p-5 lg:flex-row lg:items-center lg:justify-between sm:p-6">
                 <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-red-600">Recorrências</p>

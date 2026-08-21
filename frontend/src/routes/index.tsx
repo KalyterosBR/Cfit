@@ -15,11 +15,12 @@ import Dashboard from "../pages/Dashboard";
 import Financial from "../pages/Financial";
 import Plans from "../pages/Plans";
 import ComingSoon from "../pages/ComingSoon";
+import CheckIns from "../pages/CheckIns";
+import Workouts from "../pages/Workouts";
 
 import {
     BarChart3,
     Calendar,
-    Dumbbell,
     Settings,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ const routeTitles: Record<string, string> = {
     "/students": "Alunos",
     "/plans": "Planos",
     "/finance": "Financeiro",
+    "/checkins": "Check-ins",
     "/workouts": "Treinos",
     "/schedule": "Agenda",
     "/reports": "Relatórios",
@@ -95,14 +97,13 @@ export default function AppRoutes() {
                     />
 
                     <Route
+                        path="/checkins"
+                        element={<CheckIns />}
+                    />
+
+                    <Route
                         path="/workouts"
-                        element={(
-                            <ComingSoon
-                                title="Treinos"
-                                description="Gestão de treinos, exercícios e evolução dos alunos."
-                                icon={Dumbbell}
-                            />
-                        )}
+                        element={<Workouts />}
                     />
 
                     <Route

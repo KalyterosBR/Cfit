@@ -21,7 +21,7 @@ from apps.checkins.models import CheckIn
 from apps.enrollments.models import Enrollment
 from apps.financial.models import Charge
 from apps.financial.services.billing import PAYMENT_GRACE_PERIOD_DAYS
-from apps.students.models import Student
+from apps.students.models import Student, StudentStatusHistory
 
 
 def search_students(search=None, active=None, segment=None):
@@ -138,4 +138,90 @@ def search_students(search=None, active=None, segment=None):
             has_recent_checkin=Exists(recent_checkins),
         ).filter(has_recent_checkin=False)
 
+    if segment == "at_risk":
+        risk_ids = [
+            student_id
+            for student_id in Student.objects.filter(active=True).values_list("id", flat=True)
+            if get_student_health_score(student_id)["status"] == "risk"
+        ]
+        queryset = queryset.filter(id__in=risk_ids)
+
     return queryset.order_by("name")
+
+
+def get_student_health_score(student_or_id):
+    student = (
+        student_or_id
+        if isinstance(student_or_id, Student)
+        else Student.objects.get(pk=student_or_id)
+    )
+    factors = []
+    score = 100
+    has_plan = Enrollment.objects.filter(
+        student=student,
+        status=Enrollment.Status.ACTIVE,
+    ).exists()
+    if not has_plan:
+        score -= 30
+        factors.append({"code": "without_plan", "impact": -30, "label": "Sem matrícula ativa"})
+
+    defaulting_date = timezone.localdate() - timedelta(
+        days=PAYMENT_GRACE_PERIOD_DAYS + 1,
+    )
+    if Charge.objects.filter(
+        enrollment__student=student,
+        status=Charge.Status.OVERDUE,
+        due_date__lte=defaulting_date,
+    ).exists():
+        score -= 30
+        factors.append({"code": "defaulting", "impact": -30, "label": "Inadimplência além da tolerância"})
+
+    last_checkin = CheckIn.objects.filter(student=student).order_by(
+        "-checked_in_at"
+    ).values_list("checked_in_at", flat=True).first()
+    if not last_checkin:
+        score -= 30
+        factors.append({"code": "never_checked_in", "impact": -30, "label": "Nenhum check-in registrado"})
+    elif last_checkin < timezone.now() - timedelta(days=30):
+        score -= 25
+        factors.append({"code": "inactive_30_days", "impact": -25, "label": "Sem check-in há mais de 30 dias"})
+
+    if not student.active:
+        score = 0
+        factors.append({"code": "inactive", "impact": -100, "label": "Cadastro inativo"})
+
+    score = max(score, 0)
+    status_value = "healthy" if score >= 70 else "attention" if score >= 40 else "risk"
+    return {
+        "student": str(student.id),
+        "student_name": student.name,
+        "score": score,
+        "status": status_value,
+        "factors": factors,
+    }
+
+
+def count_active_students_at(period_end):
+    latest_status_event = StudentStatusHistory.objects.filter(
+        student_id=OuterRef("pk"),
+        created_at__lt=period_end,
+    ).order_by("-created_at")
+
+    return (
+        Student.objects.filter(created_at__lt=period_end)
+        .annotate(
+            latest_status_event=Subquery(
+                latest_status_event.values("event_type")[:1],
+                output_field=CharField(),
+            )
+        )
+        .filter(
+            Q(latest_status_event__isnull=True)
+            | Q(
+                latest_status_event=(
+                    StudentStatusHistory.EventType.REACTIVATED
+                )
+            )
+        )
+        .count()
+    )

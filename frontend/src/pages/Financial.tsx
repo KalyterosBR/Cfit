@@ -19,7 +19,11 @@ import {
     X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import {
+    useLocation,
+    useNavigate,
+    useSearchParams,
+} from "react-router-dom";
 
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PageHeader from "@/components/PageHeader";
@@ -136,8 +140,29 @@ function getCategoryClass(category: Charge["operational_category"]) {
 }
 
 
+const validCategories = new Set<ChargeCategoryFilter>([
+    "all",
+    "overdue",
+    "due_soon",
+    "future",
+    "paid",
+    "canceled",
+    "inconsistent",
+]);
+
+
+function getDateParam(searchParams: URLSearchParams, name: string) {
+    const value = searchParams.get(name) ?? "";
+
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+}
+
+
 export default function Financial() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const initialCategory = searchParams.get("category") as ChargeCategoryFilter | null;
 
     const [charges, setCharges] = useState<Charge[]>([]);
     const [chargeGroups, setChargeGroups] = useState<ChargeGroup[]>([]);
@@ -149,14 +174,27 @@ export default function Financial() {
     const [forecastMonths, setForecastMonths] = useState<3 | 6 | 12>(6);
     const [forecastLoading, setForecastLoading] = useState(true);
     const [forecastError, setForecastError] = useState(false);
-    const [search, setSearch] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
+    const [debouncedSearch, setDebouncedSearch] = useState(search);
     const [categoryFilter, setCategoryFilter] =
-        useState<ChargeCategoryFilter>("all");
+        useState<ChargeCategoryFilter>(
+            initialCategory && validCategories.has(initialCategory)
+                ? initialCategory
+                : "all",
+        );
     const [dueDateFrom, setDueDateFrom] = useState("");
     const [dueDateTo, setDueDateTo] = useState("");
     const [competenceDateFrom, setCompetenceDateFrom] = useState("");
     const [competenceDateTo, setCompetenceDateTo] = useState("");
+    const [paidDateFrom, setPaidDateFrom] = useState(
+        () => getDateParam(searchParams, "paid_date_from"),
+    );
+    const [paidDateTo, setPaidDateTo] = useState(
+        () => getDateParam(searchParams, "paid_date_to"),
+    );
+    const [chargeFilter, setChargeFilter] = useState(
+        () => searchParams.get("charge") ?? "",
+    );
     const [planFilter, setPlanFilter] = useState("");
     const [paymentMethodFilter, setPaymentMethodFilter] =
         useState<"all" | PaymentMethod>("all");
@@ -164,7 +202,9 @@ export default function Financial() {
         useState<OverdueRangeFilter>("all");
     const [reconciliationFilter, setReconciliationFilter] =
         useState<ReconciliationFilter>("all");
-    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(
+        () => Boolean(paidDateFrom || paidDateTo || chargeFilter),
+    );
     const [filterOptions, setFilterOptions] =
         useState<FinancialFilterOptions>({ plans: [], payment_methods: [] });
     const [page, setPage] = useState(1);
@@ -211,6 +251,18 @@ export default function Financial() {
     }, []);
 
 
+    useEffect(() => {
+        const targetId = location.hash.slice(1);
+        if (!targetId) return;
+
+        window.requestAnimationFrame(() => {
+            document.getElementById(targetId)?.scrollIntoView({
+                block: "start",
+            });
+        });
+    }, [location.hash]);
+
+
     const loadFinancial = useCallback(async () => {
         try {
             setLoading(true);
@@ -224,6 +276,9 @@ export default function Financial() {
                 dueDateTo,
                 competenceDateFrom,
                 competenceDateTo,
+                paidDateFrom,
+                paidDateTo,
+                charge: chargeFilter,
                 plan: planFilter,
                 paymentMethod: paymentMethodFilter,
                 overdueRange: overdueRangeFilter,
@@ -269,6 +324,9 @@ export default function Financial() {
         categoryFilter,
         competenceDateFrom,
         competenceDateTo,
+        paidDateFrom,
+        paidDateTo,
+        chargeFilter,
         debouncedSearch,
         dueDateFrom,
         dueDateTo,
@@ -298,6 +356,9 @@ export default function Financial() {
                     dueDateTo,
                     competenceDateFrom,
                     competenceDateTo,
+                    paidDateFrom,
+                    paidDateTo,
+                    charge: chargeFilter,
                     plan: planFilter,
                     paymentMethod: paymentMethodFilter,
                     overdueRange: overdueRangeFilter,
@@ -317,6 +378,9 @@ export default function Financial() {
         categoryFilter,
         competenceDateFrom,
         competenceDateTo,
+        paidDateFrom,
+        paidDateTo,
+        chargeFilter,
         debouncedSearch,
         dueDateFrom,
         dueDateTo,
@@ -389,6 +453,9 @@ export default function Financial() {
         dueDateTo,
         competenceDateFrom,
         competenceDateTo,
+        paidDateFrom,
+        paidDateTo,
+        chargeFilter,
         planFilter,
         paymentMethodFilter === "all" ? "" : paymentMethodFilter,
         overdueRangeFilter === "all" ? "" : overdueRangeFilter,
@@ -400,11 +467,21 @@ export default function Financial() {
         setDueDateTo("");
         setCompetenceDateFrom("");
         setCompetenceDateTo("");
+        setPaidDateFrom("");
+        setPaidDateTo("");
+        setChargeFilter("");
         setPlanFilter("");
         setPaymentMethodFilter("all");
         setOverdueRangeFilter("all");
         setReconciliationFilter("all");
         setPage(1);
+
+        const nextParams = new URLSearchParams();
+        if (search.trim()) nextParams.set("search", search.trim());
+        if (categoryFilter !== "all") {
+            nextParams.set("category", categoryFilter);
+        }
+        setSearchParams(nextParams, { replace: true });
     }
 
     function changeViewMode(mode: FinancialViewMode) {
@@ -437,6 +514,9 @@ export default function Financial() {
                 dueDateTo,
                 competenceDateFrom,
                 competenceDateTo,
+                paidDateFrom,
+                paidDateTo,
+                charge: chargeFilter,
                 plan: planFilter,
                 paymentMethod: paymentMethodFilter,
                 overdueRange: overdueRangeFilter,
@@ -675,7 +755,29 @@ export default function Financial() {
 
             <FinancialInconsistenciesSection />
 
-            <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.3)]">
+            <div
+                id="financial-charges"
+                className="mt-6 scroll-mt-6 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.3)]"
+            >
+                {chargeFilter && (
+                    <div className="flex flex-col gap-2 border-b border-blue-100 bg-blue-50/70 px-5 py-3 text-xs font-semibold text-blue-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                        <span>Exibindo a cobrança selecionada no Dashboard.</span>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setChargeFilter("");
+                                setPage(1);
+                                const nextParams = new URLSearchParams(searchParams);
+                                nextParams.delete("charge");
+                                setSearchParams(nextParams, { replace: true });
+                            }}
+                            className="self-start underline underline-offset-4 sm:self-auto"
+                        >
+                            Mostrar todas
+                        </button>
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-3 border-b border-slate-200/80 p-5 md:flex-row md:items-center sm:p-6">
                     <div className="relative flex-1">
                         <Search
@@ -727,7 +829,7 @@ export default function Financial() {
 
                 {showAdvancedFilters && (
                     <div className="border-b border-slate-200/80 bg-slate-50/60 p-5 sm:p-6">
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                             <fieldset className="grid grid-cols-2 gap-3">
                                 <legend className="col-span-2 mb-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
                                     Período de vencimento
@@ -787,6 +889,38 @@ export default function Financial() {
                                             setPage(1);
                                         }}
                                         min={competenceDateFrom || undefined}
+                                        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10"
+                                    />
+                                </label>
+                            </fieldset>
+
+                            <fieldset className="grid grid-cols-2 gap-3">
+                                <legend className="col-span-2 mb-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
+                                    Período de pagamento
+                                </legend>
+                                <label className="text-xs font-semibold text-slate-600">
+                                    De
+                                    <input
+                                        type="date"
+                                        value={paidDateFrom}
+                                        onChange={(event) => {
+                                            setPaidDateFrom(event.target.value);
+                                            setPage(1);
+                                        }}
+                                        max={paidDateTo || undefined}
+                                        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10"
+                                    />
+                                </label>
+                                <label className="text-xs font-semibold text-slate-600">
+                                    Até
+                                    <input
+                                        type="date"
+                                        value={paidDateTo}
+                                        onChange={(event) => {
+                                            setPaidDateTo(event.target.value);
+                                            setPage(1);
+                                        }}
+                                        min={paidDateFrom || undefined}
                                         className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10"
                                     />
                                 </label>

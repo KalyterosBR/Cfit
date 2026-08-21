@@ -45,6 +45,10 @@ urlpatterns = [
         "api/checkins/",
         include("apps.checkins.api.urls"),
     ),
+    path(
+        "api/workouts/",
+        include("apps.workouts.api.urls"),
+    ),
     # Autenticação
     path(
         "api/auth/login/",

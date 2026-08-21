@@ -15,6 +15,8 @@ type RecentPaymentsProps = {
     loading?: boolean;
     error?: boolean;
     onRetry?: () => void;
+    periodLabel?: string;
+    linkToFinance?: boolean;
 };
 
 
@@ -60,6 +62,8 @@ export default function RecentPayments({
     loading = false,
     error = false,
     onRetry = () => undefined,
+    periodLabel,
+    linkToFinance = false,
 }: RecentPaymentsProps) {
     return (
         <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:p-6">
@@ -69,7 +73,9 @@ export default function RecentPayments({
                 </h2>
 
                 <p className="mt-1 text-xs text-slate-500">
-                    Últimos recebimentos registrados
+                    {periodLabel
+                        ? `Recebimentos em ${periodLabel}`
+                        : "Últimos recebimentos registrados"}
                 </p>
             </div>
 
@@ -92,18 +98,24 @@ export default function RecentPayments({
                 </div>
             ) : payments.length === 0 ? (
                 <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-                    Nenhum pagamento foi registrado até o momento.
+                    {periodLabel
+                        ? `Nenhum pagamento foi registrado em ${periodLabel}.`
+                        : "Nenhum pagamento foi registrado até o momento."}
                 </div>
             ) : (
                 <div className="divide-y divide-slate-100">
                     {payments.map((payment) => (
                         <Link
                             key={payment.id}
-                            to={payment.student
-                                ? `/students/${payment.student}`
-                                : "#"}
+                            to={linkToFinance
+                                ? `/finance?charge=${payment.id}#charges`
+                                : payment.student
+                                    ? `/students/${payment.student}`
+                                    : "#"}
                             onClick={(event) => {
-                                if (!payment.student) event.preventDefault();
+                                if (!linkToFinance && !payment.student) {
+                                    event.preventDefault();
+                                }
                             }}
                             className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
                         >

@@ -5,65 +5,65 @@ import {
     CreditCard,
     Calendar,
     BarChart3,
-    LogOut,
     Settings,
-    ShieldCheck,
     Layers3,
+    Footprints,
     X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import {
     NavLink,
-    useNavigate,
 } from "react-router-dom";
 
 import Logo from "@/components/branding/Logo";
-import { clearTokens } from "@/features/auth/services/token.service";
 
-const menu = [
+type MenuItem = {
+    title: string;
+    path: string;
+    icon: LucideIcon;
+    comingSoon?: boolean;
+};
+
+type MenuGroup = {
+    label: string;
+    items: MenuItem[];
+};
+
+const menuGroups: MenuGroup[] = [
     {
-        title: "Dashboard",
-        icon: LayoutDashboard,
-        path: "/dashboard",
+        label: "Visão geral",
+        items: [{
+            title: "Dashboard",
+            icon: LayoutDashboard,
+            path: "/dashboard",
+        }],
     },
     {
-        title: "Alunos",
-        icon: Users,
-        path: "/students",
+        label: "Operação",
+        items: [
+            { title: "Alunos", icon: Users, path: "/students" },
+            { title: "Planos", icon: Layers3, path: "/plans" },
+            { title: "Check-ins", icon: Footprints, path: "/checkins" },
+        ],
     },
     {
-        title: "Planos",
-        icon: Layers3,
-        path: "/plans",
+        label: "Gestão",
+        items: [
+            { title: "Financeiro", icon: CreditCard, path: "/finance" },
+            { title: "Relatórios", icon: BarChart3, path: "/reports", comingSoon: true },
+        ],
     },
     {
-        title: "Treinos",
-        icon: Dumbbell,
-        path: "/workouts",
-        comingSoon: true,
+        label: "Experiência",
+        items: [
+            { title: "Treinos", icon: Dumbbell, path: "/workouts", comingSoon: true },
+            { title: "Agenda", icon: Calendar, path: "/schedule", comingSoon: true },
+        ],
     },
     {
-        title: "Financeiro",
-        icon: CreditCard,
-        path: "/finance",
-    },
-    {
-        title: "Agenda",
-        icon: Calendar,
-        path: "/schedule",
-        comingSoon: true,
-    },
-    {
-        title: "Relatórios",
-        icon: BarChart3,
-        path: "/reports",
-        comingSoon: true,
-    },
-    {
-        title: "Configurações",
-        icon: Settings,
-        path: "/settings",
-        comingSoon: true,
+        label: "Administração",
+        items: [{ title: "Configurações", icon: Settings, path: "/settings", comingSoon: true }],
     },
 ];
 
@@ -77,20 +77,6 @@ export default function Sidebar({
     open,
     onClose,
 }: SidebarProps) {
-    const navigate = useNavigate();
-
-
-    function handleLogout() {
-        clearTokens();
-
-        onClose();
-
-        navigate("/", {
-            replace: true,
-        });
-    }
-
-
     return (
         <>
             <button
@@ -134,78 +120,41 @@ export default function Sidebar({
                     </button>
                 </div>
 
-                <nav className="relative min-h-0 flex-1 overflow-y-auto px-4 py-5">
-                    <p className="mb-3 px-3 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                        Operação
-                    </p>
-
-                    <div className="space-y-1.5">
-                        {menu.map((item) => {
+                <nav className="relative min-h-0 flex-1 overflow-y-auto px-4 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="space-y-4">
+                        {menuGroups.map((group) => <section key={group.label}>
+                            <p className="mb-2 px-3 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                                {group.label}
+                            </p>
+                            <div className="space-y-1">
+                        {group.items.map((item) => {
                             const Icon = item.icon;
-
                             return (
+                                <div key={item.title}>
                                 <NavLink
-                                    key={item.title}
                                     to={item.path}
                                     onClick={onClose}
-                                    className={({ isActive }) =>
-                                        [
-                                            "group relative flex h-11 w-full items-center gap-3 overflow-hidden rounded-xl px-3.5 text-[13px] font-semibold transition-all duration-200",
-                                            isActive
-                                                ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-[0_14px_30px_-16px_rgba(37,99,235,0.9)]"
-                                                : "text-slate-400 hover:bg-white/[0.055] hover:text-slate-100",
-                                        ].join(" ")
-                                    }
+                                    className={({ isActive }) => `group relative flex h-10 w-full items-center gap-3 overflow-hidden rounded-xl px-3.5 text-[13px] font-semibold transition-all duration-200 ${isActive
+                                        ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-[0_14px_30px_-16px_rgba(37,99,235,0.9)]"
+                                        : "text-slate-400 hover:bg-white/[0.055] hover:text-slate-100"
+                                    }`}
                                 >
-                                    <Icon
-                                        size={18}
-                                        strokeWidth={2}
-                                        className="shrink-0"
-                                    />
-
+                                    <Icon size={18} strokeWidth={2} className="shrink-0" />
                                     <span>{item.title}</span>
-
                                     {item.comingSoon && (
                                         <span className="ml-auto rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-cyan-200/80">
                                             Em breve
                                         </span>
                                     )}
                                 </NavLink>
+                                </div>
                             );
                         })}
+                            </div>
+                        </section>)}
                     </div>
                 </nav>
 
-                <div className="relative shrink-0 border-t border-white/[0.07] p-4">
-                    <div className="mb-3 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.035] px-3 py-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
-                            <ShieldCheck size={16} />
-                        </div>
-
-                        <div className="min-w-0">
-                            <p className="text-[11px] font-semibold text-slate-200">
-                                Ambiente seguro
-                            </p>
-
-                            <p className="text-[9px] text-slate-500">
-                                Sessão protegida pelo Cfit
-                            </p>
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="group flex h-11 w-full items-center gap-3 rounded-xl px-3.5 text-[13px] font-semibold text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/30"
-                    >
-                        <LogOut
-                            size={18}
-                            className="transition-transform group-hover:-translate-x-0.5"
-                        />
-
-                        <span>Sair da conta</span>
-                    </button>
-                </div>
             </aside>
         </>
     );

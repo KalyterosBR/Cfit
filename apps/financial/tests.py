@@ -14,6 +14,7 @@ from apps.financial.models import (
     Charge,
     ChargeAudit,
     ChargeReconciliation,
+    MonthlyRevenueGoal,
     RecurringPaymentAttempt,
 )
 from apps.financial.services.billing import add_months
@@ -173,6 +174,9 @@ class ChargeApiTests(APITestCase):
                 "due_date_to": today.isoformat(),
                 "competence_date_from": today.replace(day=1).isoformat(),
                 "competence_date_to": today.replace(day=1).isoformat(),
+                "paid_date_from": today.isoformat(),
+                "paid_date_to": today.isoformat(),
+                "charge": paid_charge.id,
             },
         )
 
@@ -192,6 +196,19 @@ class ChargeApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        payment_response = self.client.get(
+            self.list_url,
+            {
+                "paid_date_from": (today + timedelta(days=1)).isoformat(),
+                "paid_date_to": today.isoformat(),
+            },
+        )
+
+        self.assertEqual(
+            payment_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
 
     def test_filter_options_include_plans_and_payment_methods(self):
         response = self.client.get(reverse("charge-filter-options"))
@@ -1033,13 +1050,21 @@ class ChargeApiTests(APITestCase):
             for payment in response.data["recent_payments"]
         ]
         self.assertEqual(recent_payment_ids[0], current_payment.id)
-        self.assertIn(previous_payment.id, recent_payment_ids)
+        self.assertNotIn(previous_payment.id, recent_payment_ids)
         self.assertNotIn(self.pending_charge.id, recent_payment_ids)
         self.assertEqual(response.data["previous_revenue"], 200)
         self.assertEqual(
             response.data["growth_percentage"],
             Decimal("-82.5"),
         )
+        self.assertEqual(response.data["revenue_difference"], Decimal("-165"))
+        self.assertEqual(response.data["current_payment_count"], 1)
+        self.assertEqual(response.data["previous_payment_count"], 1)
+        self.assertEqual(response.data["current_average_ticket"], Decimal("35"))
+        self.assertEqual(response.data["previous_average_ticket"], Decimal("200"))
+        self.assertEqual(response.data["volume_effect"], Decimal("0.00"))
+        self.assertEqual(response.data["ticket_effect"], Decimal("-165.00"))
+        self.assertEqual(response.data["growth_driver"], "average_ticket")
         self.assertEqual(len(response.data["revenue_history"]), 6)
         self.assertEqual(
             response.data["revenue_history"][-1]["period"],
@@ -1048,4 +1073,127 @@ class ChargeApiTests(APITestCase):
         self.assertEqual(
             response.data["revenue_history"][-1]["revenue"],
             35,
+        )
+
+    def test_dashboard_summary_accepts_a_past_month(self):
+        today = timezone.localdate()
+        selected_month = add_months(today.replace(day=1), -2)
+        previous_month = add_months(selected_month, -1)
+        selected_payment_date = selected_month.replace(day=15)
+        previous_payment_date = previous_month.replace(day=15)
+
+        selected_payment = Charge.objects.create(
+            enrollment=self.enrollment,
+            description="Pagamento do período selecionado",
+            amount="150.00",
+            due_date=selected_payment_date,
+            competence_date=selected_payment_date,
+            status=Charge.Status.PAID,
+            paid_at=timezone.make_aware(
+                datetime.combine(selected_payment_date, time(12)),
+            ),
+        )
+        Charge.objects.create(
+            enrollment=self.enrollment,
+            description="Pagamento do período comparado",
+            amount="100.00",
+            due_date=previous_payment_date,
+            competence_date=previous_payment_date,
+            status=Charge.Status.PAID,
+            paid_at=timezone.make_aware(
+                datetime.combine(previous_payment_date, time(12)),
+            ),
+        )
+
+        response = self.client.get(
+            reverse("charge-dashboard-summary"),
+            {"period": selected_month.strftime("%Y-%m")},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["monthly_revenue"], 150)
+        self.assertEqual(response.data["previous_revenue"], 100)
+        self.assertEqual(response.data["growth_percentage"], Decimal("50.0"))
+        self.assertEqual(
+            response.data["period_start"],
+            selected_month.isoformat(),
+        )
+        self.assertEqual(
+            response.data["revenue_history"][-1]["period"],
+            selected_month.strftime("%Y-%m"),
+        )
+        self.assertEqual(
+            response.data["recent_payments"][0]["id"],
+            selected_payment.id,
+        )
+
+    def test_dashboard_summary_rejects_invalid_or_future_period(self):
+        future_month = add_months(
+            timezone.localdate().replace(day=1),
+            1,
+        )
+
+        invalid_response = self.client.get(
+            reverse("charge-dashboard-summary"),
+            {"period": "08-2026"},
+        )
+        future_response = self.client.get(
+            reverse("charge-dashboard-summary"),
+            {"period": future_month.strftime("%Y-%m")},
+        )
+
+        self.assertEqual(
+            invalid_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("period", invalid_response.data)
+        self.assertEqual(
+            future_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertIn("period", future_response.data)
+
+    def test_monthly_revenue_goal_can_be_created_read_and_updated(self):
+        period = timezone.localdate().strftime("%Y-%m")
+        url = reverse("revenue-goal-list")
+
+        create_response = self.client.post(
+            url,
+            {"period": period, "target_amount": "10000.00"},
+        )
+        read_response = self.client.get(url, {"period": period})
+        update_response = self.client.post(
+            url,
+            {"period": period, "target_amount": "12500.00"},
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(read_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(read_response.data["target_amount"], "10000.00")
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(update_response.data["target_amount"], "12500.00")
+        self.assertEqual(MonthlyRevenueGoal.objects.count(), 1)
+        goal = MonthlyRevenueGoal.objects.get()
+        self.assertEqual(goal.created_by, self.user)
+        self.assertEqual(goal.updated_by, self.user)
+
+    def test_monthly_revenue_goal_validates_period_and_positive_amount(self):
+        url = reverse("revenue-goal-list")
+
+        invalid_period_response = self.client.get(
+            url,
+            {"period": "08-2026"},
+        )
+        invalid_amount_response = self.client.post(
+            url,
+            {"period": "2026-08", "target_amount": "0.00"},
+        )
+
+        self.assertEqual(
+            invalid_period_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(
+            invalid_amount_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
         )

@@ -24,7 +24,25 @@ export type StudentSegment =
     | "all"
     | "defaulting"
     | "without_plan"
-    | "without_recent_checkin";
+    | "without_recent_checkin"
+    | "at_risk";
+
+export interface StudentHealthScore {
+    student: string;
+    student_name: string;
+    score: number;
+    status: "healthy" | "attention" | "risk";
+    factors: Array<{ code: string; impact: number; label: string }>;
+}
+
+export interface StudentHealthSummary {
+    total_count: number;
+    healthy_count: number;
+    attention_count: number;
+    risk_count: number;
+    at_risk: StudentHealthScore[];
+    methodology: { base_score: number; thresholds: { healthy: number; attention: number }; factors: Record<string, number> };
+}
 
 export interface StudentOperationalSummary {
     active_plans: Array<{
@@ -39,6 +57,13 @@ export interface StudentOperationalSummary {
     } | null;
     latest_checkin_at: string | null;
     checkins_last_30_days: number;
+    current_workout: {
+        id: string;
+        name: string;
+        objective: string;
+        review_date: string | null;
+        instructor: string;
+    } | null;
 }
 
 export type StudentTimelineEventType =
@@ -63,6 +88,32 @@ export interface StudentTimelineEvent {
     occurred_at: string;
     context: string;
     actor_name: string | null;
+}
+
+
+export interface DashboardStudentSummary {
+    period: string;
+    period_start: string;
+    period_end: string;
+    active_count: number;
+    previous_period: string;
+    previous_active_count: number;
+    change: number;
+    change_percentage: number | null;
+    created_count: number;
+    deactivated_count: number;
+    reactivated_count: number;
+    event_net_change: number;
+    data_quality: "complete" | "partial";
+    history_available_from: string | null;
+}
+
+
+export interface MonthlyActiveStudentGoal {
+    period: string;
+    target_count: number | null;
+    updated_at: string | null;
+    updated_by: string | null;
 }
 
 
@@ -169,4 +220,68 @@ export async function getActiveStudentsCount(): Promise<number> {
     );
 
     return response.data.count;
+}
+
+
+export async function getActiveStudentSegmentCount(
+    segment: Exclude<StudentSegment, "all">,
+): Promise<number> {
+    const response = await Api.get<{ count: number }>(
+        "/students/summary/",
+        {
+            params: {
+                active: true,
+                segment,
+            },
+        },
+    );
+
+    return response.data.count;
+}
+
+export async function getStudentHealthSummary(): Promise<StudentHealthSummary> {
+    const response = await Api.get<StudentHealthSummary>("/students/health-summary/");
+    return response.data;
+}
+
+export async function getStudentHealthScore(id: string): Promise<StudentHealthScore> {
+    const response = await Api.get<StudentHealthScore>(`/students/${id}/health-score/`);
+    return response.data;
+}
+
+
+export async function getDashboardStudentSummary(
+    period: string,
+): Promise<DashboardStudentSummary> {
+    const response = await Api.get<DashboardStudentSummary>(
+        "/students/dashboard-summary/",
+        { params: { period } },
+    );
+
+    return response.data;
+}
+
+
+export async function getMonthlyActiveStudentGoal(
+    period: string,
+): Promise<MonthlyActiveStudentGoal> {
+    const response = await Api.get<MonthlyActiveStudentGoal>(
+        "/students/monthly-goal/",
+        { params: { period } },
+    );
+
+    return response.data;
+}
+
+
+export async function saveMonthlyActiveStudentGoal(
+    period: string,
+    targetCount: number,
+): Promise<MonthlyActiveStudentGoal> {
+    const response = await Api.post<MonthlyActiveStudentGoal>(
+        "/students/monthly-goal/",
+        { period, target_count: targetCount },
+    );
+
+    return response.data;
 }
