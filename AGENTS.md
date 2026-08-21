@@ -165,6 +165,8 @@ apps/enrollments
 apps/financial
 apps/checkins
 apps/workouts
+apps/schedule
+apps/automations
 ```
 
 Também está habilitado `django.contrib.postgres`.
@@ -481,14 +483,16 @@ O interceptor HTTP adiciona o access token às requisições privadas. Em respos
 /plans             Planos
 /finance           Gestão financeira
 /workouts          Gestão de treinos e biblioteca de exercícios
-/schedule          Em desenvolvimento: Agenda
-/reports           Em desenvolvimento: Relatórios
-/settings          Em desenvolvimento: Configurações
+/schedule          Agenda unificada
+/reports           Relatórios gerenciais
+/settings          Configurações organizadas e pesquisáveis
+/units             Academia e unidades
+/automations       Automações orientadas por eventos
 ```
 
 A rota `/` é homepage institucional + login, não só login.
 
-Todas essas rotas estão registradas em `frontend/src/routes/index.tsx`. Agenda, Relatórios e Configurações usam o componente compartilhado `ComingSoon` para evitar páginas brancas, mas não devem ser documentados como módulos funcionais.
+Todas essas rotas estão registradas em `frontend/src/routes/index.tsx`. Relatórios e Configurações possuem primeiras etapas funcionais conectadas aos domínios já disponíveis.
 
 Estrutura atual relevante do frontend:
 ```text
@@ -838,6 +842,16 @@ Arquitetura deve permitir futuramente:
 
 Evitar decisões que tornem multi-academia impossível no futuro.
 
+Fundação multiunidade implementada:
+- modelo `academy.Unit`, sempre vinculado a uma academia;
+- código único por academia;
+- API privada `/api/academies/units/`, isolada pela academia do usuário;
+- `AcademyUser.active_unit` preserva o contexto operacional selecionado;
+- `POST /api/users/me/active-unit/` troca somente para uma unidade ativa da mesma academia;
+- rota frontend `/units` permite cadastrar e selecionar unidades.
+
+Essa fundação ainda não significa que todos os modelos históricos estejam particionados por unidade. Alunos, cobranças, check-ins, agenda e demais domínios devem receber o vínculo e filtros de unidade incrementalmente, com migração de dados explícita.
+
 ---
 
 ## 35. Regras de negócio — Planos
@@ -982,14 +996,26 @@ Já existem registros de histórico e auditoria para ações relevantes de aluno
 - mudanças relevantes em alunos;
 - ações administrativas.
 
+A primeira trilha administrativa central está implementada em `apps.users.AdministrativeAudit`. Alterações de perfil e ativação de vínculos registram ator, ação, entidade, valores anterior e posterior, motivo, origem e data. A consulta privada fica em `GET /api/users/audits/` e exige capacidade administrativa.
+
+Criação e alteração de unidades e regras de automação também alimentam essa trilha.
+
 Projetar serviços novos pensando em auditabilidade quando fizer sentido.
 
 ---
 
 ## 40. Permissões
-Primeira etapa: `Administrador`.
+O RBAC incremental usa os perfis já existentes em `AcademyUser`: Proprietário, Administrador, Gerente, Recepção, Professor e Financeiro.
 
-Permissões complexas serão implementadas futuramente. Não criar RBAC avançado prematuramente sem solicitação.
+Implementação atual:
+- `GET /api/users/me/` expõe perfil, academia e capacidades da sessão;
+- `GET /api/users/members/` e `PATCH /api/users/members/:id/` administram vínculos da academia;
+- operações financeiras diferenciam leitura (`finance.view`) e escrita (`finance.manage`) no backend;
+- Proprietário e Administrador possuem todas as capacidades nesta primeira etapa;
+- contas antigas sem vínculo `AcademyUser` preservam acesso administrativo temporário para compatibilidade durante a transição;
+- alterações de perfil e ativação geram auditoria administrativa.
+
+Expandir as permissões para os demais módulos gradualmente. Não criar uma matriz excessivamente granular sem necessidade de negócio.
 
 ---
 
@@ -1108,8 +1134,10 @@ Estado confirmado no código e nas validações de encerramento de 20/08/2026:
 - módulo Financeiro central em `/finance`, com filtros avançados, competência, agrupamento, seleção segura, pagamento em lote, exportação, conciliação, previsão, caixa, recorrências e central de inconsistências;
 - aba Financeiro do detalhe do aluno mantida somente para consulta contextual;
 - Check-in manual e histórico de check-ins funcionais no detalhe do aluno;
-- rota `/workouts` funcional para gestão global de treinos e biblioteca de exercícios;
-- rotas `/schedule`, `/reports` e `/settings` registradas com páginas seguras de `Em desenvolvimento`;
+- módulo Treinos funcional na rota `/workouts` e na ficha do aluno, com prescrições editáveis, modelos reutilizáveis, biblioteca, sessões, aderência, evolução, revisão e impressão;
+- rota `/schedule` funcional com agenda unificada;
+- rota `/reports` funcional com indicadores gerenciais baseados nas APIs existentes;
+- rota `/settings` funcional em primeira etapa, com categorias pesquisáveis e contexto da academia atual;
 - títulos das páginas apresentados em português no documento do navegador;
 - README atualizado para refletir arquitetura, setup, rotas, APIs e validações atuais;
 - artefatos gerados, assets padrão, templates server-side antigos e arquivos comprovadamente órfãos removidos da estrutura;
@@ -1120,11 +1148,15 @@ Estado confirmado no código e nas validações de encerramento de 20/08/2026:
 - containers Django, frontend e PostgreSQL estão ativos a partir do novo workspace.
 
 Limites atuais confirmados:
-- Agenda, Relatórios e Configurações possuem somente páginas de `Em desenvolvimento`;
-- a aba “Treinos” do detalhe do aluno possui treino atual, criação, conclusão e histórico;
+- Relatórios ainda possuem um conjunto inicial de perguntas gerenciais, sem catálogo avançado ou exportações próprias;
+- Configurações expõem inicialmente a organização dos domínios e o contexto da academia, sem edição dos módulos ainda indisponíveis;
+- o módulo web de Treinos está operacional; aplicativo próprio do aluno permanece fora do frontend atual;
 - busca, notificações e menu do usuário da Topbar são apenas visuais;
 - o Dashboard possui período configurável, comparações, metas, personalização visual por função e seção `Requer atenção`; a personalização ainda não representa RBAC;
-- permissões continuam na primeira etapa de Administrador, sem RBAC avançado;
+- RBAC incremental implementado por perfil, inicialmente aplicado à administração de usuários e às operações financeiras;
+- auditoria administrativa central cobre alterações de perfil e ativação; a cobertura dos demais domínios continua incremental;
+- automações possuem regras configuráveis, ativação, disparo explícito e histórico explicável de execução;
+- unidades possuem cadastro, isolamento pela academia e seleção do contexto ativo; os módulos históricos ainda não estão integralmente particionados por unidade;
 - o lint do frontend possui pendências preexistentes, principalmente pela regra `react-hooks/set-state-in-effect`.
 
 ---
@@ -1178,7 +1210,7 @@ Pendências visíveis adicionais:
 - busca universal e command palette implementadas para alunos, planos, cobranças e ações rápidas;
 - monitor de acessos e integrações de check-in ainda não implementados;
 - Customer Health Score ainda não implementado;
-- gestão de Treinos implementada em primeira etapa;
+- gestão web de Treinos implementada com prescrição, execução, modelos e evolução;
 - busca, notificações e menu do usuário da Topbar permanecem visuais.
 
 O reset do Turnstile, a persistência opcional do login, o logout da Sidebar, o Check-in básico e o módulo Financeiro central já estão implementados. Diagnosticar antes de alterar caso algum desses fluxos apresente falha em validação manual.
@@ -1241,12 +1273,11 @@ O Cfit deve absorver profundidade operacional sem se tornar excessivamente compl
 - Financeiro.
 
 **Possuem item de navegação ou espaço reservado, mas estão incompletos:**
-- Treinos;
 - Agenda;
 - Relatórios;
 - Configurações.
 
-No estado técnico confirmado, esses quatro itens aparecem na Sidebar e possuem rotas com páginas de `Em desenvolvimento`. Devem ser considerados espaços futuros, não módulos funcionais.
+No estado técnico confirmado, Treinos é um módulo web operacional. Agenda possui primeira etapa operacional. Relatórios e Configurações possuem primeiras etapas funcionais e incrementais, limitadas aos domínios já disponíveis.
 
 A ficha do aluno já possui abas para:
 - Visão geral;
@@ -1256,7 +1287,7 @@ A ficha do aluno já possui abas para:
 - Treinos;
 - Histórico.
 
-A aba Treinos ainda informa que será desenvolvida. Check-ins possui estrutura inicial, histórico e registro manual, incluindo estado vazio. O histórico atual contém principalmente movimentações de matrícula.
+A aba Treinos possui prescrição completa, execução e evolução. Check-ins possui estrutura inicial, histórico e registro manual, incluindo estado vazio. O histórico atual contém principalmente movimentações de matrícula.
 
 ### 48.1.5 Prioridade alta — fundações e consistência
 
@@ -1603,7 +1634,7 @@ Dependências: consistência dos dados, frequência confiável, financeiro conec
 ### 48.1.7 Prioridade média-alta
 
 #### A. Treinos
-**Implementado em primeira etapa:** a rota possui gestão global de prescrições e biblioteca de exercícios; a ficha do aluno possui treino atual, criação, conclusão e histórico. O backend preserva exercícios, modelos, itens do treino e registros de evolução.
+**Módulo web implementado:** a rota possui gestão global de prescrições, modelos reutilizáveis e biblioteca de exercícios. A ficha do aluno permite criar e editar o treino, aplicar modelos, adicionar, editar e remover exercícios, registrar sessões e evolução, acompanhar aderência, definir revisão, concluir ciclos, preservar histórico e imprimir a ficha. O backend aplica a capacidade `workouts.manage` e respeita a unidade ativa nos novos registros e consultas.
 
 Começar pela ficha do aluno:
 - treino atual;
@@ -1618,17 +1649,19 @@ Começar pela ficha do aluno:
 - próxima revisão;
 - histórico.
 
-Depois evoluir para:
+Capacidades entregues:
 - gestão global de fichas;
 - biblioteca de exercícios;
 - modelos de treino;
 - treinos predefinidos;
 - acompanhamento de evolução;
 - comparação entre períodos;
-- impressão e acesso pelo aplicativo.
+- impressão da ficha.
+
+Limite atual: acesso por um aplicativo separado do aluno não está implementado porque o projeto possui somente o frontend web de gestão.
 
 #### B. Agenda unificada
-**Ainda não implementado:** a rota exibe uma página segura de `Em desenvolvimento`.
+**Implementada em primeira etapa:** a rota reúne aulas, avaliações, tarefas, contatos e visitas, com criação, filtros por período e tipo, responsável, local e estados operacionais.
 
 Evitar fragmentar atividades em agendas diferentes. Criar uma agenda unificada para:
 - aulas;
@@ -1646,10 +1679,10 @@ Funcionalidades esperadas:
 - filtros por unidade, profissional e tipo;
 - disponibilidade e conflitos;
 - confirmação e lembretes;
-- estados como novo, em andamento, realizado e cancelado.
+- evolução visual dos estados agendado, em andamento, realizado e cancelado.
 
 #### C. Relatórios orientados a perguntas
-**Ainda não implementado:** a rota exibe uma página segura de `Em desenvolvimento`.
+**Primeira etapa implementada:** a rota reúne respostas gerenciais de receita, alunos ativos, check-ins e risco de retenção usando as APIs existentes.
 
 Evitar começar por um catálogo extenso e estático. Priorizar perguntas gerenciais:
 - quais alunos estão em risco de evasão?
@@ -1675,7 +1708,7 @@ Os relatórios devem:
 Dependências: fonte única de dados, regras de cálculo auditáveis e módulos operacionais correspondentes.
 
 #### D. Configurações
-**Ainda não implementado:** a rota exibe uma página segura de `Em desenvolvimento`.
+**Primeira etapa implementada:** a rota oferece busca por categorias, organização dos domínios de configuração e identificação da academia atual. Edições específicas dependem da disponibilidade de cada domínio.
 
 Organizar em:
 - Academia e unidades;
@@ -1715,7 +1748,9 @@ Adicionar:
 A ajuda não deve ocupar permanentemente espaço da operação.
 
 #### F. Comparação entre unidades e performance
-**Ainda não implementado:** para operações com múltiplas unidades:
+**Fundação implementada:** cadastro de unidades, isolamento das novas APIs por academia e seleção de contexto ativo. Comparações gerenciais entre unidades ainda não estão implementadas.
+
+Para operações com múltiplas unidades:
 - comparar métricas normalizadas;
 - acompanhar metas;
 - criar benchmarks internos;
@@ -1727,6 +1762,8 @@ Dependências: arquitetura multiacademia/multiunidade, isolamento dos dados, mé
 ### 48.1.8 Prioridade média
 
 #### A. Automações orientadas por eventos
+**Primeira etapa implementada:** regras configuráveis por evento, ativação, responsável opcional, disparo explícito, explicação e histórico de execução.
+
 Considerar automações para:
 - ausência prolongada;
 - cobrança vencida;
@@ -1837,12 +1874,19 @@ Entregas consolidadas nesta etapa:
 - Customer Health Score inicial e explicável baseado em plano ativo, inadimplência e frequência;
 - Sidebar organizada por áreas, sem menus sanfonados; logout transferido para o menu de perfil da Topbar;
 - favicon regenerado em tamanhos proporcionais a partir de matriz quadrada transparente;
-- app `apps/workouts` criado com exercícios, modelos, planos, itens do treino e registros de evolução;
-- aba Treinos da ficha do aluno funcional para criar, consultar, concluir e preservar histórico;
-- rota `/workouts` funcional com gestão global das prescrições e biblioteca pesquisável de exercícios.
+- app `apps/workouts` possui exercícios, modelos com itens, planos, exercícios prescritos, sessões e registros de evolução;
+- aba Treinos da ficha do aluno funcional para criar, editar, aplicar modelos, gerenciar exercícios, registrar execução/evolução, acompanhar aderência, concluir ciclos e imprimir;
+- rota `/workouts` funcional com gestão global das prescrições, modelos reutilizáveis e biblioteca pesquisável de exercícios, sem selo `Em breve`.
+- app `apps/schedule`, API privada e rota `/schedule` implementados para aulas, avaliações, tarefas, contatos e visitas, com período, tipo, responsável, local e estados operacionais.
+- RBAC incremental implementado com contexto da sessão, capacidades por perfil e proteção server-side das operações financeiras;
+- gestão de usuários e permissões integrada às Configurações, com compatibilidade temporária para contas administrativas legadas;
+- auditoria administrativa consultável registra alterações de perfil e ativação com estado anterior, posterior, ator e motivo.
+- app `apps.automations`, APIs e rota `/automations` implementados para regras orientadas por eventos e histórico de execução;
+- modelo de unidades, API isolada por academia e rota `/units` implementados, incluindo seleção da unidade ativa da sessão.
 
 Validações confirmadas:
 - 71 testes passaram para Treinos, alunos, check-ins, financeiro e planos;
+- após a conclusão do módulo web de Treinos, 50 testes integrados passaram para Treinos, usuários/RBAC, financeiro, automações e agenda;
 - `python manage.py check` passou;
 - `makemigrations --check --dry-run` não encontrou alterações pendentes;
 - build de produção do frontend passou;
@@ -1851,9 +1895,15 @@ Validações confirmadas:
 
 Ponto exato de retomada do lote solicitado de 10 itens:
 1. itens 1–3 concluídos em uma fundação integrada de Treinos;
-2. próximo item: construir a Agenda unificada;
-3. depois: Relatórios, Configurações, RBAC, auditoria administrativa, automações e preparação multiunidade;
-4. não considerar essas sete etapas restantes como implementadas.
+2. item 4 concluído em primeira etapa funcional de Agenda unificada;
+3. item 5 concluído em primeira etapa de Relatórios orientados a perguntas gerenciais;
+4. item 6 concluído em primeira etapa de Configurações organizadas e pesquisáveis;
+5. item 7 concluído com RBAC incremental por perfil e proteção financeira server-side;
+6. item 8 concluído com auditoria administrativa de alterações de acesso;
+7. item 9 concluído com regras de automação, execução explícita e histórico auditável;
+8. item 10 concluído com fundação multiunidade, isolamento das novas APIs e contexto ativo;
+9. lote solicitado de itens 1–10 concluído em primeiras etapas funcionais e incrementais;
+10. próxima evolução deve aprofundar uma dessas fundações em tarefas pequenas, sem tratar a base multiunidade como particionamento completo dos módulos históricos.
 
 ---
 

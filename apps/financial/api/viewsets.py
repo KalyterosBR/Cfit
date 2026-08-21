@@ -32,9 +32,11 @@ from apps.financial.models import (
     ChargeReconciliation,
     RecurringPaymentAttempt,
 )
+from apps.users.permissions import HasFinancialAccess
 
 
 class ChargeViewSet(viewsets.ModelViewSet):
+    permission_classes = [HasFinancialAccess]
     queryset = Charge.objects.select_related(
         "enrollment",
         "enrollment__student",

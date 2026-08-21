@@ -30,6 +30,25 @@ export interface WorkoutProgress {
     created_by_name: string;
 }
 
+export interface WorkoutSession {
+    id: string;
+    scheduled_for: string;
+    completed_at: string | null;
+    status: "planned" | "completed" | "skipped";
+    status_label: string;
+    duration_minutes: number | null;
+    notes: string;
+}
+
+export interface WorkoutTemplate {
+    id: string;
+    name: string;
+    objective: string;
+    description: string;
+    active: boolean;
+    exercises: WorkoutExercise[];
+}
+
 export interface WorkoutPlan {
     id: string;
     student: string;
@@ -44,6 +63,10 @@ export interface WorkoutPlan {
     notes: string;
     exercises: WorkoutExercise[];
     progress: WorkoutProgress[];
+    sessions: WorkoutSession[];
+    adherence_percentage: number | null;
+    template: string | null;
+    unit: string | null;
 }
 
 type Page<T> = { count: number; next: string | null; previous: string | null; results: T[] };
@@ -81,4 +104,32 @@ export async function addWorkoutExercise(payload: { workout: string; exercise: s
 export async function addWorkoutProgress(payload: { workout: string; recorded_at: string; adherence_percentage: number; notes: string }): Promise<WorkoutProgress> {
     const response = await Api.post<WorkoutProgress>("/workouts/progress/", payload);
     return response.data;
+}
+
+export async function updateWorkoutExercise(id: string, payload: Partial<WorkoutExercise>): Promise<WorkoutExercise> {
+    return (await Api.patch<WorkoutExercise>(`/workouts/plan-exercises/${id}/`, payload)).data;
+}
+
+export async function deleteWorkoutExercise(id: string): Promise<void> {
+    await Api.delete(`/workouts/plan-exercises/${id}/`);
+}
+
+export async function getWorkoutTemplates(search = ""): Promise<Page<WorkoutTemplate>> {
+    return (await Api.get<Page<WorkoutTemplate>>("/workouts/templates/", { params: { search: search || undefined } })).data;
+}
+
+export async function createWorkoutTemplate(payload: { name: string; objective: string; description: string }): Promise<WorkoutTemplate> {
+    return (await Api.post<WorkoutTemplate>("/workouts/templates/", payload)).data;
+}
+
+export async function addTemplateExercise(payload: { template: string; exercise: string; sets: number; repetitions: string; load: string | null; rest_seconds: number; order: number; notes: string }): Promise<WorkoutExercise> {
+    return (await Api.post<WorkoutExercise>("/workouts/template-exercises/", payload)).data;
+}
+
+export async function applyWorkoutTemplate(workout: string, template: string): Promise<WorkoutPlan> {
+    return (await Api.post<{ workout: WorkoutPlan }>(`/workouts/plans/${workout}/apply-template/`, { template })).data.workout;
+}
+
+export async function createWorkoutSession(payload: { workout: string; scheduled_for: string; status: "planned" | "completed" | "skipped"; duration_minutes: number | null; notes: string }): Promise<WorkoutSession> {
+    return (await Api.post<WorkoutSession>("/workouts/sessions/", payload)).data;
 }

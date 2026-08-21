@@ -49,6 +49,8 @@ urlpatterns = [
         "api/workouts/",
         include("apps.workouts.api.urls"),
     ),
+    path("api/schedule/", include("apps.schedule.api.urls")),
+    path("api/automations/", include("apps.automations.urls")),
     # Autenticação
     path(
         "api/auth/login/",
@@ -58,4 +60,5 @@ urlpatterns = [
         "api/auth/refresh/",
         TokenRefreshView.as_view(),
     ),
+    path("api/users/", include("apps.users.api.urls")),
 ]

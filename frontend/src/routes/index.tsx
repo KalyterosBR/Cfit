@@ -14,15 +14,14 @@ import Login from "@/pages/Login";
 import Dashboard from "../pages/Dashboard";
 import Financial from "../pages/Financial";
 import Plans from "../pages/Plans";
-import ComingSoon from "../pages/ComingSoon";
 import CheckIns from "../pages/CheckIns";
 import Workouts from "../pages/Workouts";
+import Schedule from "../pages/Schedule";
+import Reports from "../pages/Reports";
+import SettingsPage from "../pages/Settings";
+import Automations from "../pages/Automations";
+import Units from "../pages/Units";
 
-import {
-    BarChart3,
-    Calendar,
-    Settings,
-} from "lucide-react";
 
 import StudentsListPage from "../features/students/pages/StudentsListPage";
 import StudentDetailsPage from "../features/students/pages/StudentDetailsPage";
@@ -39,6 +38,8 @@ const routeTitles: Record<string, string> = {
     "/schedule": "Agenda",
     "/reports": "Relatórios",
     "/settings": "Configurações",
+    "/automations": "Automações",
+    "/units": "Academia e unidades",
 };
 
 
@@ -108,36 +109,20 @@ export default function AppRoutes() {
 
                     <Route
                         path="/schedule"
-                        element={(
-                            <ComingSoon
-                                title="Agenda"
-                                description="Agenda unificada de aulas, avaliações, tarefas e profissionais."
-                                icon={Calendar}
-                            />
-                        )}
+                        element={<Schedule />}
                     />
 
                     <Route
                         path="/reports"
-                        element={(
-                            <ComingSoon
-                                title="Relatórios"
-                                description="Análises gerenciais exploráveis e orientadas a decisões."
-                                icon={BarChart3}
-                            />
-                        )}
+                        element={<Reports />}
                     />
 
                     <Route
                         path="/settings"
-                        element={(
-                            <ComingSoon
-                                title="Configurações"
-                                description="Parâmetros da academia, usuários, integrações e segurança."
-                                icon={Settings}
-                            />
-                        )}
+                        element={<SettingsPage />}
                     />
+                    <Route path="/automations" element={<Automations />} />
+                    <Route path="/units" element={<Units />} />
                 </Route>
             </Routes>
         </BrowserRouter>

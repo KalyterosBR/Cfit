@@ -8,6 +8,8 @@ import {
     Settings,
     Layers3,
     Footprints,
+    Zap,
+    Building2,
     X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -22,7 +24,6 @@ type MenuItem = {
     title: string;
     path: string;
     icon: LucideIcon;
-    comingSoon?: boolean;
 };
 
 type MenuGroup = {
@@ -51,19 +52,23 @@ const menuGroups: MenuGroup[] = [
         label: "Gestão",
         items: [
             { title: "Financeiro", icon: CreditCard, path: "/finance" },
-            { title: "Relatórios", icon: BarChart3, path: "/reports", comingSoon: true },
+            { title: "Relatórios", icon: BarChart3, path: "/reports" },
         ],
     },
     {
         label: "Experiência",
         items: [
-            { title: "Treinos", icon: Dumbbell, path: "/workouts", comingSoon: true },
-            { title: "Agenda", icon: Calendar, path: "/schedule", comingSoon: true },
+            { title: "Treinos", icon: Dumbbell, path: "/workouts" },
+            { title: "Agenda", icon: Calendar, path: "/schedule" },
         ],
     },
     {
         label: "Administração",
-        items: [{ title: "Configurações", icon: Settings, path: "/settings", comingSoon: true }],
+        items: [
+            { title: "Configurações", icon: Settings, path: "/settings" },
+            { title: "Unidades", icon: Building2, path: "/units" },
+            { title: "Automações", icon: Zap, path: "/automations" },
+        ],
     },
 ];
 
@@ -141,11 +146,6 @@ export default function Sidebar({
                                 >
                                     <Icon size={18} strokeWidth={2} className="shrink-0" />
                                     <span>{item.title}</span>
-                                    {item.comingSoon && (
-                                        <span className="ml-auto rounded-md border border-white/10 bg-white/[0.06] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-cyan-200/80">
-                                            Em breve
-                                        </span>
-                                    )}
                                 </NavLink>
                                 </div>
                             );

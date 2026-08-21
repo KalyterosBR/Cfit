@@ -10,9 +10,11 @@ from apps.financial.api.recurring_serializers import (
     RecurringPaymentAttemptSerializer,
 )
 from apps.financial.models import Charge, RecurringPaymentAttempt
+from apps.users.permissions import HasFinancialAccess
 
 
 class RecurringPaymentAttemptViewSet(viewsets.ModelViewSet):
+    permission_classes = [HasFinancialAccess]
     serializer_class = RecurringPaymentAttemptSerializer
     http_method_names = ["get", "post", "head", "options"]
     filter_backends = [filters.SearchFilter]

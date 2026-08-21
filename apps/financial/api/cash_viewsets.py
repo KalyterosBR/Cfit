@@ -11,9 +11,11 @@ from rest_framework.response import Response
 from apps.financial.api.cash_serializers import CashTransactionSerializer
 from apps.financial.models import CashTransaction, Charge
 from apps.financial.services.billing import add_months
+from apps.users.permissions import HasFinancialAccess
 
 
 class CashTransactionViewSet(viewsets.ModelViewSet):
+    permission_classes = [HasFinancialAccess]
     serializer_class = CashTransactionSerializer
     http_method_names = ["get", "post", "head", "options"]
     filter_backends = [filters.SearchFilter]

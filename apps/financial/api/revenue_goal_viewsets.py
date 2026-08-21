@@ -6,6 +6,7 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.response import Response
 
 from apps.financial.models import MonthlyRevenueGoal
+from apps.users.permissions import HasFinancialAccess
 
 
 class RevenueGoalInputSerializer(serializers.Serializer):
@@ -41,6 +42,7 @@ def goal_data(goal, period):
 
 
 class MonthlyRevenueGoalViewSet(viewsets.ViewSet):
+    permission_classes = [HasFinancialAccess]
     def list(self, request):
         serializer = RevenueGoalQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)

@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.students.models import Student
-from apps.workouts.models import Exercise, WorkoutPlan
+from apps.workouts.models import Exercise, WorkoutPlan, WorkoutSession, WorkoutTemplate
 
 
 class WorkoutApiTests(APITestCase):
@@ -77,3 +77,47 @@ class WorkoutApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(Exercise.objects.filter(name="Agachamento").exists())
+
+    def test_applies_reusable_template_to_workout(self):
+        self.client.force_authenticate(self.user)
+        exercise = Exercise.objects.create(name="Remada")
+        template = WorkoutTemplate.objects.create(name="Modelo A", objective="Força")
+        item = self.client.post(
+            reverse("workout-template-exercise-list"),
+            {"template": template.pk, "exercise": exercise.pk, "sets": 4, "repetitions": "8", "order": 1},
+            format="json",
+        )
+        workout = WorkoutPlan.objects.create(
+            student=self.student, name="Treino A", objective="Força",
+            instructor=self.user, start_date=timezone.localdate(),
+        )
+        response = self.client.post(
+            reverse("workout-plan-apply-template", args=[workout.pk]),
+            {"template": template.pk}, format="json",
+        )
+        self.assertEqual(item.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["created"], 1)
+        self.assertEqual(response.data["workout"]["exercises"][0]["sets"], 4)
+
+    def test_sessions_calculate_adherence(self):
+        self.client.force_authenticate(self.user)
+        workout = WorkoutPlan.objects.create(
+            student=self.student, name="Treino A", objective="Força",
+            instructor=self.user, start_date=timezone.localdate(),
+        )
+        for offset, session_status in enumerate(["completed", "skipped"]):
+            response = self.client.post(
+                reverse("workout-session-list"),
+                {
+                    "workout": workout.pk,
+                    "scheduled_for": timezone.localdate() + timedelta(days=offset),
+                    "status": session_status,
+                    "duration_minutes": 50 if session_status == "completed" else None,
+                },
+                format="json",
+            )
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        detail = self.client.get(reverse("workout-plan-detail", args=[workout.pk]))
+        self.assertEqual(detail.data["adherence_percentage"], 50)
+        self.assertEqual(WorkoutSession.objects.count(), 2)
