@@ -19,6 +19,7 @@ export interface Plan {
         | "one_time";
     billing_period_label: string;
     recurring: boolean;
+    installment_count: number;
     enrollment_fee: string;
     minimum_commitment_months: number;
     auto_renew: boolean;
@@ -52,6 +53,7 @@ export interface SavePlanPayload {
     duration_months: number;
     billing_period: Plan["billing_period"];
     recurring: boolean;
+    installment_count: number;
     enrollment_fee: string;
     minimum_commitment_months: number;
     auto_renew: boolean;

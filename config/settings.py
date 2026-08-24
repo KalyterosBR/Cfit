@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "apps.workouts",
     "apps.schedule",
     "apps.automations",
+    "apps.operations",
 ]
 
 
@@ -73,6 +74,7 @@ INSTALLED_APPS = [
 # ==========================================
 
 MIDDLEWARE = [
+    "apps.core.middleware.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -120,8 +122,8 @@ DATABASES = {
         "NAME": os.getenv("POSTGRES_DB"),
         "USER": os.getenv("POSTGRES_USER"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": "postgres",
-        "PORT": "5432",
+        "HOST": os.getenv("POSTGRES_HOST", "postgres"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -189,6 +191,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@cfit.local")
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+
 
 # ==========================================
 # DJANGO REST FRAMEWORK
@@ -196,7 +202,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.users.authentication.SessionAwareJWTAuthentication",
     ),
     # Todas as APIs são privadas por padrão.
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),

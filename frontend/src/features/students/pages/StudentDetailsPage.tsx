@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     getStudentCharges,
@@ -46,6 +47,7 @@ import {
 
 import type { Student } from "../types/student";
 import StudentWorkoutSection from "../components/StudentWorkoutSection";
+import StudentAssessments from "../components/StudentAssessments";
 
 import {
     createCheckIn,
@@ -60,7 +62,8 @@ type StudentTab =
     | "financial"
     | "checkins"
     | "workouts"
-    | "history";
+    | "history"
+    | "assessments";
 
 
 const tabs: {
@@ -87,6 +90,7 @@ const tabs: {
             id: "workouts",
             label: "Treinos",
         },
+        { id: "assessments", label: "Avaliações" },
         {
             id: "history",
             label: "Histórico",
@@ -101,11 +105,12 @@ function OperationalItem({
 }: {
     label: string;
     value: string;
-    tone?: "default" | "danger" | "muted";
+    tone?: "default" | "danger" | "attention" | "muted";
 }) {
     const valueClass = {
         default: "text-slate-900",
         danger: "text-red-600",
+        attention: "text-amber-600",
         muted: "text-slate-500",
     }[tone];
 
@@ -200,6 +205,15 @@ export default function StudentDetailsPage() {
         useState(false);
 
     const [checkInNotes, setCheckInNotes] =
+        useState("");
+
+    const [checkInContingency, setCheckInContingency] =
+        useState(false);
+
+    const [checkInContingencyReason, setCheckInContingencyReason] =
+        useState("");
+
+    const [checkInSubmitError, setCheckInSubmitError] =
         useState("");
 
     const [showEnrollmentModal, setShowEnrollmentModal] =
@@ -443,12 +457,19 @@ export default function StudentDetailsPage() {
             return;
         }
 
+        if (checkInContingency && !checkInContingencyReason.trim()) {
+            setCheckInSubmitError("Informe o motivo da liberação em contingência.");
+            return;
+        }
+
         try {
             setRegisteringCheckIn(true);
+            setCheckInSubmitError("");
 
             await createCheckIn(
                 id,
                 checkInNotes.trim(),
+                checkInContingency ? checkInContingencyReason.trim() : "",
             );
 
             setCheckInsPage(1);
@@ -457,12 +478,21 @@ export default function StudentDetailsPage() {
             await loadTimeline();
 
             setCheckInNotes("");
+            setCheckInContingency(false);
+            setCheckInContingencyReason("");
             setShowCheckInModal(false);
         } catch (error) {
             console.error(error);
-
-            window.alert(
-                "Não foi possível registrar o check-in. Tente novamente.",
+            const responseData = axios.isAxiosError(error)
+                ? error.response?.data
+                : null;
+            const responseMessage = responseData && typeof responseData === "object"
+                ? Object.values(responseData).flat().find((value) => typeof value === "string")
+                : null;
+            setCheckInSubmitError(
+                typeof responseMessage === "string"
+                    ? responseMessage
+                    : "Não foi possível registrar o check-in. Tente novamente.",
             );
         } finally {
             setRegisteringCheckIn(false);
@@ -772,16 +802,30 @@ export default function StudentDetailsPage() {
                                             </span>
                                         )}
 
-                                        {student.financial_status === "grace_period" && (
+                                        {student.financial_status === "attention" && (
                                             <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
                                                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                                Atenção financeira
+                                            </span>
+                                        )}
 
-                                                {student.grace_days_remaining === null
-                                                    ? "Em tolerância"
-                                                    : `Em tolerância · ${student.grace_days_remaining} ${student.grace_days_remaining === 1
-                                                        ? "dia restante"
-                                                        : "dias restantes"
-                                                    }`}
+                                        {student.financial_status === "pending" && (
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                                                Pagamento pendente
+                                            </span>
+                                        )}
+
+                                        {student.financial_status === "inconsistency" && (
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+                                                Inconsistência financeira
+                                            </span>
+                                        )}
+
+                                        {student.financial_status === "no_financial_link" && (
+                                            <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                                                Sem vínculo financeiro
                                             </span>
                                         )}
 
@@ -905,7 +949,7 @@ export default function StudentDetailsPage() {
                                         label="Próximo vencimento"
                                         value={
                                             operationalSummary.next_charge
-                                                ? `${formatDate(operationalSummary.next_charge.due_date)} · ${formatMoney(operationalSummary.next_charge.amount)}`
+                                                ? `${formatDate(operationalSummary.next_charge.due_date)} · ${formatMoney(operationalSummary.next_charge.amount)} · ${operationalSummary.next_charge.origin.plan_name ?? "Cobrança avulsa"} (${operationalSummary.next_charge.origin.enrollment_status_label ?? "sem matrícula"})`
                                                 : "Sem cobrança em aberto"
                                         }
                                         tone={
@@ -943,8 +987,16 @@ export default function StudentDetailsPage() {
                                     />
                                     <OperationalItem
                                         label="Risco de evasão"
-                                        value="Ainda não calculado"
-                                        tone="muted"
+                                        value={
+                                            `${operationalSummary.health.score}/100 · ${operationalSummary.health.factors.map((factor) => factor.label).join("; ") || "sem fatores de risco"}`
+                                        }
+                                        tone={
+                                            operationalSummary.health.status === "risk"
+                                                ? "danger"
+                                                : operationalSummary.health.status === "attention"
+                                                    ? "attention"
+                                                    : "default"
+                                        }
                                     />
                                 </div>
                             )}
@@ -1895,6 +1947,9 @@ export default function StudentDetailsPage() {
                     {activeTab === "workouts" && id && (
                         <StudentWorkoutSection studentId={id} />
                     )}
+                    {activeTab === "assessments" && id && (
+                        <StudentAssessments studentId={id} />
+                    )}
 
 
                     {/* ABAS QUE AINDA SERÃO DESENVOLVIDAS */}
@@ -1903,6 +1958,7 @@ export default function StudentDetailsPage() {
                         activeTab !== "financial" &&
                         activeTab !== "checkins" &&
                         activeTab !== "workouts" &&
+                        activeTab !== "assessments" &&
                         activeTab !== "history" && (
                             <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
                                 <h2 className="text-lg font-semibold text-slate-900">
@@ -1978,6 +2034,9 @@ export default function StudentDetailsPage() {
                     if (!registeringCheckIn) {
                         setShowCheckInModal(false);
                         setCheckInNotes("");
+                        setCheckInContingency(false);
+                        setCheckInContingencyReason("");
+                        setCheckInSubmitError("");
                     }
                 }}
             >
@@ -2014,12 +2073,60 @@ export default function StudentDetailsPage() {
                         />
                     </div>
 
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-amber-950">
+                            <input
+                                type="checkbox"
+                                checked={checkInContingency}
+                                onChange={(event) => {
+                                    setCheckInContingency(event.target.checked);
+                                    setCheckInSubmitError("");
+                                }}
+                                disabled={registeringCheckIn}
+                                className="mt-0.5"
+                            />
+                            <span>
+                                Autorizar em contingência
+                                <span className="mt-1 block text-xs font-normal leading-5 text-amber-800">
+                                    Use somente para liberar manualmente um acesso bloqueado pela política da unidade.
+                                </span>
+                            </span>
+                        </label>
+
+                        {checkInContingency && (
+                            <div className="mt-3">
+                                <label htmlFor="checkin-contingency-reason" className="text-sm font-semibold text-amber-950">
+                                    Motivo da liberação <span aria-hidden="true">*</span>
+                                </label>
+                                <input
+                                    id="checkin-contingency-reason"
+                                    value={checkInContingencyReason}
+                                    onChange={(event) => setCheckInContingencyReason(event.target.value)}
+                                    maxLength={255}
+                                    required
+                                    disabled={registeringCheckIn}
+                                    placeholder="Ex.: Liberação autorizada pelo gerente"
+                                    className="mt-2 h-10 w-full rounded-xl border border-amber-200 bg-white px-3 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {checkInSubmitError && (
+                        <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                            {checkInSubmitError}
+                        </p>
+                    )}
+
                     <div className="mt-6 flex justify-end gap-3">
                         <button
                             type="button"
                             onClick={() => {
                                 setShowCheckInModal(false);
                                 setCheckInNotes("");
+                                setCheckInContingency(false);
+                                setCheckInContingencyReason("");
+                                setCheckInSubmitError("");
                             }}
                             disabled={registeringCheckIn}
                             className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"

@@ -18,6 +18,7 @@ import {
   type WorkoutTemplate,
 } from "@/features/students/services/workout.service";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import { ErrorState, SkeletonState } from "@/components/AsyncState";
 
 export default function Workouts() {
   const [tab, setTab] = useState<"plans" | "templates" | "exercises">("plans");
@@ -178,18 +179,9 @@ export default function Workouts() {
           />
         </div>
         {loading ? (
-          <div className="space-y-3 p-6">
-            {[1, 2, 3].map((item) => (
-              <div
-                key={item}
-                className="h-20 animate-pulse rounded-xl bg-slate-100"
-              />
-            ))}
-          </div>
+          <div className="p-5"><SkeletonState rows={3}/></div>
         ) : error ? (
-          <div className="p-10 text-center text-red-700">
-            Não foi possível carregar os dados.
-          </div>
+          <div className="p-5"><ErrorState onRetry={load} label="Não foi possível carregar os treinos"/></div>
         ) : tab === "plans" ? (
           <div className="divide-y divide-slate-100">
             {plans.length === 0 ? (

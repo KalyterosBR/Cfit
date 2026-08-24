@@ -41,6 +41,7 @@ const initialForm: SavePlanPayload = {
     duration_months: 1,
     billing_period: "monthly",
     recurring: true,
+    installment_count: 1,
     enrollment_fee: "0.00",
     minimum_commitment_months: 0,
     auto_renew: true,
@@ -234,6 +235,7 @@ export default function Plans() {
             duration_months: plan.duration_months,
             billing_period: plan.billing_period,
             recurring: plan.recurring,
+            installment_count: plan.installment_count,
             enrollment_fee: plan.enrollment_fee,
             minimum_commitment_months: plan.minimum_commitment_months,
             auto_renew: plan.auto_renew,
@@ -273,6 +275,8 @@ export default function Plans() {
             || form.minimum_commitment_months < 0
             || form.minimum_commitment_months > form.duration_months
             || (form.billing_period === "one_time" && form.recurring)
+            || form.installment_count < 1
+            || (form.billing_period === "one_time" && form.installment_count !== 1)
             || (form.auto_renew && !form.recurring)
             || !form.contract_text.trim()
         ) {
@@ -301,6 +305,7 @@ export default function Plans() {
                 editingPlan.duration_months !== payload.duration_months ||
                 editingPlan.billing_period !== payload.billing_period ||
                 editingPlan.recurring !== payload.recurring ||
+                editingPlan.installment_count !== payload.installment_count ||
                 editingPlan.enrollment_fee !== payload.enrollment_fee ||
                 editingPlan.minimum_commitment_months !== payload.minimum_commitment_months ||
                 editingPlan.auto_renew !== payload.auto_renew
@@ -687,6 +692,9 @@ export default function Plans() {
                                                 {plan.recurring ? "Recorrente" : "Não recorrente"}
                                             </span>
                                             <span className="rounded-lg bg-slate-100 px-2.5 py-1.5">
+                                                {plan.installment_count} {plan.installment_count === 1 ? "parcela" : "parcelas"}
+                                            </span>
+                                            <span className="rounded-lg bg-slate-100 px-2.5 py-1.5">
                                                 {plan.minimum_commitment_months > 0
                                                     ? `${plan.minimum_commitment_months} meses de fidelidade`
                                                     : "Sem fidelidade"}
@@ -823,6 +831,10 @@ export default function Plans() {
                                             billingPeriod === "one_time"
                                                 ? false
                                                 : current.auto_renew,
+                                        installment_count:
+                                            billingPeriod === "one_time"
+                                                ? 1
+                                                : current.installment_count,
                                     }));
                                 }}
                                 disabled={saving}
@@ -834,6 +846,22 @@ export default function Plans() {
                                 <option value="annual">Anual</option>
                                 <option value="one_time">Pagamento único</option>
                             </select>
+                        </div>
+
+                        <div>
+                            <label htmlFor="plan-installments" className="text-sm font-semibold text-slate-700">
+                                Quantidade de parcelas
+                            </label>
+                            <input
+                                id="plan-installments"
+                                type="number"
+                                value={form.installment_count}
+                                onChange={(event) => setForm((current) => ({ ...current, installment_count: Number(event.target.value) }))}
+                                min="1"
+                                disabled={saving || form.billing_period === "one_time"}
+                                className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
+                            />
+                            <p className="mt-1 text-xs text-slate-500">Número de cobranças previstas durante a vigência.</p>
                         </div>
 
                         <div>

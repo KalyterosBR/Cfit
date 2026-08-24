@@ -92,7 +92,7 @@ async function getAttentionSummary(): Promise<AttentionSummary> {
 }
 
 
-export default function DashboardAttention({ role = "manager" }: { role?: DashboardRole }) {
+export default function DashboardAttention({ role = "manager", variant = "card" }: { role?: DashboardRole; variant?: "card" | "canvas" }) {
     const [summary, setSummary] = useState<AttentionSummary>(emptySummary);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -225,8 +225,8 @@ export default function DashboardAttention({ role = "manager" }: { role?: Dashbo
     ];
 
     return (
-        <section className="mt-6 overflow-hidden rounded-[1.6rem] border border-slate-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.3)]">
-            <div className="flex flex-col gap-4 border-b border-slate-200/80 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <section className={variant === "canvas" ? "mt-12 border-y border-slate-200/80 py-8" : "mt-6 overflow-hidden rounded-[1.6rem] border border-slate-200/80 bg-white shadow-[0_18px_45px_-32px_rgba(15,23,42,0.3)]"}>
+            <div className={variant === "canvas" ? "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between" : "flex flex-col gap-4 border-b border-slate-200/80 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"}>
                 <div>
                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-orange-600">
                         Prioridades operacionais
@@ -275,7 +275,7 @@ export default function DashboardAttention({ role = "manager" }: { role?: Dashbo
                     )}
                 </div>
             ) : (
-                <div className="p-5 sm:p-6">
+                <div className={variant === "canvas" ? "pt-7" : "p-5 sm:p-6"}>
                     {totalAttention === 0 && (
                         <div className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 text-sm font-semibold text-emerald-800">
                             <ShieldCheck size={20} />
@@ -283,7 +283,7 @@ export default function DashboardAttention({ role = "manager" }: { role?: Dashbo
                         </div>
                     )}
 
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div className={variant === "canvas" ? "grid border-t border-slate-200/80 md:grid-cols-2 lg:grid-cols-3" : "grid gap-4 md:grid-cols-2 lg:grid-cols-3"}>
                         {items.filter((item) => item.roles.includes(role)).map((item) => {
                             const Icon = item.icon;
 
@@ -291,7 +291,7 @@ export default function DashboardAttention({ role = "manager" }: { role?: Dashbo
                                 <Link
                                     key={item.title}
                                     to={item.href}
-                                    className="group rounded-2xl border border-slate-200 bg-slate-50/60 p-5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className={variant === "canvas" ? "group flex h-full min-h-[250px] min-w-0 flex-col border-b border-slate-200/80 px-6 py-7 transition hover:bg-blue-50/40 focus:outline-none focus:ring-2 focus:ring-blue-500 md:border-r md:[&:nth-child(2n)]:border-r-0 lg:[&:nth-child(2n)]:border-r lg:[&:nth-child(3n)]:border-r-0" : "group flex h-full min-h-[250px] min-w-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/60 p-6 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"}
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.iconClass}`}>
@@ -299,16 +299,16 @@ export default function DashboardAttention({ role = "manager" }: { role?: Dashbo
                                         </div>
                                         <ArrowUpRight size={17} className="text-slate-400 transition group-hover:text-blue-600" />
                                     </div>
-                                    <p className="mt-4 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
+                                    <p className="mt-4 flex min-h-8 items-start text-xs font-bold uppercase leading-4 tracking-[0.08em] text-slate-500">
                                         {item.title}
                                     </p>
                                     <p className={`mt-2 text-2xl font-black ${item.valueClass}`}>
                                         {item.value.toLocaleString("pt-BR")}
                                     </p>
-                                    <p className="mt-1 text-xs font-medium text-slate-500">
+                                    <p className="mt-1 min-h-10 pb-4 text-xs font-medium leading-5 text-slate-500">
                                         {item.detail}
                                     </p>
-                                    <p className="mt-4 border-t border-slate-200 pt-4 text-sm font-semibold leading-5 text-slate-700 group-hover:text-blue-700">
+                                    <p className="mt-auto border-t border-slate-200 pt-4 text-sm font-semibold leading-5 text-slate-700 group-hover:text-blue-700">
                                         {item.action}
                                     </p>
                                 </Link>

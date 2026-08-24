@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from apps.financial.api.cash_serializers import CashTransactionSerializer
 from apps.financial.models import CashTransaction, Charge
 from apps.financial.services.billing import add_months
-from apps.users.permissions import HasFinancialAccess
+from apps.users.permissions import HasFinancialAccess, get_request_scope
 
 
 class CashTransactionViewSet(viewsets.ModelViewSet):
@@ -26,6 +26,11 @@ class CashTransactionViewSet(viewsets.ModelViewSet):
             "created_by",
             "charge",
         )
+        academy, unit = get_request_scope(self.request.user)
+        if academy:
+            queryset = queryset.filter(unit__academy=academy)
+        if unit:
+            queryset = queryset.filter(unit=unit)
         transaction_type = self.request.query_params.get("transaction_type")
         transaction_status = self.request.query_params.get("status")
         category = self.request.query_params.get("category")
@@ -50,7 +55,8 @@ class CashTransactionViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        _, unit = get_request_scope(self.request.user)
+        serializer.save(created_by=self.request.user, unit=unit)
 
     @action(detail=False, methods=["get"], url_path="summary")
     def summary(self, request):
@@ -97,6 +103,11 @@ class CashTransactionViewSet(viewsets.ModelViewSet):
             competence_date__lt=period_end,
             cash_transaction__isnull=True,
         ).exclude(status=Charge.Status.CANCELED)
+        academy, unit = get_request_scope(request.user)
+        if academy:
+            charge_queryset = charge_queryset.filter(enrollment__student__academy=academy)
+        if unit:
+            charge_queryset = charge_queryset.filter(unit=unit)
 
         if transaction_status == CashTransaction.Status.PLANNED:
             charge_queryset = charge_queryset.filter(

@@ -11,6 +11,7 @@ import {
     ShieldCheck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Api } from "@/services/http";
 
 import {
     getFinancialInconsistencies,
@@ -62,6 +63,12 @@ export default function FinancialInconsistenciesSection() {
     const [previous, setPrevious] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    async function updateWorkflow(issue: FinancialInconsistency, status: "in_progress" | "resolved") {
+        const comment = window.prompt(status === "resolved" ? "Descreva a resolução:" : "Adicione um comentário para assumir a tratativa:");
+        if (!comment) return;
+        await Api.post("/financial/charges/inconsistency-workflow/", { issue_key: issue.id, entity_type: issue.entity_type, entity_id: issue.entity_id, status, resolution: status === "resolved" ? comment : "", comment });
+        await load();
+    }
 
     useEffect(() => {
         const timer = window.setTimeout(() => {
@@ -220,6 +227,10 @@ export default function FinancialInconsistenciesSection() {
                                 <div className="min-w-[170px] text-xs text-slate-500 lg:text-right">
                                     <p>Atualizado em {dateTime(issue.source_updated_at)}</p>
                                     <p className="mt-1">Responsável: {issue.responsible || "Não informado"}</p>
+                                    <p className="mt-1 font-bold text-slate-600">Tratativa: {issue.workflow.status === "resolved" ? "Resolvida" : issue.workflow.status === "in_progress" ? "Em andamento" : "Aberta"}</p>
+                                    {issue.workflow.due_at && <p className="mt-1">Prazo: {dateTime(issue.workflow.due_at)}</p>}
+                                    {issue.workflow.resolution && <p className="mt-1 text-emerald-700">{issue.workflow.resolution}</p>}
+                                    <div className="mt-3 flex justify-end gap-2">{issue.workflow.status === "open" && <button type="button" onClick={() => updateWorkflow(issue, "in_progress")} className="font-bold text-blue-600">Assumir</button>}{issue.workflow.status !== "resolved" && <button type="button" onClick={() => updateWorkflow(issue, "resolved")} className="font-bold text-emerald-700">Resolver</button>}</div>
                                     {issue.student && (
                                         <button
                                             type="button"
@@ -228,6 +239,9 @@ export default function FinancialInconsistenciesSection() {
                                         >
                                             Abrir aluno <ExternalLink size={13} />
                                         </button>
+                                    )}
+                                    {issue.entity_type === "charge" && (
+                                        <button type="button" onClick={() => navigate(`/finance?charge=${issue.entity_id}#charges`)} className="mt-3 inline-flex items-center gap-2 font-bold text-blue-600 hover:text-blue-700">Abrir cobrança <ExternalLink size={13}/></button>
                                     )}
                                 </div>
                             </article>

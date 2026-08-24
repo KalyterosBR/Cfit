@@ -12,6 +12,7 @@ type PendingStudentsProps = {
     loading: boolean;
     error: boolean;
     onRetry: () => void;
+    variant?: "card" | "canvas";
 };
 
 
@@ -39,9 +40,10 @@ export default function PendingStudents({
     loading,
     error,
     onRetry,
+    variant = "card",
 }: PendingStudentsProps) {
     return (
-        <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:p-6">
+        <div className={variant === "canvas" ? "min-w-0 overflow-hidden border-y border-slate-200/80 px-5 py-7 sm:px-7 lg:px-8 2xl:border-l" : "min-w-0 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:p-6"}>
             <div className="mb-5 flex items-start justify-between">
                 <div>
                     <h2 className="text-base font-bold text-slate-950">

@@ -18,5 +18,11 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Essas regras do React Compiler rejeitam carregamentos assíncronos válidos
+      // iniciados por effects e setters estáveis. Mantemos exhaustive-deps ativo.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+    },
   },
 ])

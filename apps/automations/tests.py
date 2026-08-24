@@ -26,7 +26,15 @@ class AutomationAndUnitTests(APITestCase):
             {"entity_type": "charge", "entity_id": "charge-1"}, format="json",
         )
         self.assertEqual(trigger.status_code, 201)
-        self.assertEqual(AutomationExecution.objects.get().entity_id, "charge-1")
+        execution = AutomationExecution.objects.get()
+        self.assertEqual(execution.entity_id, "charge-1")
+        resolved = self.client.post(
+            f"/api/automations/rules/{response.data['id']}/resolve-execution/",
+            {"execution": execution.pk, "operational_status": "completed", "resolution_notes": "Contato realizado"},
+            format="json",
+        )
+        self.assertEqual(resolved.status_code, 200)
+        self.assertEqual(resolved.data["operational_status"], "completed")
 
     def test_unit_is_scoped_and_can_be_selected(self):
         response = self.client.post("/api/academies/units/", {"name": "Unidade Norte", "code": "norte"}, format="json")
@@ -36,3 +44,14 @@ class AutomationAndUnitTests(APITestCase):
         self.assertEqual(selection.status_code, 200)
         self.membership.refresh_from_db()
         self.assertEqual(self.membership.active_unit, unit)
+        comparison = self.client.get("/api/academies/units/comparison/")
+        self.assertEqual(comparison.status_code, 200)
+        self.assertEqual(comparison.data[0]["name"], "Unidade Norte")
+
+        duplicate = self.client.post(
+            "/api/academies/units/",
+            {"name": "Outra Norte", "code": "norte"},
+            format="json",
+        )
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertIn("code", duplicate.data)

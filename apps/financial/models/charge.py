@@ -4,6 +4,10 @@ from apps.enrollments.models import Enrollment
 
 
 class Charge(models.Model):
+    unit = models.ForeignKey(
+        "academy.Unit", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="charges",
+    )
     class Status(models.TextChoices):
         PENDING = "pending", "Pendente"
         PAID = "paid", "Pago"
@@ -70,6 +74,10 @@ class Charge(models.Model):
         default="",
         verbose_name="Observações",
     )
+    payment_provider = models.CharField(max_length=40, blank=True)
+    provider_charge_id = models.CharField(max_length=120, blank=True, db_index=True)
+    payment_url = models.URLField(blank=True)
+    pix_code = models.TextField(blank=True)
 
     created_at = models.DateTimeField(
         auto_now_add=True,

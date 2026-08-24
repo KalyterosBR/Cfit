@@ -11,6 +11,7 @@ class EnrollmentHistory(BaseModel):
         REACTIVATED = "reactivated", "Matrícula reativada"
         CANCELED = "canceled", "Matrícula cancelada"
         FINISHED = "finished", "Matrícula encerrada"
+        RENEWED = "renewed", "Matrícula renovada"
 
     enrollment = models.ForeignKey(
         Enrollment,

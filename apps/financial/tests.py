@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -16,6 +17,7 @@ from apps.financial.models import (
     ChargeReconciliation,
     MonthlyRevenueGoal,
     RecurringPaymentAttempt,
+    PaymentWebhookEvent,
 )
 from apps.financial.services.billing import add_months
 from apps.plans.models import Plan
@@ -1197,3 +1199,22 @@ class ChargeApiTests(APITestCase):
             invalid_amount_response.status_code,
             status.HTTP_400_BAD_REQUEST,
         )
+
+    def test_sandbox_payment_generation_returns_pix_contract(self):
+        response = self.client.post(reverse("charge-generate-payment", args=[self.pending_charge.id]), {"provider": "sandbox"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["pix_code"].startswith("CFIT-SANDBOX"))
+        self.assertEqual(response.data["payment_provider"], "sandbox")
+
+    @patch.dict("os.environ", {"PAYMENT_WEBHOOK_SECRET": "webhook-test"})
+    def test_payment_webhook_is_idempotent(self):
+        self.pending_charge.provider_charge_id = "gateway-123"
+        self.pending_charge.save(update_fields=["provider_charge_id"])
+        payload = {"event_id": "payment-event-1", "charge_id": "gateway-123", "provider": "test", "status": "paid", "payment_method": "pix"}
+        first = self.client.post("/api/financial/payment-events/", payload, format="json", HTTP_X_CFIT_WEBHOOK_SECRET="webhook-test")
+        second = self.client.post("/api/financial/payment-events/", payload, format="json", HTTP_X_CFIT_WEBHOOK_SECRET="webhook-test")
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.pending_charge.refresh_from_db()
+        self.assertEqual(self.pending_charge.status, Charge.Status.PAID)
+        self.assertEqual(PaymentWebhookEvent.objects.filter(event_id="payment-event-1").count(), 1)

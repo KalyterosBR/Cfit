@@ -15,6 +15,7 @@ class PlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Plan
         fields = "__all__"
+        extra_kwargs = {"academy": {"read_only": True}}
         read_only_fields = ["contract_version"]
 
     def get_active_students_count(self, plan):
@@ -71,6 +72,10 @@ class PlanSerializer(serializers.ModelSerializer):
             "minimum_commitment_months",
             getattr(instance, "minimum_commitment_months", 0),
         )
+        installment_count = attrs.get(
+            "installment_count",
+            getattr(instance, "installment_count", 1),
+        )
         contract_text = attrs.get(
             "contract_text",
             getattr(instance, "contract_text", ""),
@@ -93,6 +98,16 @@ class PlanSerializer(serializers.ModelSerializer):
                         "Pagamento único não pode possuir recorrência."
                     )
                 }
+            )
+
+        if installment_count < 1:
+            raise serializers.ValidationError(
+                {"installment_count": "Informe ao menos uma parcela."}
+            )
+
+        if billing_period == Plan.BillingPeriod.ONE_TIME and installment_count != 1:
+            raise serializers.ValidationError(
+                {"installment_count": "Pagamento único deve possuir exatamente uma parcela."}
             )
 
         if auto_renew and not recurring:

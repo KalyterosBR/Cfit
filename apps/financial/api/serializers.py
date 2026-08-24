@@ -99,6 +99,7 @@ class ChargeSerializer(serializers.ModelSerializer):
 
         fields = [
             "id",
+            "unit",
             "enrollment",
             "student",
             "student_name",
@@ -114,17 +115,26 @@ class ChargeSerializer(serializers.ModelSerializer):
             "payment_method",
             "reconciliation",
             "notes",
+            "payment_provider",
+            "provider_charge_id",
+            "payment_url",
+            "pix_code",
             "created_at",
             "updated_at",
         ]
 
         read_only_fields = [
             "id",
+            "unit",
             "student",
             "student_name",
             "plan_name",
             "paid_at",
             "payment_method",
+            "payment_provider",
+            "provider_charge_id",
+            "payment_url",
+            "pix_code",
             "created_at",
             "updated_at",
         ]

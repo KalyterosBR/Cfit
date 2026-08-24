@@ -245,6 +245,7 @@ export interface FinancialInconsistency {
     responsible: string | null;
     source_updated_at: string | null;
     checked_at: string;
+    workflow: { status: "open" | "in_progress" | "resolved"; assigned_to: string | null; due_at: string | null; resolution: string; comments: Array<{ author: string; text: string; created_at: string }> };
 }
 
 export interface FinancialInconsistencyResponse {

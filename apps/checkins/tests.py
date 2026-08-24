@@ -7,8 +7,10 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.checkins.models import CheckIn, MonthlyCheckInGoal
+from apps.checkins.models import AccessPolicy, CheckIn, MonthlyCheckInGoal
 from apps.students.models import Student
+from apps.academy.models import Academy, Unit
+from apps.users.models import AcademyUser
 
 
 class CheckInApiTests(APITestCase):
@@ -44,6 +46,19 @@ class CheckInApiTests(APITestCase):
             response.status_code,
             status.HTTP_401_UNAUTHORIZED,
         )
+
+    def test_access_policy_is_scoped_to_active_unit(self):
+        academy = Academy.objects.create(name="Cfit Política")
+        unit = Unit.objects.create(academy=academy, name="Centro", code="centro")
+        AcademyUser.objects.create(academy=academy, user=self.user, role=AcademyUser.Role.ADMIN, active_unit=unit)
+        self.client.force_authenticate(self.user)
+        response = self.client.patch(
+            reverse("checkin-access-policy"),
+            {"block_defaulting_students": False, "instructions": "Validar documento"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["block_defaulting_students"])
 
     def test_filters_student_history_from_most_recent(self):
         older = CheckIn.objects.create(
@@ -118,6 +133,50 @@ class CheckInApiTests(APITestCase):
                 student=self.student,
                 notes="Entrada pela recepção",
             ).exists(),
+        )
+
+    def test_manual_contingency_can_override_access_policy_with_reason(self):
+        academy = Academy.objects.create(name="Cfit Contingência")
+        unit = Unit.objects.create(academy=academy, name="Centro", code="centro")
+        AcademyUser.objects.create(
+            academy=academy,
+            user=self.user,
+            role=AcademyUser.Role.RECEPTION,
+            active_unit=unit,
+        )
+        self.student.academy = academy
+        self.student.unit = unit
+        self.student.save(update_fields=["academy", "unit"])
+        AccessPolicy.objects.create(
+            unit=unit,
+            require_active_enrollment=True,
+            allow_manual_contingency=True,
+        )
+        self.client.force_authenticate(user=self.user)
+
+        blocked_response = self.client.post(
+            self.list_url,
+            {"student": str(self.student.id), "source": CheckIn.Source.MANUAL},
+            format="json",
+        )
+        self.assertEqual(blocked_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.post(
+            self.list_url,
+            {
+                "student": str(self.student.id),
+                "source": CheckIn.Source.MANUAL,
+                "contingency_reason": "Liberação autorizada pelo gerente",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        checkin = CheckIn.objects.get(pk=response.data["id"])
+        self.assertEqual(checkin.authorized_by, self.user)
+        self.assertEqual(
+            checkin.contingency_reason,
+            "Liberação autorizada pelo gerente",
         )
 
     def test_dashboard_summary_returns_today_count_and_recent_checkins(self):

@@ -32,6 +32,8 @@ export default function LoginForm() {
 
     const [password, setPassword] =
         useState("");
+    const [twoFactorCode, setTwoFactorCode] = useState("");
+    const [twoFactorRequired, setTwoFactorRequired] = useState(false);
 
     const [
         showPassword,
@@ -113,6 +115,7 @@ export default function LoginForm() {
                     password,
                     turnstile_token:
                         turnstileToken,
+                    two_factor_code: twoFactorCode || undefined,
                 });
 
 
@@ -142,7 +145,10 @@ export default function LoginForm() {
             );
 
 
-            if (
+            if (axios.isAxiosError(error) && error.response?.status === 428) {
+                setTwoFactorRequired(true);
+                setError("Digite o código enviado ao seu e-mail e conclua uma nova verificação de segurança.");
+            } else if (
                 axios.isAxiosError(
                     error,
                 ) &&
@@ -215,6 +221,8 @@ export default function LoginForm() {
                     />
                 </div>
             </div>
+
+            {twoFactorRequired && <div className="mt-3.5"><label className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">Código de verificação</label><Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, ""))} placeholder="000000" className="mt-1.5 h-[46px] rounded-xl border-white/[0.16] bg-white/[0.085] px-4 text-center font-bold tracking-[.4em] text-white" /></div>}
 
 
             {/* SENHA */}
@@ -314,6 +322,7 @@ export default function LoginForm() {
 
                 <button
                     type="button"
+                    onClick={() => navigate("/forgot-password")}
                     className="text-[11px] font-semibold text-blue-300 transition hover:text-cyan-300"
                 >
                     Esqueci minha senha

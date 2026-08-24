@@ -11,6 +11,13 @@ from apps.financial.models import Charge
 RECURRING_CHARGE_DAYS_BEFORE = 10
 PAYMENT_GRACE_PERIOD_DAYS = 7
 
+
+def get_payment_grace_period_days(student=None):
+    academy = getattr(student, "academy", None) if student else None
+    if academy and hasattr(academy, "operational_settings"):
+        return academy.operational_settings.payment_grace_days
+    return PAYMENT_GRACE_PERIOD_DAYS
+
 BILLING_PERIOD_MONTHS = {
     "monthly": 1,
     "quarterly": 3,
@@ -112,6 +119,7 @@ def create_enrollment_charges(enrollment):
     return [
         Charge.objects.create(
             enrollment=enrollment,
+            unit=enrollment.unit,
             description=item["description"],
             amount=item["amount"],
             due_date=item["due_date"],

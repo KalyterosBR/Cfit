@@ -21,6 +21,7 @@ type RevenueChartProps = {
     error?: boolean;
     onRetry?: () => void;
     rangeLabel?: string;
+    variant?: "card" | "canvas";
 };
 
 
@@ -64,6 +65,7 @@ export default function RevenueChart({
     error = false,
     onRetry = () => undefined,
     rangeLabel = "Últimos 6 meses",
+    variant = "card",
 }: RevenueChartProps) {
     const data = history.map((item) => ({
         month: formatMonth(item.period),
@@ -71,9 +73,13 @@ export default function RevenueChart({
     }));
 
     return (
-        <div className="relative overflow-hidden rounded-[1.6rem] border border-white/[0.08] bg-[#071225] p-5 text-white shadow-[0_30px_70px_-42px_rgba(15,23,42,0.8)] sm:p-6">
-            <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-600/20 blur-[90px]" />
-            <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/10 blur-[90px]" />
+        <div className={variant === "canvas" ? "relative overflow-hidden border-y border-slate-200/80 bg-gradient-to-br from-blue-50/60 via-transparent to-cyan-50/60 py-7 text-slate-950" : "relative overflow-hidden rounded-[1.6rem] border border-white/[0.08] bg-[#071225] p-5 text-white shadow-[0_30px_70px_-42px_rgba(15,23,42,0.8)] sm:p-6"}>
+            {variant === "card" && (
+                <>
+                    <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-600/20 blur-[90px]" />
+                    <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-cyan-400/10 blur-[90px]" />
+                </>
+            )}
 
             <div className="relative mb-6 flex items-start justify-between gap-4">
                 <div>
@@ -81,16 +87,16 @@ export default function RevenueChart({
                         Visão financeira
                     </p>
 
-                    <h2 className="mt-2 text-lg font-bold text-white">
+                    <h2 className={`mt-2 text-lg font-bold ${variant === "canvas" ? "text-slate-950" : "text-white"}`}>
                         Receita recebida
                     </h2>
 
-                    <p className="mt-1 text-sm text-slate-400">
+                    <p className={`mt-1 text-sm ${variant === "canvas" ? "text-slate-500" : "text-slate-400"}`}>
                         Pagamentos confirmados por mês
                     </p>
                 </div>
 
-                <span className="rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[10px] font-semibold text-slate-300">
+                <span className={`rounded-lg px-3 py-1.5 text-[10px] font-semibold ${variant === "canvas" ? "border border-slate-200 bg-white/70 text-slate-600" : "border border-white/10 bg-white/[0.05] text-slate-300"}`}>
                     {rangeLabel}
                 </span>
             </div>

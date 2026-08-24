@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.financial.models import Charge, RecurringPaymentAttempt
+from apps.users.permissions import get_request_scope
 
 
 class RecurringPaymentAttemptSerializer(serializers.ModelSerializer):
@@ -66,6 +67,12 @@ class RecurringPaymentAttemptSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         charge: Charge = attrs["charge"]
+        request = self.context.get("request")
+        academy, unit = get_request_scope(request.user) if request else (None, None)
+        if academy and charge.enrollment.student.academy_id != academy.id:
+            raise serializers.ValidationError({"charge": "A cobrança não pertence à academia da sessão."})
+        if unit and charge.unit_id != unit.id:
+            raise serializers.ValidationError({"charge": "A cobrança não pertence à unidade ativa."})
         attempt_status = attrs["status"]
         source = attrs["source"]
 

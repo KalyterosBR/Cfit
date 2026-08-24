@@ -12,8 +12,15 @@ type RecentCheckinsProps = {
     loading: boolean;
     error: boolean;
     onRetry: () => void;
+    variant?: "card" | "canvas";
 };
 
+
+function formatCheckInDate(value: string) {
+    return new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short",
+    }).format(new Date(value));
+}
 
 function formatCheckInTime(value: string) {
     return new Intl.DateTimeFormat("pt-BR", {
@@ -27,9 +34,10 @@ export default function RecentCheckins({
     loading,
     error,
     onRetry,
+    variant = "card",
 }: RecentCheckinsProps) {
     return (
-        <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:p-6">
+        <div className={variant === "canvas" ? "min-w-0 overflow-hidden border-y border-slate-200/80 px-5 py-7 sm:px-7 lg:px-8" : "min-w-0 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_45px_-32px_rgba(15,23,42,0.28)] sm:p-6"}>
             <div className="mb-5">
                 <h2 className="text-base font-bold text-slate-950">
                     Check-ins recentes
@@ -67,15 +75,15 @@ export default function RecentCheckins({
                         <Link
                             key={checkin.id}
                             to={`/students/${checkin.student}`}
-                            className="flex items-center justify-between py-4 first:pt-0 last:pb-0"
+                            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-4 first:pt-0 last:pb-0"
                         >
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                                     <CheckCircle2 size={20} />
                                 </div>
 
-                                <div>
-                                    <p className="font-semibold text-slate-900">
+                                <div className="min-w-0">
+                                    <p className="truncate font-semibold text-slate-900">
                                         {checkin.student_name}
                                     </p>
 
@@ -85,9 +93,12 @@ export default function RecentCheckins({
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                                <Clock size={15} />
-                                {formatCheckInTime(checkin.checked_in_at)}
+                            <div className="flex shrink-0 items-center gap-2 text-right text-slate-500">
+                                <Clock size={15} className="hidden shrink-0 sm:block" />
+                                <span className="whitespace-nowrap text-xs leading-4">
+                                    <span className="block">{formatCheckInDate(checkin.checked_in_at)}</span>
+                                    <strong className="block text-sm font-bold text-slate-700">{formatCheckInTime(checkin.checked_in_at)}</strong>
+                                </span>
                             </div>
                         </Link>
                     ))}

@@ -8,6 +8,8 @@ export interface Student {
 
     birth_date: string | null;
     email: string | null;
+    email_opt_in: boolean;
+    whatsapp_opt_in: boolean;
 
     cep: string | null;
     street: string | null;
@@ -29,8 +31,15 @@ export interface Student {
 
     financial_status:
     | "regular"
-    | "grace_period"
-    | "defaulting";
+    | "attention"
+    | "pending"
+    | "defaulting"
+    | "inconsistency"
+    | "no_financial_link";
+    financial_status_reason: string;
+    health_score: number;
+    health_status: "healthy" | "attention" | "risk";
+    health_factors: Array<{ code: string; impact: number; label: string }>;
 
     grace_days_remaining: number | null;
 

@@ -15,6 +15,7 @@ import {
     finishEnrollment,
     freezeEnrollment,
     reactivateEnrollment,
+    renewEnrollment,
     type Enrollment,
 } from "../services/enrollment.service";
 
@@ -29,6 +30,7 @@ type EnrollmentAction =
     | "reactivate"
     | "cancel"
     | "finish"
+    | "renew"
     | null;
 
 type ConfirmationAction =
@@ -48,6 +50,7 @@ export default function ManageEnrollmentModal({
         useState<ConfirmationAction>(null);
 
     const [error, setError] = useState("");
+    const [cancellationReason, setCancellationReason] = useState("");
 
     function formatMoney(value: string) {
         return Number(value).toLocaleString("pt-BR", {
@@ -115,9 +118,13 @@ export default function ManageEnrollmentModal({
 
             switch (action) {
                 case "freeze":
+                    {
+                    const frozenUntil = window.prompt("Até qual data a matrícula ficará trancada? (AAAA-MM-DD)", "");
                     await freezeEnrollment(
                         enrollment.id,
+                        frozenUntil || undefined,
                     );
+                    }
                     break;
 
                 case "reactivate":
@@ -129,8 +136,16 @@ export default function ManageEnrollmentModal({
                 case "cancel":
                     await cancelEnrollment(
                         enrollment.id,
+                        cancellationReason,
                     );
                     break;
+
+                case "renew": {
+                    const dueDate = window.prompt("Novo vencimento da matrícula (AAAA-MM-DD):");
+                    if (!dueDate) return;
+                    await renewEnrollment(enrollment.id, dueDate);
+                    break;
+                }
 
                 case "finish":
                     await finishEnrollment(
@@ -317,6 +332,7 @@ export default function ManageEnrollmentModal({
                                 </p>
 
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    {enrollment.status === "active" && <button type="button" disabled={isLoading} onClick={()=>executeAction("renew")} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">{loadingAction === "renew" ? "Renovando..." : "Renovar matrícula"}</button>}
                                     {enrollment.status ===
                                         "active" && (
                                             <button
@@ -447,6 +463,7 @@ export default function ManageEnrollmentModal({
                                             confirmationDescription
                                         }
                                     </p>
+                                    {confirmationAction === "cancel" && <label className="mt-4 block text-sm font-semibold text-slate-700">Motivo do cancelamento<input required value={cancellationReason} onChange={event=>setCancellationReason(event.target.value)} className="mt-2 h-10 w-full rounded-xl border border-slate-200 px-3" placeholder="Ex.: mudança de cidade" /></label>}
                                 </div>
                             </div>
                         </div>
@@ -467,7 +484,7 @@ export default function ManageEnrollmentModal({
                                 "cancel" ? (
                                 <button
                                     type="button"
-                                    disabled={isLoading}
+                                    disabled={isLoading || !cancellationReason.trim()}
                                     onClick={() =>
                                         executeAction(
                                             "cancel",

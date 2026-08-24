@@ -1217,7 +1217,9 @@ O reset do Turnstile, a persistência opcional do login, o logout da Sidebar, o 
 
 ---
 
-## 48.1 Diretrizes de Produto, UX e Roadmap do Cfit
+## 48.1 Histórico — Diretrizes de Produto, UX e Roadmap anterior
+
+> **Estado: superado como roadmap ativo.** Esta seção preserva o diagnóstico e as decisões históricas que continuam úteis, mas sua ordem de execução foi substituída pela auditoria priorizada da seção 48.3. Em caso de conflito de prioridade ou estado, prevalece a seção 48.3. As regras arquiteturais, de segurança, identidade visual e desenvolvimento incremental das seções anteriores continuam válidas.
 
 ### 48.1.1 Natureza e uso destas diretrizes
 Esta seção consolida o diagnóstico de produto, UX/UI e prioridades do Cfit como referência oficial para decisões futuras.
@@ -1863,7 +1865,9 @@ Ao desenvolver qualquer item do roadmap:
 12. Não implemente todo o roadmap em uma única alteração.
 13. Transforme cada prioridade em tarefas menores, verificáveis e com critérios de aceite.
 
-### 48.2 Estado confirmado em 21/08/2026 — Dashboard, busca, acessos e Treinos
+### 48.2 Histórico confirmado em 21/08/2026 — Dashboard, busca, acessos e Treinos
+
+> **Estado: retrato histórico, não roadmap ativo.** As entregas abaixo permanecem registradas para rastreabilidade. Estados e prioridades atuais estão consolidados na seção 48.3.
 
 Entregas consolidadas nesta etapa:
 - Dashboard conectado com período mensal, comparação, causas da variação, metas de receita, check-ins e alunos ativos;
@@ -1904,6 +1908,545 @@ Ponto exato de retomada do lote solicitado de 10 itens:
 8. item 10 concluído com fundação multiunidade, isolamento das novas APIs e contexto ativo;
 9. lote solicitado de itens 1–10 concluído em primeiras etapas funcionais e incrementais;
 10. próxima evolução deve aprofundar uma dessas fundações em tarefas pequenas, sem tratar a base multiunidade como particionamento completo dos módulos históricos.
+
+---
+
+## 48.3 Auditoria atual e roadmap oficial priorizado — 24/08/2026
+
+### 48.3.1 Natureza, alcance e regra de uso
+
+Esta seção consolida a auditoria de produto mais recente e substitui a ordem de execução dos roadmaps históricos das seções 48.1 e 48.2.
+
+O roadmap é orientação de prioridade, não autorização para implementar todos os itens de uma vez. Cada tarefa futura deve ter escopo próprio, inspeção do código atual, entrega pequena, critérios de aceite verificáveis e testes proporcionais ao risco.
+
+Classificações usadas:
+- **Implementado:** fluxo relevante já entregue; preservar e validar antes de alterar.
+- **Parcial:** há base funcional, mas faltam consistência, profundidade ou integração.
+- **Precisa de correção:** existe comportamento contraditório ou inadequado que antecede novas expansões.
+- **Não iniciado:** capacidade ainda não confirmada como funcional.
+- **Baixa prioridade:** não executar antes da consolidação dos fluxos centrais.
+- **Superado:** abordagem anterior substituída por solução ou prioridade mais nova.
+
+O principal risco atual não é falta de amplitude. É a existência de inconsistências entre módulos, exposição excessivamente técnica em áreas administrativas e crescimento da navegação antes da consolidação dos fluxos.
+
+### 48.3.2 Posicionamento e princípios preservados
+
+O Cfit mantém identidade própria baseada em tecnologia, performance, gestão premium, clareza operacional, decisões orientadas por dados, experiência moderna e profundidade funcional sem complexidade desnecessária.
+
+Não copiar telas, identidade visual, textos, layouts proprietários ou implementações de concorrentes. A meta é superar sistemas tradicionais por meio de uma experiência integrada, proativa, confiável e orientada à próxima ação.
+
+Princípios obrigatórios:
+1. Orientar decisões, não apenas exibir registros.
+2. Mostrar o que requer atenção e qual é a próxima ação.
+3. Dashboard, alunos, ficha, financeiro, relatórios e automações devem compartilhar fontes e regras.
+4. Nenhuma métrica demonstrativa pode parecer real.
+5. Toda métrica deve explicitar período, contexto e regra de cálculo.
+6. A ficha 360º é o centro da jornada do aluno.
+7. Ações sensíveis exigem permissão, confirmação, motivo e auditoria.
+8. Interfaces administrativas devem traduzir dados técnicos para linguagem operacional.
+9. Crescimento funcional não pode tornar a navegação tão complexa quanto sistemas legados.
+10. Módulos novos não devem ser priorizados antes das inconsistências críticas.
+
+Decisões positivas que devem ser preservadas:
+1. Identidade visual moderna e premium.
+2. Dashboard orientado a ações.
+3. Uso de dados operacionais reais.
+4. Explicação da variação da receita.
+5. Seção `Requer atenção`.
+6. Links do Dashboard para listagens filtradas.
+7. Visões por perfil.
+8. Busca universal com `Ctrl/Cmd + K`.
+9. Segmentos rápidos de alunos.
+10. Ficha 360º com resumo operacional.
+11. Financeiro com previsão, fluxo, recorrência e inconsistências.
+12. Relatórios orientados a perguntas.
+13. Agenda unificada em vez de agendas fragmentadas.
+14. Automações transparentes com fila operacional.
+15. Unidades com contexto operacional.
+16. Auditoria de ações.
+17. Separação da Sidebar por domínios.
+
+### 48.3.3 Estado atual por área
+
+| Área | Estado auditado | Direção |
+|---|---|---|
+| Dashboard | Implementado em estágio avançado | Preservar; corrigir períodos, escopos e consistência |
+| Busca universal e command palette | Implementado | Preservar e ampliar apenas após estabilizar destinos |
+| Gestão de alunos | Implementado em estágio avançado | Evoluir filtros, colunas, privacidade e Health Score |
+| Ficha 360º | Avançada, com inconsistências | Corrigir plano, vencimento, financeiro e Health Score |
+| Planos | Intermediário | Corrigir modelo comercial antes de ampliar |
+| Financeiro | Avançado | Integrar inconsistências, permissões e escopos |
+| Check-ins e acessos | Intermediário-avançado | Refinar operação e dispositivos; integrações externas depois |
+| Relatórios | Implementado | Evoluir detalhamento preservando fonte única |
+| Agenda | Estrutura funcional inicial | Completar após P0 e P1 |
+| Treinos | Estrutura inicial/funcional incremental | Evoluir na ordem definida em P2 |
+| Configurações | Implementado, excessivamente concentrado | Reorganizar por domínio |
+| Usuários e permissões | Implementado de forma incremental | Consolidar por perfil e unidade |
+| Unidades | Implementado | Evoluir comparação e isolamento completo |
+| Automações | Implementado | Completar operação, SLA e idempotência |
+| Comercial e turmas | Estrutura funcional | Integrar com agenda e automações |
+| Documentos e portal | Estrutura funcional | Completar segurança, versões e vínculos |
+| Central operacional | Parcial | Consolidar operação diária sem duplicar módulos |
+| Auditoria | Implementada, excessivamente técnica | Tornar explicável e amigável |
+| Health Score | Parcial e inconsistente | P0: unificar fonte e cálculo |
+| Onboarding | Implementado, checklist com cálculo incorreto | P0: derivar progresso do estado real |
+
+### 48.3.4 Prioridade crítica — P0
+
+Os itens P0 antecedem ampliações significativas do produto.
+
+#### P0.1 Unificar o Health Score — implementado, validação visual pendente
+
+Problema confirmado: Relatórios calculam score e fatores, enquanto a ficha do mesmo aluno pode mostrar `Risco de evasão: ainda não calculado`.
+
+Criar uma única fonte usada por Dashboard, gestão de alunos, ficha 360º, relatórios, automações e fila de retenção. Considerar, quando disponíveis: matrícula ativa, frequência, tempo desde o último check-in, situação financeira, vencidos, plano próximo do fim, treino, avaliação, contatos, trancamentos e permanência.
+
+Critérios de aceite:
+- mesmo aluno possui o mesmo score e fatores em todas as superfícies;
+- ausência de dados é diferente de estado saudável;
+- fatores são explicáveis e abrem as respectivas origens;
+- cálculo possui testes automatizados;
+- mudanças relevantes invalidam ou recalculam corretamente.
+
+Dependências: regras únicas de matrícula e situação financeira. É o primeiro item da ordem recomendada, mas pode exigir concluir P0.2 e P0.3 na mesma fundação de domínio, sem expandir escopo automaticamente.
+
+#### P0.2 Corrigir plano atual versus próximo vencimento — implementado
+
+Distinguir matrícula ativa, trancada, cancelada ou encerrada; plano futuro; cobrança residual; cobrança futura de matrícula inativa; e inconsistência cadastral.
+
+Critérios de aceite:
+- `Plano atual` representa somente matrícula realmente ativa;
+- próximo vencimento explica a origem da cobrança;
+- cobranças de matrículas inativas recebem rótulo correto;
+- contradições alimentam a central de inconsistências;
+- ficha não mostra informações aparentemente incompatíveis sem explicação.
+
+Dependências: modelos e estados de matrícula, cobrança e vigência. Antecede Health Score final, situação financeira e modelo comercial de planos.
+
+#### P0.3 Padronizar situação financeira — implementado, validação visual pendente
+
+`Financeiro regular` não pode significar somente ausência de cobrança vencida. Definir uma regra única considerando matrícula, vencidos, cobranças futuras, recorrências com falha, inconsistências, conciliação, pagamentos incompletos, saldo e tolerância da unidade.
+
+Estados operacionais mínimos: `regular`, `atenção`, `pendente`, `inadimplente`, `inconsistência` e `sem vínculo financeiro`.
+
+Critérios de aceite:
+- ficha, tabela de alunos e relatórios exibem o mesmo estado;
+- usuário visualiza a causa e abre os registros de origem;
+- nomenclatura e regra são documentadas;
+- regra possui testes automatizados.
+
+Dependências: P0.2, cobranças, recorrências, conciliação e tolerância por unidade.
+
+#### P0.4 Corrigir o checklist do onboarding — corrigido
+
+A tela inicial de boas-vindas e configuração da academia está implementada. O checklist da Central operacional continua independente e pode exibir `0 de 5 concluídos` mesmo com dados reais existentes.
+
+Condições atuais: completar dados da academia, cadastrar unidade, convidar equipe, criar primeiro plano e revisar Dashboard.
+
+Critérios de aceite:
+- cada item é derivado automaticamente da condição real no banco;
+- progresso persiste sem duplicar uma fonte manual de verdade;
+- item pendente abre diretamente seu destino;
+- não há divergência entre dados e checklist;
+- checklist e ações respeitam perfil e unidade.
+
+Dependências: rotas estáveis de Academia, Unidades, Usuários, Planos e Dashboard.
+
+#### P0.5 Padronizar períodos e escopos — avançado, auditoria visual pendente
+
+Todo indicador deve informar se representa mês atual, período selecionado, últimos 30 dias, acumulado, previsto, recebido, competência, caixa, unidade ou rede consolidada.
+
+Critérios de aceite:
+- nenhum valor financeiro aparece sem período e escopo;
+- Dashboard, Financeiro e Unidades usam nomenclatura consistente;
+- indicador permite abrir os registros que o compõem;
+- soma dos detalhes corresponde ao valor exibido;
+- testes cobrem limites de datas e unidades.
+
+Dependências: seletores compartilhados, contexto de unidade e conceitos financeiros definidos.
+
+#### P0.6 Revisar o modelo comercial dos planos — implementado
+
+Separar nome, descrição, valor total, mensalidade equivalente, periodicidade, quantidade de parcelas, recorrência, duração, renovação, fidelidade e taxa de matrícula. Descrição livre como `Cobrança Anual` não pode contradizer `Cobrança: Mensal`.
+
+Critérios de aceite:
+- descrição não substitui campos estruturados;
+- periodicidade e parcelas não se contradizem;
+- resumo é compreensível sem abrir edição;
+- alterações com alunos ativos mostram impacto;
+- regras são validadas no backend e testadas.
+
+Dependências: P0.2, geração de cobranças, contratos e preservação de histórico.
+
+#### P0.7 Tornar a auditoria amigável — implementada, validação visual pendente
+
+Substituir JSON bruto como apresentação principal por diferenças estruturadas: campo, anterior, posterior, usuário, data, motivo e entidade. Traduzir eventos como `academy.onboarding_completed`, `membership.updated`, `charge.payment_registered` e `charge.reconciled`. Manter detalhes técnicos em expansão restrita.
+
+Critérios de aceite:
+- gestor entende a alteração sem ler JSON;
+- detalhes internos ficam ocultos por padrão;
+- filtros por usuário, evento, entidade e período;
+- paginação;
+- dados pessoais mascarados conforme permissão;
+- detalhe técnico disponível somente a autorizados.
+
+Dependências: catálogo de eventos, permissões e política de mascaramento.
+
+#### P0.8 Melhorar privacidade e apresentação das sessões — implementada
+
+Apresentar inicialmente navegador, sistema operacional, última atividade, sessão atual e dispositivo conhecido/desconhecido. IP e user-agent bruto ficam em detalhe controlado.
+
+Critérios de aceite:
+- sessão atual identificada;
+- informações técnicas não dominam a interface;
+- encerramento exige confirmação;
+- sessão encerrada gera auditoria;
+- dados sensíveis respeitam permissões.
+
+Dependências: identificação confiável da sessão atual, auditoria e política de privacidade.
+
+### 48.3.5 Prioridade alta — P1
+
+#### P1.9 Consolidar permissões por perfil e unidade — avançado, homologação por perfil pendente
+
+Perfis: Proprietário, Administrador, Gerente, Recepção, Professor e Financeiro. Consolidar capacidades, unidade operacional, escopo de visualização, estado do vínculo, motivo e auditoria.
+
+Validar pagamentos, cancelamentos, conciliação, exportação, inativação de alunos, edição de planos, políticas de acesso, automações, usuários, auditoria e transferência de propriedade.
+
+Critérios de aceite:
+- backend é a fonte de autorização;
+- Sidebar e ações ocultam o que o perfil não pode usar;
+- acesso direto à rota ou API continua protegido;
+- unidade limita dados e ações corretamente;
+- ações sensíveis exigem motivo/confirmação e são auditadas;
+- testes cobrem cada perfil relevante.
+
+Dependências: P0.7, P0.8 e matriz de capacidades aprovada.
+
+#### P1.10 Reorganizar Configurações — avançado, validação visual pendente
+
+Separar Academia, Unidades, Usuários e permissões, Planos e contratos, Financeiro, Acessos, Automações, Auditoria e Segurança em rotas ou abas coerentes.
+
+Critérios de aceite:
+- busca funcional;
+- impacto das alterações explicado;
+- salvamento independente por seção;
+- paginação, filtros e estados vazios onde aplicável;
+- navegação não duplica módulos operacionais;
+- permissões por seção.
+
+Dependências: P1.9 e revisão de navegação P1.16.
+
+#### P1.11 Refinar Check-ins e dispositivos — avançado, homologação física externa pendente
+
+Preservar monitor ao vivo, políticas, filtros, origem, bloqueio, contingência, dispositivos, diagnóstico e simulação. Separar política de acesso da consulta operacional; mostrar motivo, dispositivo, unidade, latência, resposta e saúde; permitir abrir aluno e cobrança; auditar contingência; diferenciar offline, nunca conectado e falha.
+
+Critérios de aceite:
+- evento explica decisão e próxima ação;
+- detalhes técnicos ficam em diagnóstico;
+- estados de dispositivo são confiáveis;
+- links levam ao aluno/cobrança correta;
+- contingência é autorizada, confirmada e auditada;
+- preparação para Wellhub e TotalPass não é apresentada como integração pronta.
+
+Dependências: P0.3, P1.9, contexto por unidade e observabilidade. Integrações físicas Topdata/Control iD e agregadores permanecem externas até homologação específica.
+
+#### P1.12 Integrar inconsistências financeiras às cobranças — implementado
+
+Critérios de aceite:
+- inconsistência abre a cobrança afetada;
+- possui responsável, prazo/SLA, situação, resolução e histórico;
+- aceita comentários internos com permissão;
+- mantém vínculo com pagamento e conciliação;
+- mudanças são auditadas.
+
+Dependências: P0.3, P0.5, P1.9 e auditoria amigável.
+
+#### P1.13 Padronizar carregamento, erro e vazio — implementado nas superfícies prioritárias
+
+Estados obrigatórios: skeleton/carregando, carregado, vazio real, vazio por filtro, erro, sem permissão e módulo indisponível. Nunca mostrar vazio antes de concluir consulta.
+
+Critérios de aceite:
+- componentes compartilhados possuem contrato consistente;
+- filtros e paginação permanecem durante atualização;
+- erro oferece nova tentativa;
+- vazio explica próxima ação;
+- sem permissão e indisponibilidade não parecem erro genérico.
+
+Dependências: nenhuma de negócio; aplicar incrementalmente, começando pelas superfícies P0/P1 alteradas.
+
+#### P1.14 Evoluir gestão de alunos — avançada, filtros e colunas ampliados
+
+Adicionar colunas configuráveis; filtros salvos e compartilhados; plano próximo do fim; sem treino; sem avaliação; aniversariantes; acesso bloqueado; pendências; Health Score; responsável; unidade; paginação ou virtualização.
+
+Revisar mascaramento de CPF/telefone, tooltips, confirmação/motivo de inativação e permissões por ação.
+
+Critérios de aceite:
+- filtros e colunas persistem conforme escopo definido;
+- listagem mantém desempenho com volume realista;
+- Health Score e financeiro coincidem com ficha/relatórios;
+- dados pessoais respeitam permissão;
+- ações sensíveis são auditadas.
+
+Dependências: P0.1 a P0.3, P1.9 e P1.13.
+
+#### P1.15 Tornar metas operacionais — avançado, metas auditadas
+
+Implementar valor, progresso, percentual, ritmo esperado, desvio, projeção, histórico, unidade, período e permissão de edição.
+
+Critérios de aceite:
+- cálculo e período explícitos;
+- progresso abre detalhes;
+- metas por unidade não contaminam consolidado;
+- histórico preservado;
+- edição autorizada e auditada.
+
+Dependências: P0.5 e P1.9.
+
+#### P1.16 Revisar a navegação — implementada com grupos, favoritos e recentes
+
+Adicionar grupos recolhíveis, módulos conforme perfil, favoritos, recentes e indicadores de pendência. Diferenciar operação diária de administração e avaliar sobreposição entre Central operacional, Check-ins, Documentos e Automações.
+
+Critérios de aceite:
+- usuário não vê módulos sem acesso;
+- rotas relacionadas possuem agrupamento previsível;
+- mobile continua funcional;
+- não criar novo item principal quando uma área existente comporta o fluxo;
+- Central operacional não duplica telas especializadas.
+
+Dependências: P1.9 e mapa de informação aprovado.
+
+### 48.3.6 Prioridade média-alta — P2
+
+#### P2.17 Completar Agenda unificada — avançada, recorrência e conflitos implementados
+
+Preservar novo evento, dia/semana/mês, período, aulas, avaliações, tarefas, contatos e visitas. Completar grade visual, recorrência, profissionais, salas, unidades, disponibilidade, conflitos, confirmação, lembretes, estados e vínculos com aluno, Comercial e Avaliações.
+
+Critérios de aceite:
+- conflitos e disponibilidade são confiáveis;
+- recorrência preserva exceções;
+- filtros por unidade/profissional/tipo;
+- lembretes não duplicam;
+- horários e fusos são definidos por unidade.
+
+Dependências: unidades, permissões, Comercial, avaliações e automações.
+
+#### P2.18 Desenvolver Treinos — funcional e consolidado no frontend web
+
+Ordem obrigatória: biblioteca de exercícios; modelos; prescrição na ficha; treino atual; professor; execução; cargas/séries/repetições; progressão; histórico; revisão; aplicativo do aluno.
+
+Critérios de aceite:
+- cada etapa reutiliza a anterior;
+- prescrição e execução preservam histórico;
+- permissões de professor e unidade;
+- ficha e área global mostram o mesmo treino atual;
+- aplicativo do aluno permanece separado e não é apresentado como concluído antes de existir.
+
+Dependências: alunos, ficha 360º, P1.9 e portal para a última etapa.
+
+#### P2.19 Evoluir Relatórios — avançado, fórmulas e indicadores ampliados
+
+Adicionar detalhamento, fórmula, fonte, comparação, favoritos, visões salvas, novas exportações, receita por unidade, renovação, permanência, ocupação e motivos de cancelamento.
+
+Corrigir consistência do Health Score, diferença entre `em risco` e `Requer atenção`, e integrar `Registrar contato` com Comercial e Automações.
+
+Critérios de aceite:
+- todo indicador explica fórmula, fonte, período e escopo;
+- detalhe reconcilia com o total;
+- filtros respeitam unidade e permissão;
+- ações geram registros nos módulos de destino;
+- exportação reflete filtros ativos.
+
+Dependências: P0.1, P0.3, P0.5, P1.9, Comercial e Automações.
+
+#### P2.20 Completar Automações — implementado com SLA, modos e idempotência
+
+Adicionar responsável, SLA, prazo, histórico por regra, pausa, última execução, sucesso/falha, tentativas, deduplicação, idempotência, permissões e auditoria amigável. Separar teste, simulação e execução real.
+
+Critérios de aceite:
+- execução real nunca é confundida com teste;
+- eventos duplicados não repetem efeitos;
+- falhas possuem tentativa e diagnóstico;
+- responsável e SLA são operacionais;
+- ações e alterações são auditadas.
+
+Dependências: fontes de eventos confiáveis, P0.1/P0.3, P0.7 e P1.9.
+
+#### P2.21 Evoluir planos e matrículas — intermediário
+
+Após P0.6, evoluir modalidades, benefícios, serviços, acesso, contratos, promoção, carência, multa, congelamento, disponibilidade por unidade, receita, adesão, comparação, prévia e impacto.
+
+O resumo lateral da matrícula deve manter aluno, plano, preço, desconto, parcelas, recorrência, vencimento, vigência, contrato e cobranças geradas.
+
+Critérios de aceite:
+- prévia coincide com cobranças criadas;
+- alterações preservam histórico;
+- regras comerciais não se contradizem;
+- impacto em alunos ativos é explícito;
+- disponibilidade e preço respeitam unidade.
+
+Dependências: P0.2, P0.6, P1.9 e contratos/documentos.
+
+#### P2.22 Comparação entre unidades — fundação implementada
+
+Adicionar seletor claro, período, consolidado, comparação, metas, receita por aluno, frequência, inadimplência, conversão, ocupação, dispositivos e permissões por unidade.
+
+Critérios de aceite:
+- métricas normalizadas e reconciliáveis;
+- consolidado não duplica registros;
+- período e unidade sempre visíveis;
+- usuário acessa somente unidades autorizadas;
+- detalhe explica diferenças.
+
+Dependências: P0.5, P1.9, P1.15 e particionamento confiável dos domínios.
+
+#### P2.23 Integrar Comercial e Turmas — estrutura funcional
+
+Manter a área `Crescimento`, com abas Comercial e Turmas. Comercial integra leads, visitas, contatos, propostas, conversão, agenda e automações. Turmas integra professores, salas, capacidade, lotação, presença, agenda e alunos.
+
+Critérios de aceite:
+- conversão preserva origem do lead;
+- agenda e automações compartilham eventos;
+- capacidade e presença são confiáveis;
+- vínculos abrem aluno, turma ou responsável;
+- permissões e unidades respeitadas.
+
+Dependências: P2.17, P2.20 e P1.9.
+
+#### P2.24 Completar Documentos e Portal — estrutura funcional
+
+Adicionar validade, vencimento, assinatura, aceite, status, versão, modelo, obrigatoriedade, alertas, permissões, histórico, armazenamento seguro e vínculos com matrícula e acesso.
+
+Critérios de aceite:
+- versões e aceite são imutáveis/auditáveis;
+- acesso ao arquivo é autorizado;
+- vencimentos geram alertas sem duplicidade;
+- documento obrigatório pode explicar bloqueio;
+- portal mostra somente documentos do aluno autenticado.
+
+Dependências: P1.9, auditoria, armazenamento seguro, matrículas e políticas de acesso.
+
+### 48.3.7 Prioridade média — P3
+
+#### P3.25 Personalização do Dashboard — parcial
+
+Permitir reordenar seções, ocultar cards, salvar preferências, configurar por perfil/unidade e selecionar indicadores favoritos.
+
+Critérios de aceite: preferências persistem sem alterar dados; padrão recuperável; cards respeitam permissão; comportamento responsivo preservado.
+
+Dependências: P0.5, P1.9 e P1.15.
+
+#### P3.26 Relatórios salvos e favoritos — não iniciado
+
+Permitir salvar filtros, nomear, compartilhar, favoritar, exportar e definir visão padrão.
+
+Critérios de aceite: escopo de compartilhamento explícito; visão reproduz filtros; permissões aplicadas; exclusão confirmada.
+
+Dependências: P2.19 e P1.9.
+
+#### P3.27 Navegação personalizada — não iniciado
+
+Adicionar favoritos, recentes, módulos mais usados e atalhos por perfil.
+
+Critérios de aceite: preferências individuais; sem revelar rotas proibidas; opção de redefinir; mobile preservado.
+
+Dependências: P1.16 e P1.9.
+
+#### P3.28 Portal do aluno — estrutura funcional, precisa evoluir
+
+Evoluir documentos, contratos, cobranças, check-ins, treinos, avaliações, agenda, dados pessoais e notificações.
+
+Critérios de aceite: isolamento absoluto por aluno; ações próprias autorizadas; estados claros; dados sensíveis protegidos; integrações usam as mesmas fontes administrativas.
+
+Dependências: P2.17, P2.18, P2.24, financeiro e notificações futuras.
+
+### 48.3.8 Prioridade baixa — P4
+
+Não priorizar antes da consolidação:
+- personalizações apenas cosméticas;
+- grandes catálogos de relatórios estáticos;
+- novos módulos sem integração;
+- atalhos tradicionais excessivos;
+- configurações periféricas;
+- recursos que aumentem a Sidebar sem necessidade;
+- dashboards adicionais sem dados consistentes.
+
+Esses itens não estão proibidos, mas exigem justificativa de negócio e não podem deslocar P0/P1.
+
+### 48.3.9 Ordem recomendada e dependências macro
+
+Ordem oficial:
+1. Unificar Health Score.
+2. Corrigir plano, matrícula, cobrança e próximo vencimento.
+3. Padronizar situação financeira.
+4. Corrigir checklist do onboarding.
+5. Padronizar períodos e escopos.
+6. Corrigir modelo comercial de planos.
+7. Melhorar auditoria e privacidade de sessões.
+8. Consolidar permissões.
+9. Reorganizar Configurações.
+10. Refinar Check-ins e dispositivos.
+11. Integrar inconsistências financeiras às cobranças.
+12. Padronizar skeletons e estados de erro/vazio.
+13. Evoluir filtros e visualização de Alunos.
+14. Tornar metas operacionais.
+15. Revisar navegação.
+16. Completar Agenda.
+17. Desenvolver Treinos.
+18. Evoluir Relatórios.
+19. Completar Automações.
+20. Evoluir Planos e Matrículas.
+21. Comparar unidades.
+22. Integrar Comercial e Turmas.
+23. Completar Documentos e Portal.
+24. Adicionar personalizações e refinamentos posteriores.
+
+Dependências macro:
+```text
+P0.2 Plano/matrícula/cobrança
+        ↓
+P0.3 Situação financeira ──────┐
+        ↓                      │
+P0.1 Health Score             │
+        ↓                      │
+Alunos / Relatórios /         │
+Automações / Retenção         │
+                               │
+P0.5 Períodos e escopos ──────┼→ Metas / Unidades / Relatórios
+                               │
+P0.7 Auditoria + P0.8 Sessões ─┴→ P1.9 Permissões
+                                      ↓
+Configurações / Navegação / operações sensíveis
+```
+
+Não iniciar um dependente como se a fundação estivesse concluída. Quando for possível avançar parcialmente, registrar explicitamente a limitação.
+
+### 48.3.10 Critérios gerais para futuras tarefas
+
+Toda implementação futura deve:
+1. Ler o `AGENTS.md` antes de agir.
+2. Identificar prioridade e dependências.
+3. Reutilizar componentes e padrões existentes.
+4. Usar dados reais ou marcar claramente dados demonstrativos.
+5. Possuir loading, vazio, erro e sem permissão.
+6. Considerar permissões e unidades.
+7. Auditar ações sensíveis.
+8. Validar consistência com outros módulos.
+9. Incluir testes proporcionais ao risco.
+10. Verificar visualmente o resultado.
+11. Preservar acessibilidade e responsividade.
+12. Implementar uma entrega pequena e verificável por vez.
+13. Não expandir automaticamente o escopo para todo o roadmap.
+
+### 48.3.11 Conflitos e decisões de consolidação
+
+- O roadmap anterior dizia que Health Score ainda não existia; a solução inicial foi implementada depois, mas está **parcial e inconsistente**, portanto o estado atual substitui `não implementado`.
+- Busca universal e command palette deixaram de ser item futuro e estão **implementadas**; expansões permanecem posteriores à consolidação dos destinos.
+- Dashboard acionável, períodos, visões por perfil, metas e `Requer atenção` avançaram; o foco atual é **consistência**, não reconstrução.
+- Treinos, Agenda, Relatórios, Configurações, Automações e Unidades deixaram de ser espaços reservados. Possuem bases funcionais em diferentes níveis e devem ser aprofundados, não recriados.
+- Onboarding visual e cadastro inicial estão **implementados**; o P0 trata especificamente do checklist operacional calculado incorretamente.
+- Monitor de acesso, políticas e dispositivos avançaram; integrações externas e homologação física não devem ser apresentadas como concluídas.
+- A orientação antiga de escolher automaticamente o próximo módulo foi superada: primeiro resolver P0, respeitando solicitação explícita e entrega incremental.
 
 ---
 

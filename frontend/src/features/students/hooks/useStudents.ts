@@ -31,7 +31,10 @@ export default function useStudents() {
             return segment === "defaulting" ||
                 segment === "without_plan" ||
                 segment === "without_recent_checkin" ||
-                segment === "at_risk"
+                segment === "at_risk" ||
+                segment === "plan_ending" || segment === "without_workout" ||
+                segment === "without_assessment" || segment === "birthdays" ||
+                segment === "access_blocked" || segment === "incomplete_profile"
                 ? segment
                 : "all";
         });

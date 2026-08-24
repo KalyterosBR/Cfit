@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import UniversalSearch from "./UniversalSearch";
 import { clearTokens } from "@/features/auth/services/token.service";
+import { Api } from "@/services/http";
+import { hasAccess, routeAccess, useSession } from "@/features/auth/access-control";
 
 
 type TopbarProps = {
@@ -26,6 +28,8 @@ const routeLabels: Record<string, string> = {
     "/schedule": "Agenda",
     "/reports": "Relatórios",
     "/settings": "Configurações",
+    "/units": "Academia e unidades",
+    "/automations": "Automações",
 };
 
 
@@ -38,6 +42,12 @@ export default function Topbar({
     const notificationsRef = useRef<HTMLDivElement>(null);
     const [profileOpen, setProfileOpen] = useState(false);
     const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const profile = useSession();
+    const [notifications, setNotifications] = useState<Array<{ id: string; title: string; detail: string; href: string; severity: string }>>([]);
+
+    useEffect(() => {
+        Api.get<{ results: Array<{ id: string; title: string; detail: string; href: string; severity: string }> }>("/users/notifications/").then(alerts => setNotifications(alerts.data.results.filter(item => hasAccess(profile.capabilities, routeAccess[`/${item.href.split("/")[1]}`])))).catch(() => undefined);
+    }, [location.pathname, profile.capabilities]);
 
     useEffect(() => {
         function handleOutsideClick(event: MouseEvent) {
@@ -104,15 +114,11 @@ export default function Topbar({
                     >
                         <Bell size={18} />
 
-                        <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-cyan-500 ring-2 ring-white" />
+                        {notifications.length > 0 && <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-cyan-500 ring-2 ring-white" />}
                     </button>
 
                     {notificationsOpen && (
-                        <div role="dialog" aria-label="Notificações" className="absolute right-0 top-[calc(100%+0.65rem)] w-72 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_22px_55px_-28px_rgba(15,23,42,0.45)]">
-                            <p className="text-sm font-semibold text-slate-700">
-                                Notificações serão exibidas aqui
-                            </p>
-                        </div>
+                        <div role="dialog" aria-label="Notificações" className="absolute right-0 top-[calc(100%+0.65rem)] w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_22px_55px_-28px_rgba(15,23,42,0.45)]"><p className="px-2 py-2 text-xs font-black uppercase tracking-wider text-slate-500">Requer atenção</p>{notifications.length === 0 ? <p className="p-3 text-sm text-slate-500">Nenhuma pendência operacional.</p> : notifications.map(item => <button key={item.id} type="button" onClick={() => { setNotificationsOpen(false); navigate(item.href); }} className="block w-full rounded-xl p-3 text-left hover:bg-slate-50"><span className="block text-sm font-bold text-slate-800">{item.title}</span><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></button>)}</div>
                     )}
                 </div>
 
@@ -130,16 +136,16 @@ export default function Topbar({
                     className="flex items-center gap-2 rounded-xl p-1.5 transition hover:bg-slate-100 sm:gap-3"
                 >
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-xs font-bold text-white shadow-[0_8px_20px_-10px_rgba(37,99,235,0.8)]">
-                        JM
+                        {profile.name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}
                     </div>
 
                     <div className="hidden text-left sm:block">
                         <p className="text-xs font-semibold text-slate-900">
-                            Administrador
+                            {profile.name}
                         </p>
 
                         <p className="text-[10px] font-medium text-slate-500">
-                            Cfit
+                            {profile.academy?.name ?? "Cfit"}
                         </p>
                     </div>
 
@@ -151,8 +157,8 @@ export default function Topbar({
                 {profileOpen && (
                     <div role="menu" className="absolute right-0 top-[calc(100%+0.65rem)] w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_22px_55px_-28px_rgba(15,23,42,0.45)]">
                         <div className="border-b border-slate-100 px-3 py-2.5 sm:hidden">
-                            <p className="text-xs font-bold text-slate-900">Administrador</p>
-                            <p className="mt-0.5 text-[10px] text-slate-500">Cfit</p>
+                            <p className="text-xs font-bold text-slate-900">{profile.name}</p>
+                            <p className="mt-0.5 text-[10px] text-slate-500">{profile.role_label}</p>
                         </div>
                         <button type="button" role="menuitem" onClick={handleLogout} className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-red-600 transition hover:bg-red-50">
                             <LogOut size={17} />

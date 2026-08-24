@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
 import {
     BrowserRouter,
@@ -8,23 +8,28 @@ import {
 } from "react-router-dom";
 
 import ProtectedRoute from "@/features/auth/components/ProtectedRoute";
+import CapabilityRoute from "@/features/auth/components/CapabilityRoute";
+import { routeAccess } from "@/features/auth/access-control";
+import { ChangePassword, ForgotPassword, ResetPassword } from "../pages/PasswordAccess";
 
-import Login from "@/pages/Login";
-
-import Dashboard from "../pages/Dashboard";
-import Financial from "../pages/Financial";
-import Plans from "../pages/Plans";
-import CheckIns from "../pages/CheckIns";
-import Workouts from "../pages/Workouts";
-import Schedule from "../pages/Schedule";
-import Reports from "../pages/Reports";
-import SettingsPage from "../pages/Settings";
-import Automations from "../pages/Automations";
-import Units from "../pages/Units";
-
-
-import StudentsListPage from "../features/students/pages/StudentsListPage";
-import StudentDetailsPage from "../features/students/pages/StudentDetailsPage";
+const Login = lazy(() => import("@/pages/Login"));
+const Dashboard = lazy(() => import("../pages/Dashboard"));
+const Financial = lazy(() => import("../pages/Financial"));
+const Plans = lazy(() => import("../pages/Plans"));
+const CheckIns = lazy(() => import("../pages/CheckIns"));
+const Workouts = lazy(() => import("../pages/Workouts"));
+const Schedule = lazy(() => import("../pages/Schedule"));
+const Reports = lazy(() => import("../pages/Reports"));
+const SettingsPage = lazy(() => import("../pages/Settings"));
+const Automations = lazy(() => import("../pages/Automations"));
+const Units = lazy(() => import("../pages/Units"));
+const Operations = lazy(() => import("../pages/Operations"));
+const Growth = lazy(() => import("../pages/Growth"));
+const Portal = lazy(() => import("../pages/Portal"));
+const Documents = lazy(() => import("../pages/Documents"));
+const Onboarding = lazy(() => import("../pages/Onboarding"));
+const StudentsListPage = lazy(() => import("../features/students/pages/StudentsListPage"));
+const StudentDetailsPage = lazy(() => import("../features/students/pages/StudentDetailsPage"));
 
 
 const routeTitles: Record<string, string> = {
@@ -40,6 +45,12 @@ const routeTitles: Record<string, string> = {
     "/settings": "Configurações",
     "/automations": "Automações",
     "/units": "Academia e unidades",
+    "/operations": "Central operacional",
+    "/growth": "Comercial e turmas",
+    "/portal": "Portal do aluno",
+    "/documents": "Documentos e portal",
+    "/change-password": "Alterar senha",
+    "/onboarding": "Configuração inicial",
 };
 
 
@@ -63,15 +74,19 @@ export default function AppRoutes() {
         <BrowserRouter>
             <DocumentTitle />
 
-            <Routes>
+            <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-50 font-semibold text-slate-500">Carregando módulo...</div>}><Routes>
                 {/* ROTA PÚBLICA */}
                 <Route
                     path="/"
                     element={<Login />}
                 />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
                 {/* ROTAS PROTEGIDAS */}
                 <Route element={<ProtectedRoute />}>
+                    <Route path="/change-password" element={<ChangePassword />} />
+                    <Route path="/onboarding" element={<Onboarding />} />
                     <Route
                         path="/dashboard"
                         element={<Dashboard />}
@@ -79,52 +94,56 @@ export default function AppRoutes() {
 
                     <Route
                         path="/students"
-                        element={<StudentsListPage />}
+                        element={<CapabilityRoute requirement={routeAccess["/students"]}><StudentsListPage /></CapabilityRoute>}
                     />
 
                     <Route
                         path="/students/:id"
-                        element={<StudentDetailsPage />}
+                        element={<CapabilityRoute requirement={routeAccess["/students"]}><StudentDetailsPage /></CapabilityRoute>}
                     />
 
                     <Route
                         path="/plans"
-                        element={<Plans />}
+                        element={<CapabilityRoute requirement={routeAccess["/plans"]}><Plans /></CapabilityRoute>}
                     />
 
                     <Route
                         path="/finance"
-                        element={<Financial />}
+                        element={<CapabilityRoute requirement={routeAccess["/finance"]}><Financial /></CapabilityRoute>}
                     />
 
                     <Route
                         path="/checkins"
-                        element={<CheckIns />}
+                        element={<CapabilityRoute requirement={routeAccess["/checkins"]}><CheckIns /></CapabilityRoute>}
                     />
 
                     <Route
                         path="/workouts"
-                        element={<Workouts />}
+                        element={<CapabilityRoute requirement={routeAccess["/workouts"]}><Workouts /></CapabilityRoute>}
                     />
 
                     <Route
                         path="/schedule"
-                        element={<Schedule />}
+                        element={<CapabilityRoute requirement={routeAccess["/schedule"]}><Schedule /></CapabilityRoute>}
                     />
 
                     <Route
                         path="/reports"
-                        element={<Reports />}
+                        element={<CapabilityRoute requirement={routeAccess["/reports"]}><Reports /></CapabilityRoute>}
                     />
 
                     <Route
                         path="/settings"
-                        element={<SettingsPage />}
+                        element={<CapabilityRoute requirement={routeAccess["/settings"]}><SettingsPage /></CapabilityRoute>}
                     />
-                    <Route path="/automations" element={<Automations />} />
-                    <Route path="/units" element={<Units />} />
+                    <Route path="/automations" element={<CapabilityRoute requirement={routeAccess["/automations"]}><Automations /></CapabilityRoute>} />
+                    <Route path="/units" element={<CapabilityRoute requirement={routeAccess["/units"]}><Units /></CapabilityRoute>} />
+                    <Route path="/operations" element={<CapabilityRoute requirement={routeAccess["/operations"]}><Operations /></CapabilityRoute>} />
+                    <Route path="/growth" element={<CapabilityRoute requirement={routeAccess["/growth"]}><Growth /></CapabilityRoute>} />
+                    <Route path="/portal" element={<CapabilityRoute requirement={routeAccess["/portal"]}><Portal /></CapabilityRoute>} />
+                    <Route path="/documents" element={<CapabilityRoute requirement={routeAccess["/documents"]}><Documents /></CapabilityRoute>} />
                 </Route>
-            </Routes>
+            </Routes></Suspense>
         </BrowserRouter>
     );
 }

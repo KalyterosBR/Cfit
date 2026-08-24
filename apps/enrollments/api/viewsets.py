@@ -22,6 +22,8 @@ from apps.enrollments.models import (
 )
 from apps.enrollments.selectors import get_student_enrollments
 from apps.financial.services.billing import build_charge_schedule
+from apps.users.models import AdministrativeAudit
+from apps.users.permissions import ScopedCapability, get_request_scope
 
 
 class EnrollmentViewSet(viewsets.ModelViewSet):
@@ -31,6 +33,40 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
     ).all()
 
     serializer_class = EnrollmentSerializer
+    permission_classes = [ScopedCapability]
+    read_capability = "enrollments.view"
+    write_capability = "enrollments.manage"
+
+    def audit_status(self, enrollment, action, reason=""):
+        AdministrativeAudit.objects.create(
+            academy=enrollment.student.academy, actor=self.request.user,
+            action=action, entity_type="enrollment", entity_id=str(enrollment.pk),
+            new_state={"status": enrollment.status}, reason=reason,
+        )
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        academy, unit = get_request_scope(self.request.user)
+        if academy:
+            queryset = queryset.filter(student__academy=academy)
+        if unit:
+            queryset = queryset.filter(unit=unit)
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(student__name__icontains=search) | Q(plan__name__icontains=search)
+            )
+        return queryset
+
+    def perform_create(self, serializer):
+        enrollment = serializer.save()
+        AdministrativeAudit.objects.create(
+            academy=enrollment.student.academy, actor=self.request.user,
+            action="enrollment.created", entity_type="enrollment",
+            entity_id=str(enrollment.pk),
+            new_state={"student": str(enrollment.student_id), "plan": str(enrollment.plan_id)},
+        )
 
     @action(
         detail=False,
@@ -78,9 +114,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         request,
         student_id=None,
     ):
-        enrollments = get_student_enrollments(
-            student_id,
-        )
+        enrollments = self.get_queryset().filter(student_id=student_id)
 
         serializer = self.get_serializer(
             enrollments,
@@ -113,6 +147,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         history = (
             EnrollmentHistory.objects.filter(
                 enrollment__student_id=student_id,
+                enrollment__in=self.get_queryset(),
             )
             .select_related(
                 "enrollment",
@@ -156,6 +191,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         freezes = (
             EnrollmentFreeze.objects.filter(
                 enrollment__student_id=student_id,
+                enrollment__in=self.get_queryset(),
             )
             .select_related(
                 "enrollment",
@@ -219,12 +255,14 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             frozen_at=today,
         )
 
+        enrollment.frozen_until = request.data.get("frozen_until") or None
+
         enrollment.status = Enrollment.Status.FROZEN
 
         enrollment.save(
             update_fields=[
                 "status",
-                "updated_at",
+                "updated_at", "frozen_until",
             ]
         )
 
@@ -234,6 +272,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             event_date=today,
             description=(f"Matrícula do plano {enrollment.plan.name} congelada."),
         )
+        self.audit_status(enrollment, "enrollment.frozen")
 
         serializer = self.get_serializer(
             enrollment,
@@ -316,6 +355,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             event_date=today,
             description=(f"Matrícula do plano {enrollment.plan.name} reativada."),
         )
+        self.audit_status(enrollment, "enrollment.reactivated")
 
         serializer = self.get_serializer(
             enrollment,
@@ -379,12 +419,16 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
                     ]
                 )
 
+        reason = str(request.data.get("reason", "")).strip()
+        if not reason:
+            return Response({"reason": ["Informe o motivo do cancelamento."]}, status=status.HTTP_400_BAD_REQUEST)
         enrollment.status = Enrollment.Status.CANCELED
+        enrollment.cancellation_reason = reason
 
         enrollment.save(
             update_fields=[
                 "status",
-                "updated_at",
+                "updated_at", "cancellation_reason",
             ]
         )
 
@@ -394,6 +438,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             event_date=today,
             description=(f"Matrícula do plano {enrollment.plan.name} cancelada."),
         )
+        self.audit_status(enrollment, "enrollment.canceled", reason)
 
         serializer = self.get_serializer(
             enrollment,
@@ -472,12 +517,32 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             event_date=today,
             description=(f"Matrícula do plano {enrollment.plan.name} encerrada."),
         )
+        self.audit_status(enrollment, "enrollment.finished")
 
-        serializer = self.get_serializer(
-            enrollment,
-        )
+        return Response(self.get_serializer(enrollment).data, status=status.HTTP_200_OK)
 
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK,
-        )
+    @action(detail=True, methods=["post"], url_path="renew")
+    @transaction.atomic
+    def renew(self, request, pk=None):
+        enrollment = self.get_object()
+        previous_status = enrollment.status
+        enrollment.status = Enrollment.Status.FINISHED
+        enrollment.save(update_fields=["status", "updated_at"])
+        serializer = self.get_serializer(data={
+            "student": enrollment.student_id,
+            "plan": request.data.get("plan", enrollment.plan_id),
+            "contracted_price": request.data.get("contracted_price", enrollment.contracted_price),
+            "original_price": request.data.get("original_price", enrollment.original_price),
+            "discount_amount": request.data.get("discount_amount", 0),
+            "discount_reason": request.data.get("discount_reason", ""),
+            "start_date": request.data.get("start_date", timezone.localdate()),
+            "due_date": request.data.get("due_date"),
+            "billing_method": request.data.get("billing_method", enrollment.billing_method),
+            "notes": request.data.get("notes", ""),
+            "contract_accepted": True,
+        })
+        serializer.is_valid(raise_exception=True)
+        renewed = serializer.save(unit=enrollment.unit, created_by=request.user, renewed_from=enrollment)
+        EnrollmentHistory.objects.create(enrollment=enrollment, event_type=EnrollmentHistory.EventType.RENEWED, event_date=timezone.localdate(), description=f"Renovada para a matrícula {renewed.pk}.")
+        self.audit_status(enrollment, "enrollment.renewed", request.data.get("reason", "") or f"Status anterior: {previous_status}")
+        return Response(self.get_serializer(renewed).data, status=status.HTTP_201_CREATED)

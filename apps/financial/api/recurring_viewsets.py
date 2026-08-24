@@ -10,7 +10,7 @@ from apps.financial.api.recurring_serializers import (
     RecurringPaymentAttemptSerializer,
 )
 from apps.financial.models import Charge, RecurringPaymentAttempt
-from apps.users.permissions import HasFinancialAccess
+from apps.users.permissions import HasFinancialAccess, get_request_scope
 
 
 class RecurringPaymentAttemptViewSet(viewsets.ModelViewSet):
@@ -34,6 +34,11 @@ class RecurringPaymentAttemptViewSet(viewsets.ModelViewSet):
             "charge__enrollment__plan",
             "recorded_by",
         )
+        academy, unit = get_request_scope(self.request.user)
+        if academy:
+            queryset = queryset.filter(charge__enrollment__student__academy=academy)
+        if unit:
+            queryset = queryset.filter(charge__unit=unit)
         attempt_status = self.request.query_params.get("status")
         source = self.request.query_params.get("source")
         student = self.request.query_params.get("student")

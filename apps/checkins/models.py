@@ -6,6 +6,10 @@ from apps.students.models import Student
 
 
 class CheckIn(BaseModel):
+    unit = models.ForeignKey(
+        "academy.Unit", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="checkins",
+    )
     class Source(models.TextChoices):
         MANUAL = "manual", "Manual"
         ACCESS_CONTROL = "access_control", "Controle de acesso"
@@ -40,6 +44,13 @@ class CheckIn(BaseModel):
 
     block_reason = models.CharField(max_length=255, blank=True)
     equipment = models.CharField(max_length=100, blank=True)
+    location = models.CharField(max_length=120, blank=True)
+    device_response = models.CharField(max_length=255, blank=True)
+    contingency_reason = models.CharField(max_length=255, blank=True)
+    authorized_by = models.ForeignKey(
+        "users.User", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="authorized_checkins",
+    )
 
     notes = models.CharField(
         max_length=255,
@@ -114,3 +125,14 @@ class MonthlyCheckInGoal(models.Model):
 
     def __str__(self):
         return f"{self.period:%m/%Y} - {self.target_count} check-ins"
+
+
+class AccessPolicy(BaseModel):
+    unit = models.OneToOneField("academy.Unit", on_delete=models.PROTECT, related_name="access_policy")
+    require_active_enrollment = models.BooleanField(default=True)
+    block_defaulting_students = models.BooleanField(default=True)
+    allow_manual_contingency = models.BooleanField(default=True)
+    instructions = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"Política de acesso · {self.unit}"

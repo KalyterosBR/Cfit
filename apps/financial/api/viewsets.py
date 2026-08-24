@@ -1,8 +1,11 @@
 import csv
+import os
+import requests
 from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
+from django.conf import settings
 from django.db.models import Avg, Count, Max, Min, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -31,8 +34,10 @@ from apps.financial.models import (
     ChargeAudit,
     ChargeReconciliation,
     RecurringPaymentAttempt,
+    InconsistencyWorkflow,
 )
-from apps.users.permissions import HasFinancialAccess
+from apps.users.permissions import HasFinancialAccess, get_request_scope
+from apps.users.models import AdministrativeAudit
 
 
 class ChargeViewSet(viewsets.ModelViewSet):
@@ -85,6 +90,12 @@ class ChargeViewSet(viewsets.ModelViewSet):
             previous_state=previous_state,
             new_state=self.audit_snapshot(charge),
         )
+        AdministrativeAudit.objects.create(
+            academy=charge.enrollment.student.academy, actor=actor,
+            action="charge.payment_registered", entity_type="charge",
+            entity_id=str(charge.pk), previous_state=previous_state,
+            new_state=self.audit_snapshot(charge),
+        )
 
         return charge
 
@@ -98,12 +109,36 @@ class ChargeViewSet(viewsets.ModelViewSet):
             1,
         )
 
+    @action(detail=True, methods=["post"], url_path="generate-payment")
+    def generate_payment(self, request, pk=None):
+        charge = self.get_object()
+        if charge.status not in {Charge.Status.PENDING, Charge.Status.OVERDUE}:
+            return Response({"detail": "Somente cobranças em aberto podem gerar pagamento."}, status=400)
+        provider = request.data.get("provider", "sandbox")
+        if provider == "sandbox":
+            charge.payment_provider = provider; charge.provider_charge_id = f"sandbox-{charge.pk}"; charge.payment_url = f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/finance?charge={charge.pk}"; charge.pix_code = f"CFIT-SANDBOX-{charge.pk}"
+        else:
+            url = os.getenv("PAYMENT_API_URL"); token = os.getenv("PAYMENT_API_TOKEN")
+            if not url or not token:
+                return Response({"detail": "Configure PAYMENT_API_URL e PAYMENT_API_TOKEN."}, status=503)
+            response = requests.post(url, json={"reference": str(charge.pk), "amount": str(charge.amount), "due_date": charge.due_date.isoformat(), "customer": {"name": charge.enrollment.student.name, "email": charge.enrollment.student.email}}, headers={"Authorization": f"Bearer {token}"}, timeout=15)
+            if not response.ok:
+                return Response({"detail": f"Gateway respondeu HTTP {response.status_code}."}, status=502)
+            payload = response.json(); charge.payment_provider = provider; charge.provider_charge_id = str(payload.get("id", "")); charge.payment_url = str(payload.get("payment_url", "")); charge.pix_code = str(payload.get("pix_code", ""))
+        charge.save(update_fields=["payment_provider", "provider_charge_id", "payment_url", "pix_code", "updated_at"])
+        return Response(self.get_serializer(charge).data)
+
     # ==========================================
     # FILTROS
     # ==========================================
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        academy, unit = get_request_scope(self.request.user)
+        if academy:
+            queryset = queryset.filter(enrollment__student__academy=academy)
+        if unit:
+            queryset = queryset.filter(unit=unit)
 
         student_id = self.request.query_params.get("student")
 
@@ -552,6 +587,25 @@ class ChargeViewSet(viewsets.ModelViewSet):
                 source_updated_at=charge.updated_at,
             )
 
+        inactive_enrollment_charges = self.queryset.filter(
+            status__in=[Charge.Status.PENDING, Charge.Status.OVERDUE],
+        ).exclude(enrollment__status="active")
+
+        for charge in inactive_enrollment_charges:
+            add_issue(
+                issue_id=f"inactive-enrollment-charge-{charge.id}",
+                kind="inactive_enrollment_charge",
+                priority="critical",
+                title="Cobrança aberta de matrícula não ativa",
+                cause=f"A cobrança pertence a uma matrícula {charge.enrollment.get_status_display().lower()}.",
+                next_action="Abrir a cobrança e confirmar se ela é residual, futura ou deve ser cancelada.",
+                entity_type="charge",
+                entity_id=charge.id,
+                student=charge.enrollment.student,
+                context=charge.description,
+                source_updated_at=charge.updated_at,
+            )
+
         divergent_reconciliations = ChargeReconciliation.objects.filter(
             status=ChargeReconciliation.Status.DIVERGENT,
         ).select_related(
@@ -704,6 +758,11 @@ class ChargeViewSet(viewsets.ModelViewSet):
             ]
 
         priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        academy, _ = get_request_scope(request.user)
+        workflows = {item.issue_key: item for item in InconsistencyWorkflow.objects.filter(academy=academy, issue_key__in=[issue["id"] for issue in issues]).select_related("assigned_to")}
+        for issue in issues:
+            workflow = workflows.get(issue["id"])
+            issue["workflow"] = ({"status": workflow.status, "assigned_to": workflow.assigned_to.email if workflow.assigned_to else None, "due_at": workflow.due_at, "resolution": workflow.resolution, "comments": workflow.comments} if workflow else {"status": "open", "assigned_to": None, "due_at": None, "resolution": "", "comments": []})
         issues.sort(
             key=lambda issue: (
                 priority_order[issue["priority"]],
@@ -724,6 +783,30 @@ class ChargeViewSet(viewsets.ModelViewSet):
             return response
 
         return Response({"results": issues, "summary": summary})
+
+    @action(detail=False, methods=["post"], url_path="inconsistency-workflow")
+    def inconsistency_workflow(self, request):
+        academy, _ = get_request_scope(request.user)
+        issue_key = str(request.data.get("issue_key", "")).strip()
+        if not issue_key:
+            return Response({"issue_key": ["Informe a inconsistência."]}, status=400)
+        assigned_to = None
+        if request.data.get("assigned_to"):
+            from apps.users.models import User
+            assigned_to = User.objects.filter(pk=request.data["assigned_to"], academy_users__academy=academy, academy_users__active=True).first()
+            if not assigned_to:
+                return Response({"assigned_to": ["Responsável inválido."]}, status=400)
+        workflow, _ = InconsistencyWorkflow.objects.get_or_create(academy=academy, issue_key=issue_key, defaults={"entity_type": request.data.get("entity_type", ""), "entity_id": request.data.get("entity_id", "")})
+        previous = {"status": workflow.status, "assigned_to": str(workflow.assigned_to_id or ""), "due_at": workflow.due_at.isoformat() if workflow.due_at else None, "resolution": workflow.resolution}
+        status_value = request.data.get("status", workflow.status)
+        if status_value not in {"open", "in_progress", "resolved"}:
+            return Response({"status": ["Situação inválida."]}, status=400)
+        workflow.status = status_value; workflow.assigned_to = assigned_to or workflow.assigned_to; workflow.due_at = request.data.get("due_at") or workflow.due_at; workflow.resolution = str(request.data.get("resolution", workflow.resolution))
+        comment = str(request.data.get("comment", "")).strip()
+        if comment: workflow.comments = [*workflow.comments, {"author": request.user.email, "text": comment, "created_at": timezone.now().isoformat()}]
+        workflow.save()
+        AdministrativeAudit.objects.create(academy=academy, actor=request.user, action="financial.inconsistency_updated", entity_type=workflow.entity_type, entity_id=workflow.entity_id, previous_state=previous, new_state={"status": workflow.status, "assigned_to": str(workflow.assigned_to_id or ""), "due_at": str(workflow.due_at or ""), "resolution": workflow.resolution}, reason=comment or "Atualização da tratativa")
+        return Response({"status": workflow.status, "assigned_to": workflow.assigned_to.email if workflow.assigned_to else None, "due_at": workflow.due_at, "resolution": workflow.resolution, "comments": workflow.comments})
 
     # ==========================================
     # RESUMO FINANCEIRO
@@ -1180,12 +1263,11 @@ class ChargeViewSet(viewsets.ModelViewSet):
     def reconcile(self, request, pk=None):
         input_serializer = ReconcileChargeSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
+        scoped_ids = self.get_queryset().values_list("pk", flat=True)
         charge = get_object_or_404(
-            Charge.objects.select_related(
-                "enrollment",
-                "enrollment__student",
-                "enrollment__plan",
-            ).select_for_update(),
+            Charge.objects.select_for_update().select_related(
+                "enrollment", "enrollment__student", "enrollment__plan",
+            ).filter(pk__in=scoped_ids),
             pk=pk,
         )
 
@@ -1234,6 +1316,13 @@ class ChargeViewSet(viewsets.ModelViewSet):
                     "received_amount": str(reconciliation.received_amount),
                 }
             },
+        )
+        AdministrativeAudit.objects.create(
+            academy=charge.enrollment.student.academy, actor=request.user,
+            action="charge.reconciled", entity_type="charge", entity_id=str(charge.pk),
+            previous_state={"reconciliation": None},
+            new_state={"status": reconciliation.status, "received_amount": str(received_amount)},
+            reason=reconciliation.notes,
         )
 
         charge.refresh_from_db()
@@ -1296,6 +1385,12 @@ class ChargeViewSet(viewsets.ModelViewSet):
             reason=input_serializer.validated_data["reason"],
             previous_state=previous_state,
             new_state=self.audit_snapshot(charge),
+        )
+        AdministrativeAudit.objects.create(
+            academy=charge.enrollment.student.academy, actor=request.user,
+            action="charge.canceled", entity_type="charge", entity_id=str(charge.pk),
+            previous_state=previous_state, new_state=self.audit_snapshot(charge),
+            reason=input_serializer.validated_data["reason"],
         )
 
         serializer = self.get_serializer(charge)

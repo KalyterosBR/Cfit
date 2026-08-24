@@ -7,6 +7,10 @@ from apps.students.models.student import Student
 
 
 class Enrollment(BaseModel):
+    unit = models.ForeignKey(
+        "academy.Unit", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="enrollments",
+    )
     class Status(models.TextChoices):
         ACTIVE = "active", "Ativa"
         FROZEN = "frozen", "Congelada"
@@ -119,6 +123,9 @@ class Enrollment(BaseModel):
         related_name="created_enrollments",
         verbose_name="Matrícula criada por",
     )
+    cancellation_reason = models.TextField(blank=True)
+    frozen_until = models.DateField(null=True, blank=True)
+    renewed_from = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="renewals")
 
     class Meta:
         constraints = [

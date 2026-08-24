@@ -29,6 +29,8 @@ export default function useStudentForm({
 
     const [birthDate, setBirthDate] = useState("");
     const [email, setEmail] = useState("");
+    const [emailOptIn, setEmailOptIn] = useState(false);
+    const [whatsappOptIn, setWhatsappOptIn] = useState(false);
 
     const [cep, setCep] = useState("");
     const [street, setStreet] = useState("");
@@ -61,6 +63,8 @@ export default function useStudentForm({
 
         setBirthDate(student?.birth_date ?? "");
         setEmail(student?.email ?? "");
+        setEmailOptIn(student?.email_opt_in ?? false);
+        setWhatsappOptIn(student?.whatsapp_opt_in ?? false);
 
         setCep(student?.cep ?? "");
         setStreet(student?.street ?? "");
@@ -238,6 +242,8 @@ export default function useStudentForm({
 
                 birth_date: birthDate || null,
                 email: email.trim() || null,
+                email_opt_in: emailOptIn,
+                whatsapp_opt_in: whatsappOptIn,
 
                 cep: cep.trim() || null,
                 street: street.trim() || null,
@@ -327,6 +333,10 @@ export default function useStudentForm({
 
         email,
         setEmail,
+        emailOptIn,
+        setEmailOptIn,
+        whatsappOptIn,
+        setWhatsappOptIn,
 
         cep,
         setCep,

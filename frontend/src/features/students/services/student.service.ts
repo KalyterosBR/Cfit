@@ -25,7 +25,13 @@ export type StudentSegment =
     | "defaulting"
     | "without_plan"
     | "without_recent_checkin"
-    | "at_risk";
+    | "at_risk"
+    | "plan_ending"
+    | "without_workout"
+    | "without_assessment"
+    | "birthdays"
+    | "access_blocked"
+    | "incomplete_profile";
 
 export interface StudentHealthScore {
     student: string;
@@ -54,7 +60,10 @@ export interface StudentOperationalSummary {
         due_date: string;
         amount: string;
         status: "pending" | "overdue";
+        origin: { enrollment_id: string; enrollment_status: string; enrollment_status_label: string; plan_name: string; is_active_enrollment: boolean };
     } | null;
+    financial: { status: string; reason: string };
+    health: StudentHealthScore;
     latest_checkin_at: string | null;
     checkins_last_30_days: number;
     current_workout: {

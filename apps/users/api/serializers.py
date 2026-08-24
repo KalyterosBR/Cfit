@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from apps.users.models import AcademyUser, AdministrativeAudit
+from apps.academy.models import Unit
+from apps.users.models import AcademyUser, AdministrativeAudit, User
 
 
 class AcademyUserSerializer(serializers.ModelSerializer):
@@ -22,17 +23,98 @@ class AcademyUserSerializer(serializers.ModelSerializer):
     def get_name(self, obj):
         return obj.user.get_full_name() or obj.user.email
 
+    def validate(self, attrs):
+        if self.instance:
+            changed = any(
+                field in attrs and attrs[field] != getattr(self.instance, field)
+                for field in ("role", "active", "active_unit")
+            )
+            if changed and not str(attrs.get("reason", "")).strip():
+                raise serializers.ValidationError({"reason": "Informe o motivo desta alteração."})
+        return attrs
+
     def update(self, instance, validated_data):
         validated_data.pop("reason", None)
         return super().update(instance, validated_data)
 
 
+class MembershipInviteSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=8)
+    role = serializers.ChoiceField(choices=AcademyUser.Role.choices)
+    active_unit = serializers.PrimaryKeyRelatedField(queryset=Unit.objects.filter(active=True), required=False, allow_null=True)
+
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("Já existe um usuário com este e-mail.")
+        return value.lower()
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_current_password(self, value):
+        if not self.context["request"].user.check_password(value):
+            raise serializers.ValidationError("A senha atual está incorreta.")
+        return value
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+
 class AdministrativeAuditSerializer(serializers.ModelSerializer):
     actor_email = serializers.EmailField(source="actor.email", read_only=True)
+    action_label = serializers.SerializerMethodField()
+    entity_label = serializers.SerializerMethodField()
+    changes = serializers.SerializerMethodField()
+
+    ACTION_LABELS = {
+        "academy.onboarding_completed": "Configuração inicial concluída",
+        "membership.invited": "Usuário convidado",
+        "membership.updated": "Permissões do usuário alteradas",
+        "ownership.transferred": "Propriedade transferida",
+        "membership.updated": "Vínculo do usuário alterado",
+        "charge.payment_registered": "Pagamento registrado",
+        "charge.reconciled": "Cobrança conciliada",
+        "charge.canceled": "Cobrança cancelada",
+        "membership.updated": "Usuário e permissões alterados",
+        "access_device.created": "Dispositivo de acesso cadastrado",
+        "security.2fa_updated": "Verificação em duas etapas alterada",
+        "security.session_revoked": "Sessão encerrada",
+    }
+    ENTITY_LABELS = {
+        "academy": "Academia", "academy_user": "Usuário", "charge": "Cobrança",
+        "membership": "Matrícula", "student": "Aluno", "access_device": "Dispositivo",
+        "login_session": "Sessão", "user": "Usuário",
+    }
 
     class Meta:
         model = AdministrativeAudit
         fields = [
-            "id", "actor_email", "action", "entity_type", "entity_id",
-            "previous_state", "new_state", "reason", "origin", "created_at",
+            "id", "actor_email", "action", "action_label", "entity_type", "entity_label", "entity_id",
+            "previous_state", "new_state", "changes", "reason", "origin", "created_at",
         ]
+
+    def get_action_label(self, obj):
+        return self.ACTION_LABELS.get(obj.action, obj.action.replace(".", " · ").replace("_", " ").capitalize())
+
+    def get_entity_label(self, obj):
+        return self.ENTITY_LABELS.get(obj.entity_type, obj.entity_type.replace("_", " ").capitalize())
+
+    def get_changes(self, obj):
+        hidden_terms = ("password", "secret", "token")
+        keys = sorted(set(obj.previous_state) | set(obj.new_state))
+        return [{
+            "field": key.replace("_", " ").capitalize(),
+            "previous": "••••••" if any(term in key.lower() for term in hidden_terms) else obj.previous_state.get(key),
+            "current": "••••••" if any(term in key.lower() for term in hidden_terms) else obj.new_state.get(key),
+        } for key in keys]

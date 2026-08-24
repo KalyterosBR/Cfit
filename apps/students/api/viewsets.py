@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from apps.enrollments.models import Enrollment, EnrollmentHistory
 from apps.financial.models import Charge, ChargeAudit, RecurringPaymentAttempt
-from apps.students.models import MonthlyActiveStudentGoal, Student, StudentStatusHistory
+from apps.students.models import MonthlyActiveStudentGoal, Student, StudentInteraction, StudentStatusHistory
 from apps.students.selectors import (
     count_active_students_at,
     get_student_health_score,
@@ -18,6 +18,7 @@ from apps.students.serializers import (
     ActiveStudentGoalInputSerializer,
     ActiveStudentGoalQuerySerializer,
     StudentSerializer,
+    StudentInteractionSerializer,
 )
 from apps.students.services.student_service import (
     activate_student,
@@ -27,10 +28,15 @@ from apps.students.services.student_service import (
     update_student,
 )
 from apps.workouts.models import WorkoutPlan
+from apps.users.models import AdministrativeAudit
+from apps.users.permissions import ScopedCapability, get_request_scope
 
 
 class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
+    permission_classes = [ScopedCapability]
+    read_capability = "students.view"
+    write_capability = "students.manage"
 
     filter_backends = [
         filters.OrderingFilter,
@@ -62,7 +68,13 @@ class StudentViewSet(viewsets.ModelViewSet):
         }:
             segment = None
 
-        return search_students(search, active, segment)
+        academy, unit = get_request_scope(self.request.user)
+        base_queryset = Student.objects.all()
+        if academy:
+            base_queryset = base_queryset.filter(academy=academy)
+        if unit:
+            base_queryset = base_queryset.filter(unit=unit)
+        return search_students(search, active, segment, base_queryset)
 
     @action(detail=True, methods=["get"], url_path="health-score")
     def health_score(self, request, pk=None):
@@ -72,7 +84,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     def health_summary(self, request):
         scores = [
             get_student_health_score(student)
-            for student in Student.objects.filter(active=True).order_by("name")
+            for student in self.get_queryset().filter(active=True).order_by("name")
         ]
         return Response(
             {
@@ -89,13 +101,58 @@ class StudentViewSet(viewsets.ModelViewSet):
                         "defaulting": -30,
                         "never_checked_in": -30,
                         "inactive_30_days": -25,
+                        "low_frequency": -10,
+                        "recurring_failure": -15,
+                        "without_workout": -10,
                     },
                 },
             }
         )
 
+    @action(detail=False, methods=["get"], url_path="retention-queue")
+    def retention_queue(self, request):
+        items = []
+        for student in self.get_queryset().filter(active=True):
+            health = get_student_health_score(student)
+            if health["status"] not in {"risk", "attention"}:
+                continue
+            latest = student.interactions.select_related("responsible").first()
+            items.append({
+                **health,
+                "phone": student.phone,
+                "latest_interaction": StudentInteractionSerializer(latest).data if latest else None,
+            })
+        return Response(sorted(items, key=lambda item: item["score"]))
+
+    @action(detail=True, methods=["get", "post"], url_path="interactions")
+    def interactions(self, request, pk=None):
+        student = self.get_object()
+        if request.method == "GET":
+            return Response(StudentInteractionSerializer(student.interactions.select_related("responsible", "created_by"), many=True).data)
+        serializer = StudentInteractionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        responsible = serializer.validated_data.get("responsible", request.user)
+        academy, _ = get_request_scope(request.user)
+        if academy and not responsible.academy_users.filter(academy=academy, active=True).exists() and responsible != request.user:
+            return Response({"responsible": ["O responsável não pertence à academia."]}, status=400)
+        interaction = serializer.save(student=student, responsible=responsible, created_by=request.user)
+        AdministrativeAudit.objects.create(
+            academy=student.academy, actor=request.user, action="student.interaction_created",
+            entity_type="student", entity_id=str(student.pk),
+            new_state={"interaction": str(interaction.pk), "next_action": interaction.next_action},
+        )
+        return Response(StudentInteractionSerializer(interaction).data, status=201)
+
     def perform_create(self, serializer):
-        return create_student(serializer.validated_data)
+        academy, unit = get_request_scope(self.request.user)
+        data = {**serializer.validated_data, "academy": academy, "unit": unit}
+        student = create_student(data)
+        AdministrativeAudit.objects.create(
+            academy=academy, actor=self.request.user, action="student.created",
+            entity_type="student", entity_id=str(student.pk),
+            new_state={"name": student.name, "unit": str(unit.pk) if unit else None},
+        )
+        return student
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -109,10 +166,17 @@ class StudentViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        return update_student(
+        student = update_student(
             self.get_object(),
             serializer.validated_data,
         )
+        AdministrativeAudit.objects.create(
+            academy=student.academy, actor=self.request.user,
+            action="student.updated", entity_type="student",
+            entity_id=str(student.pk), new_state={"name": student.name},
+            reason=self.request.data.get("reason", ""),
+        )
+        return student
 
     def update(self, request, *args, **kwargs):
         student = self.get_object()
@@ -140,10 +204,7 @@ class StudentViewSet(viewsets.ModelViewSet):
 
         serializer.is_valid(raise_exception=True)
 
-        student = update_student(
-            student,
-            serializer.validated_data,
-        )
+        student = self.perform_update(serializer)
 
         return Response(self.get_serializer(student).data)
 
@@ -191,7 +252,9 @@ class StudentViewSet(viewsets.ModelViewSet):
             created_at__gte=previous_period_end,
             created_at__lt=period_end_datetime,
         ).count()
+        scoped_students = self.get_queryset()
         status_events = StudentStatusHistory.objects.filter(
+            student__in=scoped_students,
             created_at__gte=previous_period_end,
             created_at__lt=period_end_datetime,
         )
@@ -201,15 +264,17 @@ class StudentViewSet(viewsets.ModelViewSet):
         reactivated_count = status_events.filter(
             event_type=StudentStatusHistory.EventType.REACTIVATED,
         ).count()
-        active_count = count_active_students_at(period_end)
-        previous_active_count = count_active_students_at(previous_period_end)
+        active_count = count_active_students_at(period_end, scoped_students)
+        previous_active_count = count_active_students_at(previous_period_end, scoped_students)
         change = active_count - previous_active_count
         change_percentage = (
             round(change / previous_active_count * 100, 1)
             if previous_active_count
             else None
         )
-        first_status_event = StudentStatusHistory.objects.order_by(
+        first_status_event = StudentStatusHistory.objects.filter(
+            student__in=scoped_students,
+        ).order_by(
             "created_at"
         ).values_list("created_at", flat=True).first()
         data_quality = (
@@ -253,15 +318,17 @@ class StudentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         period = serializer.validated_data["period"]
         period_date = date.fromisoformat(f"{period}-01")
+        academy, _ = get_request_scope(request.user)
         goal = MonthlyActiveStudentGoal.objects.filter(
-            academy__isnull=True,
+            academy=academy,
             period=period_date,
         ).select_related("updated_by").first()
         response_status = status.HTTP_200_OK
 
         if request.method == "POST":
+            previous_target = goal.target_count if goal else None
             goal, created = MonthlyActiveStudentGoal.objects.get_or_create(
-                academy=None,
+                academy=academy,
                 period=period_date,
                 defaults={
                     "target_count": serializer.validated_data["target_count"],
@@ -278,6 +345,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             response_status = (
                 status.HTTP_201_CREATED if created else status.HTTP_200_OK
             )
+            AdministrativeAudit.objects.create(academy=academy, actor=request.user, action="goal.active_students_updated", entity_type="monthly_active_student_goal", entity_id=str(goal.pk), previous_state={"target_count": previous_target}, new_state={"target_count": goal.target_count, "period": period}, reason=str(request.data.get("reason", "Definição de meta operacional"))[:255])
 
         return Response(
             {
@@ -296,6 +364,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     )
     def operational_summary(self, request, pk=None):
         student = self.get_object()
+        from apps.students.selectors import get_student_financial_status, get_student_health_score
 
         active_enrollments = (
             Enrollment.objects.filter(
@@ -306,17 +375,9 @@ class StudentViewSet(viewsets.ModelViewSet):
             .order_by("due_date", "plan__name")
         )
 
-        next_charge = (
-            Charge.objects.filter(
-                enrollment__student=student,
-                status__in=[
-                    Charge.Status.PENDING,
-                    Charge.Status.OVERDUE,
-                ],
-            )
-            .order_by("due_date", "created_at")
-            .first()
-        )
+        financial = get_student_financial_status(student)
+        health = get_student_health_score(student)
+        next_charge = financial["next_charge"]
 
         latest_checkin = student.checkins.order_by(
             "-checked_in_at",
@@ -342,6 +403,7 @@ class StudentViewSet(viewsets.ModelViewSet):
                         "due_date": next_charge.due_date,
                         "amount": next_charge.amount,
                         "status": next_charge.status,
+                        "origin": financial["next_charge_origin"],
                     }
                     if next_charge
                     else None
@@ -354,6 +416,8 @@ class StudentViewSet(viewsets.ModelViewSet):
                 "checkins_last_30_days": student.checkins.filter(
                     checked_in_at__gte=frequency_since,
                 ).count(),
+                "financial": {"status": financial["status"], "reason": financial["reason"]},
+                "health": health,
                 "current_workout": (
                     {
                         "id": current_workout.id,

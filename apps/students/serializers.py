@@ -6,8 +6,10 @@ from rest_framework import serializers
 from apps.financial.models import Charge
 from apps.financial.services.billing import (
     PAYMENT_GRACE_PERIOD_DAYS,
+    get_payment_grace_period_days,
 )
-from apps.students.models import Student
+from apps.students.models import Student, StudentInteraction
+from apps.students.selectors import get_student_financial_status, get_student_health_score
 
 
 class StudentSerializer(serializers.ModelSerializer):
@@ -18,10 +20,16 @@ class StudentSerializer(serializers.ModelSerializer):
     next_due_date = serializers.SerializerMethodField()
     last_checkin_at = serializers.SerializerMethodField()
     checkins_last_30_days = serializers.SerializerMethodField()
+    financial_status_reason = serializers.SerializerMethodField()
+    health_score = serializers.SerializerMethodField()
+    health_status = serializers.SerializerMethodField()
+    health_factors = serializers.SerializerMethodField()
     class Meta:
         model = Student
         fields = "__all__"
         extra_kwargs = {
+            "academy": {"read_only": True},
+            "unit": {"read_only": True},
             "cpf": {
                 "required": True,
                 "allow_null": False,
@@ -175,30 +183,30 @@ class StudentSerializer(serializers.ModelSerializer):
             return False
 
         defaulting_date = oldest_overdue_date + timedelta(
-            days=PAYMENT_GRACE_PERIOD_DAYS + 1,
+            days=get_payment_grace_period_days(student) + 1,
         )
 
         return today >= defaulting_date
 
     def get_financial_status(self, student):
-        """
-        Retorna:
-        - regular
-        - grace_period
-        - defaulting
-        """
+        return self._financial(student)["status"]
 
-        oldest_overdue_date = self.get_oldest_real_overdue_date(
-            student,
-        )
+    def get_financial_status_reason(self, student):
+        return self._financial(student)["reason"]
 
-        if not oldest_overdue_date:
-            return "regular"
+    def _financial(self, student):
+        cache = getattr(self, "_financial_cache", {})
+        self._financial_cache = cache
+        return cache.setdefault(str(student.pk), get_student_financial_status(student))
 
-        if self.get_is_defaulting(student):
-            return "defaulting"
+    def _health(self, student):
+        cache = getattr(self, "_health_cache", {})
+        self._health_cache = cache
+        return cache.setdefault(str(student.pk), get_student_health_score(student))
 
-        return "grace_period"
+    def get_health_score(self, student): return self._health(student)["score"]
+    def get_health_status(self, student): return self._health(student)["status"]
+    def get_health_factors(self, student): return self._health(student)["factors"]
 
     def get_grace_days_remaining(self, student):
         """
@@ -219,7 +227,7 @@ class StudentSerializer(serializers.ModelSerializer):
             return None
 
         defaulting_date = oldest_overdue_date + timedelta(
-            days=PAYMENT_GRACE_PERIOD_DAYS + 1,
+            days=get_payment_grace_period_days(student) + 1,
         )
 
         if today >= defaulting_date:
@@ -234,3 +242,13 @@ class ActiveStudentGoalQuerySerializer(serializers.Serializer):
 
 class ActiveStudentGoalInputSerializer(ActiveStudentGoalQuerySerializer):
     target_count = serializers.IntegerField(min_value=1)
+
+
+class StudentInteractionSerializer(serializers.ModelSerializer):
+    responsible_name = serializers.CharField(source="responsible.email", read_only=True)
+    created_by_name = serializers.CharField(source="created_by.email", read_only=True)
+
+    class Meta:
+        model = StudentInteraction
+        fields = ["id", "student", "interaction_type", "status", "notes", "next_action", "next_contact_at", "responsible", "responsible_name", "created_by_name", "created_at"]
+        read_only_fields = ["id", "student", "created_by_name", "created_at"]

@@ -75,12 +75,21 @@ class WorkoutPlanViewSet(WorkoutPermissionMixin, viewsets.ModelViewSet):
         unit = self.request.query_params.get("unit")
         active_unit = self.active_unit()
         if unit:
-            queryset = queryset.filter(unit_id=unit)
+            membership = get_active_membership(self.request.user)
+            if membership:
+                queryset = queryset.filter(unit_id=unit, unit__academy=membership.academy)
+            else:
+                queryset = queryset.filter(unit_id=unit)
         elif active_unit:
             queryset = queryset.filter(unit=active_unit)
         return queryset
 
     def perform_create(self, serializer):
+        membership = get_active_membership(self.request.user)
+        requested_unit = serializer.validated_data.get("unit")
+        if membership and requested_unit and requested_unit.academy_id != membership.academy_id:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"unit": "Selecione uma unidade da sua academia."})
         serializer.save(
             instructor=serializer.validated_data.get("instructor", self.request.user),
             unit=serializer.validated_data.get("unit", self.active_unit()),

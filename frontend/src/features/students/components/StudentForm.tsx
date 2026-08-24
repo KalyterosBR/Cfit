@@ -33,6 +33,10 @@ export default function StudentForm({
         setBirthDate,
         email,
         setEmail,
+        emailOptIn,
+        setEmailOptIn,
+        whatsappOptIn,
+        setWhatsappOptIn,
 
         cep,
         setCep,
@@ -147,6 +151,7 @@ export default function StudentForm({
                         />
                     </div>
                 </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={whatsappOptIn} onChange={e=>setWhatsappOptIn(e.target.checked)}/> Autoriza comunicação por WhatsApp</label><label className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={emailOptIn} onChange={e=>setEmailOptIn(e.target.checked)}/> Autoriza comunicação por e-mail</label></div>
             </section>
 
             {/* ENDEREÇO */}

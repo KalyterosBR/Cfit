@@ -227,9 +227,10 @@ export async function updateEnrollment(
  */
 export async function freezeEnrollment(
     enrollmentId: string,
+    frozenUntil?: string,
 ): Promise<Enrollment> {
     const response = await Api.post<Enrollment>(
-        `/enrollments/${enrollmentId}/freeze/`,
+        `/enrollments/${enrollmentId}/freeze/`, { frozen_until: frozenUntil || null },
     );
 
     return response.data;
@@ -255,9 +256,10 @@ export async function reactivateEnrollment(
  */
 export async function cancelEnrollment(
     enrollmentId: string,
+    reason: string,
 ): Promise<Enrollment> {
     const response = await Api.post<Enrollment>(
-        `/enrollments/${enrollmentId}/cancel/`,
+        `/enrollments/${enrollmentId}/cancel/`, { reason },
     );
 
     return response.data;
@@ -274,6 +276,11 @@ export async function finishEnrollment(
         `/enrollments/${enrollmentId}/finish/`,
     );
 
+    return response.data;
+}
+
+export async function renewEnrollment(enrollmentId: string, dueDate: string): Promise<Enrollment> {
+    const response = await Api.post<Enrollment>(`/enrollments/${enrollmentId}/renew/`, { due_date: dueDate, reason: "Renovação registrada pela ficha do aluno" });
     return response.data;
 }
 

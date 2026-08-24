@@ -19,6 +19,8 @@ export interface CheckIn {
     access_result_label: string;
     block_reason: string;
     equipment: string;
+    location: string;
+    device_response: string;
     notes: string;
     created_at: string;
 }
@@ -114,6 +116,7 @@ export async function getAccessSummary(filters: {
 export async function createCheckIn(
     studentId: string,
     notes: string,
+    contingencyReason = "",
 ): Promise<CheckIn> {
     const response = await Api.post<CheckIn>(
         "/checkins/",
@@ -121,6 +124,7 @@ export async function createCheckIn(
             student: studentId,
             source: "manual",
             notes,
+            contingency_reason: contingencyReason,
         },
     );
 

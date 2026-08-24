@@ -4,6 +4,10 @@ from apps.core.base.models import BaseModel
 
 
 class Plan(BaseModel):
+    academy = models.ForeignKey(
+        "academy.Academy", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="plans",
+    )
     class BillingPeriod(models.TextChoices):
         MONTHLY = "monthly", "Mensal"
         QUARTERLY = "quarterly", "Trimestral"
@@ -41,6 +45,11 @@ class Plan(BaseModel):
     recurring = models.BooleanField(
         default=False,
         verbose_name="Cobrança recorrente",
+    )
+
+    installment_count = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name="Quantidade de parcelas",
     )
 
     enrollment_fee = models.DecimalField(

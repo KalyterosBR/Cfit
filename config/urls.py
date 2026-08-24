@@ -1,16 +1,18 @@
 from django.contrib import admin
 from django.urls import include, path
 
-from rest_framework_simplejwt.views import (
-    TokenRefreshView,
-)
-
 from apps.users.api.viewsets import (
+    SessionTokenRefreshView,
     TurnstileTokenObtainPairView,
 )
+from apps.core.reports import ManagementReportView, UnitComparisonReportView
+from apps.core.health import HealthView
 
 
 urlpatterns = [
+    path("api/health/", HealthView.as_view()),
+    path("api/reports/management/", ManagementReportView.as_view()),
+    path("api/reports/units/", UnitComparisonReportView.as_view()),
     path(
         "admin/",
         admin.site.urls,
@@ -51,6 +53,7 @@ urlpatterns = [
     ),
     path("api/schedule/", include("apps.schedule.api.urls")),
     path("api/automations/", include("apps.automations.urls")),
+    path("api/operations/", include("apps.operations.urls")),
     # Autenticação
     path(
         "api/auth/login/",
@@ -58,7 +61,7 @@ urlpatterns = [
     ),
     path(
         "api/auth/refresh/",
-        TokenRefreshView.as_view(),
+        SessionTokenRefreshView.as_view(),
     ),
     path("api/users/", include("apps.users.api.urls")),
 ]

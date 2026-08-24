@@ -5,6 +5,7 @@ export interface LoginCredentials {
     email: string;
     password: string;
     turnstile_token: string;
+    two_factor_code?: string;
 }
 
 

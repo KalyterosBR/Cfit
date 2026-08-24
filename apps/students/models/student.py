@@ -6,6 +6,14 @@ from apps.core.base.models import BaseModel
 
 
 class Student(BaseModel):
+    academy = models.ForeignKey(
+        "academy.Academy", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="students",
+    )
+    unit = models.ForeignKey(
+        "academy.Unit", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="students",
+    )
     name = models.CharField(
         max_length=100,
     )
@@ -46,6 +54,9 @@ class Student(BaseModel):
         null=True,
         blank=True,
     )
+    email_opt_in = models.BooleanField(default=False)
+    whatsapp_opt_in = models.BooleanField(default=False)
+    portal_user = models.OneToOneField("users.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="portal_student")
 
     cep = models.CharField(
         max_length=9,

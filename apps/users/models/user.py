@@ -22,6 +22,10 @@ class User(AbstractUser):
         blank=True,
     )
 
+    must_change_password = models.BooleanField(default=False)
+    is_student_portal = models.BooleanField(default=False)
+    two_factor_enabled = models.BooleanField(default=False)
+
     USERNAME_FIELD = "email"
 
     REQUIRED_FIELDS = []

@@ -19,12 +19,13 @@ from unidecode import unidecode
 
 from apps.checkins.models import CheckIn
 from apps.enrollments.models import Enrollment
-from apps.financial.models import Charge
-from apps.financial.services.billing import PAYMENT_GRACE_PERIOD_DAYS
+from apps.financial.models import Charge, RecurringPaymentAttempt
+from apps.financial.services.billing import PAYMENT_GRACE_PERIOD_DAYS, get_payment_grace_period_days
 from apps.students.models import Student, StudentStatusHistory
+from apps.workouts.models import WorkoutPlan
 
 
-def search_students(search=None, active=None, segment=None):
+def search_students(search=None, active=None, segment=None, base_queryset=None):
     active_enrollments = Enrollment.objects.filter(
         student_id=OuterRef("pk"),
         status=Enrollment.Status.ACTIVE,
@@ -53,7 +54,7 @@ def search_students(search=None, active=None, segment=None):
         .values("total")
     )
 
-    queryset = Student.objects.annotate(
+    queryset = (base_queryset if base_queryset is not None else Student.objects.all()).annotate(
         current_plan_name=Subquery(
             active_enrollments.order_by("due_date", "plan__name").values(
                 "plan__name"
@@ -146,6 +147,35 @@ def search_students(search=None, active=None, segment=None):
         ]
         queryset = queryset.filter(id__in=risk_ids)
 
+    if segment == "plan_ending":
+        queryset = queryset.filter(
+            enrollments__status=Enrollment.Status.ACTIVE,
+            enrollments__due_date__range=(timezone.localdate(), timezone.localdate() + timedelta(days=30)),
+        ).distinct()
+
+    if segment == "without_workout":
+        queryset = queryset.annotate(has_active_workout=Exists(
+            WorkoutPlan.objects.filter(student_id=OuterRef("pk"), status=WorkoutPlan.Status.ACTIVE)
+        )).filter(has_active_workout=False)
+
+    if segment == "without_assessment":
+        from apps.operations.models import PhysicalAssessment
+        queryset = queryset.annotate(has_assessment=Exists(
+            PhysicalAssessment.objects.filter(student_id=OuterRef("pk"))
+        )).filter(has_assessment=False)
+
+    if segment == "birthdays":
+        today = timezone.localdate()
+        queryset = queryset.filter(birth_date__month=today.month)
+
+    if segment == "access_blocked":
+        queryset = queryset.annotate(has_blocked_access=Exists(
+            CheckIn.objects.filter(student_id=OuterRef("pk"), access_result=CheckIn.AccessResult.BLOCKED)
+        )).filter(has_blocked_access=True)
+
+    if segment == "incomplete_profile":
+        queryset = queryset.filter(Q(email__isnull=True) | Q(email="") | Q(cep__isnull=True) | Q(cep=""))
+
     return queryset.order_by("name")
 
 
@@ -166,7 +196,7 @@ def get_student_health_score(student_or_id):
         factors.append({"code": "without_plan", "impact": -30, "label": "Sem matrícula ativa"})
 
     defaulting_date = timezone.localdate() - timedelta(
-        days=PAYMENT_GRACE_PERIOD_DAYS + 1,
+        days=get_payment_grace_period_days(student) + 1,
     )
     if Charge.objects.filter(
         enrollment__student=student,
@@ -185,6 +215,50 @@ def get_student_health_score(student_or_id):
     elif last_checkin < timezone.now() - timedelta(days=30):
         score -= 25
         factors.append({"code": "inactive_30_days", "impact": -25, "label": "Sem check-in há mais de 30 dias"})
+    else:
+        recent_frequency = CheckIn.objects.filter(
+            student=student,
+            access_result=CheckIn.AccessResult.ALLOWED,
+            checked_in_at__gte=timezone.now() - timedelta(days=30),
+        ).count()
+        if recent_frequency < 4:
+            score -= 10
+            factors.append({"code": "low_frequency", "impact": -10, "label": "Baixa frequência nos últimos 30 dias"})
+
+    if RecurringPaymentAttempt.objects.filter(
+        charge__enrollment__student=student,
+        status=RecurringPaymentAttempt.Status.REJECTED,
+        occurred_at__gte=timezone.now() - timedelta(days=60),
+    ).exists():
+        score -= 15
+        factors.append({"code": "recurring_failure", "impact": -15, "label": "Falha recente de recorrência"})
+
+    if not WorkoutPlan.objects.filter(
+        student=student,
+        status=WorkoutPlan.Status.ACTIVE,
+    ).exists():
+        score -= 10
+        factors.append({"code": "without_workout", "impact": -10, "label": "Sem treino ativo"})
+
+    active_enrollment = Enrollment.objects.filter(student=student, status=Enrollment.Status.ACTIVE).order_by("due_date").first()
+    if active_enrollment and active_enrollment.due_date <= timezone.localdate() + timedelta(days=30):
+        score -= 10
+        factors.append({"code": "plan_ending", "impact": -10, "label": "Plano termina nos próximos 30 dias"})
+
+    if Enrollment.objects.filter(student=student, status=Enrollment.Status.FROZEN).exists():
+        score -= 10
+        factors.append({"code": "frozen_enrollment", "impact": -10, "label": "Matrícula trancada"})
+
+    from apps.operations.models import PhysicalAssessment
+    latest_assessment = PhysicalAssessment.objects.filter(student=student).order_by("-assessed_at").first()
+    if latest_assessment and latest_assessment.assessed_at < timezone.localdate() - timedelta(days=180):
+        score -= 5
+        factors.append({"code": "outdated_assessment", "impact": -5, "label": "Avaliação física desatualizada"})
+
+    latest_contact = student.interactions.order_by("-created_at").first()
+    if latest_contact and latest_contact.status == "pending" and latest_contact.next_contact_at and latest_contact.next_contact_at < timezone.now():
+        score -= 5
+        factors.append({"code": "overdue_contact", "impact": -5, "label": "Contato de relacionamento atrasado"})
 
     if not student.active:
         score = 0
@@ -201,14 +275,43 @@ def get_student_health_score(student_or_id):
     }
 
 
-def count_active_students_at(period_end):
+def get_student_financial_status(student_or_id):
+    student = student_or_id if isinstance(student_or_id, Student) else Student.objects.get(pk=student_or_id)
+    today = timezone.localdate()
+    charges = Charge.objects.filter(enrollment__student=student).select_related("enrollment", "enrollment__plan")
+    open_charges = charges.filter(status__in=[Charge.Status.PENDING, Charge.Status.OVERDUE])
+    next_charge = open_charges.order_by("due_date", "created_at").first()
+    if not Enrollment.objects.filter(student=student).exists() and not charges.exists():
+        status, reason = "no_financial_link", "Aluno sem matrícula ou cobrança vinculada"
+    elif open_charges.exclude(enrollment__status=Enrollment.Status.ACTIVE).exists():
+        status, reason = "inconsistency", "Existe cobrança aberta vinculada a uma matrícula não ativa"
+    else:
+        overdue = open_charges.filter(status=Charge.Status.OVERDUE, due_date__lt=today).order_by("due_date").first()
+        recurring_failure = RecurringPaymentAttempt.objects.filter(charge__enrollment__student=student, status=RecurringPaymentAttempt.Status.REJECTED, occurred_at__gte=timezone.now() - timedelta(days=60)).exists()
+        if overdue:
+            grace_limit = overdue.due_date + timedelta(days=get_payment_grace_period_days(student) + 1)
+            status = "defaulting" if today >= grace_limit else "attention"
+            reason = "Cobrança vencida além da tolerância" if status == "defaulting" else f"Cobrança vencida dentro da tolerância até {grace_limit:%d/%m/%Y}"
+        elif recurring_failure:
+            status, reason = "attention", "Falha recente em tentativa de cobrança recorrente"
+        elif next_charge and next_charge.due_date <= today:
+            status, reason = "pending", "Cobrança pendente com vencimento atingido"
+        else:
+            status, reason = "regular", "Sem pendências financeiras identificadas"
+    origin = None
+    if next_charge:
+        origin = {"enrollment_id": str(next_charge.enrollment_id), "enrollment_status": next_charge.enrollment.status, "enrollment_status_label": next_charge.enrollment.get_status_display(), "plan_name": next_charge.enrollment.plan.name, "is_active_enrollment": next_charge.enrollment.status == Enrollment.Status.ACTIVE}
+    return {"status": status, "reason": reason, "next_charge": next_charge, "next_charge_origin": origin}
+
+
+def count_active_students_at(period_end, base_queryset=None):
     latest_status_event = StudentStatusHistory.objects.filter(
         student_id=OuterRef("pk"),
         created_at__lt=period_end,
     ).order_by("-created_at")
 
     return (
-        Student.objects.filter(created_at__lt=period_end)
+        (base_queryset if base_queryset is not None else Student.objects.all()).filter(created_at__lt=period_end)
         .annotate(
             latest_status_event=Subquery(
                 latest_status_event.values("event_type")[:1],

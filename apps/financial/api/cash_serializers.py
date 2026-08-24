@@ -3,6 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.financial.models import CashTransaction
+from apps.users.permissions import get_request_scope
 
 
 class CashTransactionSerializer(serializers.ModelSerializer):
@@ -24,6 +25,7 @@ class CashTransactionSerializer(serializers.ModelSerializer):
         model = CashTransaction
         fields = [
             "id",
+            "unit",
             "transaction_type",
             "transaction_type_label",
             "status",
@@ -40,7 +42,7 @@ class CashTransactionSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+        read_only_fields = ["id", "unit", "created_by", "created_at", "updated_at"]
 
     def validate_amount(self, amount):
         if amount <= Decimal("0.00"):
@@ -53,6 +55,12 @@ class CashTransactionSerializer(serializers.ModelSerializer):
         transaction_date = attrs.get("transaction_date")
         charge = attrs.get("charge")
         transaction_type = attrs.get("transaction_type")
+        request = self.context.get("request")
+        academy, unit = get_request_scope(request.user) if request else (None, None)
+        if charge and academy and charge.enrollment.student.academy_id != academy.id:
+            raise serializers.ValidationError({"charge": "A cobrança não pertence à academia da sessão."})
+        if charge and unit and charge.unit_id != unit.id:
+            raise serializers.ValidationError({"charge": "A cobrança não pertence à unidade ativa."})
 
         if transaction_status == CashTransaction.Status.REALIZED and not transaction_date:
             raise serializers.ValidationError(

@@ -472,13 +472,27 @@ class StudentApiTests(APITestCase):
 
         self.assertEqual(detail.status_code, status.HTTP_200_OK)
         self.assertEqual(detail.data["status"], "risk")
-        self.assertEqual(detail.data["score"], 10)
+        self.assertEqual(detail.data["score"], 0)
         self.assertEqual(
             {factor["code"] for factor in detail.data["factors"]},
-            {"without_plan", "defaulting", "never_checked_in"},
+            {"without_plan", "defaulting", "never_checked_in", "without_workout"},
         )
         self.assertGreaterEqual(summary.data["risk_count"], 1)
         self.assertIn(
             student.name,
             [item["name"] for item in segment.data["results"]],
         )
+
+    def test_retention_queue_accepts_explainable_interaction(self):
+        student = Student.objects.create(name="Aluno Retenção", cpf="666.666.666-66", phone="11999999999")
+        queue = self.client.get(reverse("students-retention-queue"))
+        self.assertEqual(queue.status_code, status.HTTP_200_OK)
+        self.assertIn(str(student.pk), [item["student"] for item in queue.data])
+
+        interaction = self.client.post(
+            reverse("students-interactions", args=[student.pk]),
+            {"interaction_type": "whatsapp", "status": "completed", "notes": "Aluno respondeu", "next_action": "Retornar amanhã", "responsible": self.user.pk},
+            format="json",
+        )
+        self.assertEqual(interaction.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(interaction.data["next_action"], "Retornar amanhã")

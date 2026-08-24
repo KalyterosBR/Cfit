@@ -11,6 +11,7 @@ from apps.enrollments.models import (
 )
 from apps.financial.services.billing import create_enrollment_charges
 from apps.plans.models import Plan
+from apps.users.permissions import get_request_scope
 
 
 class EnrollmentChargePreviewSerializer(serializers.Serializer):
@@ -36,6 +37,10 @@ class EnrollmentChargePreviewSerializer(serializers.Serializer):
     def validate(self, attrs):
         plan = attrs["plan"]
         discount = attrs["discount_amount"]
+        request = self.context.get("request")
+        academy, _ = get_request_scope(request.user) if request else (None, None)
+        if academy and plan.academy_id != academy.id:
+            raise serializers.ValidationError({"plan": "O plano não pertence à academia da sessão."})
 
         if discount > plan.price:
             raise serializers.ValidationError(
@@ -71,6 +76,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
         fields = [
             "id",
+            "unit",
             "student",
             "student_name",
             "plan",
@@ -90,12 +96,16 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "contract_accepted_at",
             "contract_accepted_by",
             "created_by",
+            "cancellation_reason",
+            "frozen_until",
+            "renewed_from",
             "created_at",
             "updated_at",
         ]
 
         read_only_fields = [
             "id",
+            "unit",
             "created_at",
             "updated_at",
             "original_price",
@@ -105,6 +115,9 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "contract_accepted_at",
             "contract_accepted_by",
             "created_by",
+            "cancellation_reason",
+            "frozen_until",
+            "renewed_from",
         ]
 
         validators = []
@@ -211,10 +224,21 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         contract_accepted = validated_data.pop("contract_accepted", False)
         plan = validated_data["plan"]
+        student = validated_data["student"]
         request = self.context.get("request")
         validated_data["created_by"] = (
             request.user if request and request.user.is_authenticated else None
         )
+        request = self.context.get("request")
+        academy, _ = get_request_scope(request.user) if request else (None, None)
+        if academy and (
+            student.academy_id != academy.id or plan.academy_id != academy.id
+        ):
+            raise serializers.ValidationError(
+                {"student": ["Aluno e plano devem pertencer à academia da sessão."]}
+            )
+        membership = request.user.academy_users.filter(active=True).first() if request else None
+        validated_data["unit"] = membership.active_unit if membership else None
 
         if contract_accepted and plan.contract_text.strip():
             validated_data.update(

@@ -17,6 +17,21 @@ As seguintes áreas possuem implementação funcional:
 - matrícula guiada, com prévia das cobranças e preservação do histórico;
 - gestão financeira central;
 - check-in manual e histórico individual.
+- monitor de acessos com atualização automática e simulador de dispositivos;
+- gestão multiunidade e comparação operacional;
+- Customer Health Score explicável e fila de retenção;
+- agenda diária, semanal e mensal com conflitos e confirmações;
+- campanhas segmentadas preparadas para integrações de WhatsApp e e-mail;
+- avaliações físicas e evolução do aluno;
+- renovação, trancamento e cancelamento auditáveis de matrículas;
+- onboarding contextual por perfil;
+- Central operacional em `/operations`.
+- Dashboard composto por indicadores reais e visões limitadas por perfil;
+- senha inicial obrigatoriamente substituída no primeiro acesso;
+- recuperação de senha com token individual e descartável;
+- dispositivos com adaptadores, heartbeat, diagnóstico e histórico de falhas;
+- comunicação com consentimento, filas, tentativas e provedor sandbox;
+- avaliações físicas comparáveis dentro da ficha 360º.
 
 O módulo financeiro inclui:
 
@@ -32,7 +47,7 @@ O módulo financeiro inclui:
 - central de inconsistências com prioridade, causa e próxima ação;
 - auditoria das principais movimentações.
 
-Treinos, Agenda, Relatórios e Configurações possuem rotas protegidas com páginas de `Em desenvolvimento`, mas ainda não são módulos operacionais completos.
+Treinos, Agenda, Relatórios e Configurações possuem primeiras etapas operacionais conectadas às APIs. Integrações externas de dispositivos e comunicação continuam dependentes de fornecedores e credenciais; o ambiente atual inclui simulador e preparação de filas, sem envios reais.
 
 > Parte do Dashboard ainda utiliza dados demonstrativos, enquanto os módulos operacionais usam dados persistidos pela API. Esses indicadores demonstrativos não devem ser tratados como consolidação financeira real.
 
@@ -76,6 +91,7 @@ Cfit/
 │   ├── core/                Recursos compartilhados do backend
 │   ├── enrollments/         Matrículas, congelamentos e histórico
 │   ├── financial/           Cobranças, caixa, recorrências e auditoria
+│   ├── operations/          Dispositivos, campanhas, avaliações e onboarding
 │   ├── plans/               Planos comerciais
 │   ├── scaffold/            Gerador interno de módulos
 │   ├── students/            Alunos e ficha operacional
@@ -180,10 +196,14 @@ O volume do PostgreSQL é preservado por padrão. Não use `docker compose down 
 | `/students/:id` | Funcional | Ficha 360º do aluno |
 | `/plans` | Funcional | Planos e condições comerciais |
 | `/finance` | Funcional | Operação financeira |
-| `/workouts` | Em desenvolvimento | Treinos |
-| `/schedule` | Em desenvolvimento | Agenda |
-| `/reports` | Em desenvolvimento | Relatórios |
-| `/settings` | Em desenvolvimento | Configurações |
+| `/workouts` | Funcional | Treinos |
+| `/schedule` | Funcional | Agenda unificada |
+| `/reports` | Funcional | Relatórios e retenção |
+| `/settings` | Funcional | Configurações operacionais |
+| `/operations` | Funcional | Dispositivos, campanhas, avaliações e onboarding |
+| `/growth` | Funcional | Funil comercial, leads e aulas coletivas |
+| `/portal` | Funcional | Autoatendimento isolado do aluno |
+| `/documents` | Funcional | Documentos, validade, aceite e acesso ao portal |
 
 Todas as rotas internas exigem autenticação.
 
@@ -195,6 +215,10 @@ Os endpoints ficam sob `/api/`:
 POST /api/auth/login/
 POST /api/auth/refresh/
 
+POST /api/users/password/change/
+POST /api/users/password/reset/
+POST /api/users/password/reset/confirm/
+
 /api/academies/
 /api/students/
 /api/plans/
@@ -203,7 +227,24 @@ POST /api/auth/refresh/
 /api/financial/recurring-attempts/
 /api/financial/cash-transactions/
 /api/checkins/
+/api/operations/devices/
+/api/operations/campaigns/
+/api/operations/assessments/
+/api/operations/onboarding/
+/api/operations/leads/
+/api/operations/classes/
+/api/operations/documents/
+POST /api/operations/device-events/
+POST /api/operations/communication-events/
+/api/users/portal/me/
+/api/users/me/sessions/
+/api/users/me/two-factor/
+POST /api/financial/payment-events/
+/api/health/
+/api/reports/units/
 ```
+
+O provedor `sandbox` de comunicação processa a fila sem contato externo. E-mails reais usam `django_email` e o backend configurado em `EMAIL_BACKEND`. WhatsApp usa o adaptador `whatsapp_http`, configurado por `WHATSAPP_API_URL` e `WHATSAPP_API_TOKEN`. O gateway financeiro HTTP usa `PAYMENT_API_URL`, `PAYMENT_API_TOKEN` e `PAYMENT_WEBHOOK_SECRET`. Confirmações de comunicação usam `COMMUNICATION_WEBHOOK_SECRET`. Dispositivos físicos possuem webhook autenticado, chave rotacionável e eventos idempotentes; secrets nunca são persistidos em texto puro nem expostos na listagem da API.
 
 As APIs são autenticadas por JWT, exceto os endpoints públicos declarados explicitamente. O login só emite tokens depois da validação server-side do Cloudflare Turnstile.
 
@@ -248,7 +289,7 @@ Consistência do diff:
 git diff --check
 ```
 
-O build atual pode exibir avisos conhecidos relacionados à posição do script do Turnstile no HTML e ao tamanho do bundle principal. Eles não impedem a compilação. O lint ainda reporta pendências preexistentes, principalmente relacionadas ao carregamento assíncrono iniciado em efeitos React; essas pendências devem ser tratadas em tarefas próprias.
+As rotas internas utilizam carregamento sob demanda. O script do Turnstile permanece no `<head>` e o lint diferencia dependências de hooks de regras experimentais do React Compiler que não se aplicam aos carregamentos assíncronos usados no projeto.
 
 ## Regras importantes de desenvolvimento
 

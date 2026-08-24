@@ -4,6 +4,10 @@ from apps.financial.models.charge import Charge
 
 
 class CashTransaction(models.Model):
+    unit = models.ForeignKey(
+        "academy.Unit", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="cash_transactions",
+    )
     class Type(models.TextChoices):
         INCOME = "income", "Entrada"
         EXPENSE = "expense", "Saída"

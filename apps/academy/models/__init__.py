@@ -1,1 +1,1 @@
-from .academy import Academy, Unit
+from .academy import Academy, AcademyOperationalSettings, Unit

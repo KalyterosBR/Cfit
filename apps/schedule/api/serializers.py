@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from apps.schedule.models import ScheduleEvent
+from apps.users.permissions import get_request_scope
 
 
 class ScheduleEventSerializer(serializers.ModelSerializer):
@@ -18,4 +19,30 @@ class ScheduleEventSerializer(serializers.ModelSerializer):
         end = attrs.get("ends_at", getattr(self.instance, "ends_at", None))
         if start and end and end <= start:
             raise serializers.ValidationError({"ends_at": "O término deve ser posterior ao início."})
+        request = self.context.get("request")
+        academy, _ = get_request_scope(request.user) if request else (None, None)
+        student = attrs.get("student", getattr(self.instance, "student", None))
+        if academy and student and student.academy_id != academy.id:
+            raise serializers.ValidationError({"student": "O aluno não pertence à academia da sessão."})
+        professional = attrs.get("professional", getattr(self.instance, "professional", None)) or (request.user if request else None)
+        if academy and professional and not professional.academy_users.filter(
+            academy=academy, active=True,
+        ).exists() and professional != request.user:
+            raise serializers.ValidationError({"professional": "O profissional não pertence à academia da sessão."})
+        unit = getattr(self.instance, "unit", None)
+        if request and not unit:
+            _, unit = get_request_scope(request.user)
+        if start and end and professional and unit:
+            conflicts = ScheduleEvent.objects.filter(
+                unit=unit, professional=professional, starts_at__lt=end, ends_at__gt=start,
+            ).exclude(status=ScheduleEvent.Status.CANCELED)
+            if self.instance:
+                conflicts = conflicts.exclude(pk=self.instance.pk)
+            if conflicts.exists():
+                raise serializers.ValidationError({"starts_at": "O profissional já possui um compromisso neste horário."})
+            location = attrs.get("location", getattr(self.instance, "location", ""))
+            if location and ScheduleEvent.objects.filter(unit=unit, location__iexact=location, starts_at__lt=end, ends_at__gt=start).exclude(status=ScheduleEvent.Status.CANCELED).exclude(pk=getattr(self.instance, "pk", None)).exists():
+                raise serializers.ValidationError({"location": "A sala ou local já está ocupado neste horário."})
+        if attrs.get("recurrence_count", getattr(self.instance, "recurrence_count", 1)) > 52:
+            raise serializers.ValidationError({"recurrence_count": "Crie no máximo 52 ocorrências por série."})
         return attrs
