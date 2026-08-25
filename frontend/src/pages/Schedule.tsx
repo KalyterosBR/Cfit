@@ -117,6 +117,8 @@ export default function Schedule() {
       <PageHeader
         title="Agenda"
         subtitle="Aulas, avaliações, tarefas, contatos e visitas em um único lugar."
+        eyebrow="Ritmo da operação"
+        context="Tempo, capacidade e compromisso"
         actions={
           <button
             type="button"

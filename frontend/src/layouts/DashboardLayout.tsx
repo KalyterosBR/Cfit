@@ -17,7 +17,7 @@ export default function DashboardLayout({
         useState(false);
 
     return (
-        <div className="flex h-screen overflow-hidden bg-[#f4f7fb]">
+        <div className="cfit-internal flex h-screen overflow-hidden bg-[#f4f7fb] transition-colors duration-300 dark:bg-[#07101f]">
             <Sidebar
                 open={sidebarOpen}
                 onClose={() => setSidebarOpen(false)}

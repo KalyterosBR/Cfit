@@ -36,3 +36,42 @@ class ScheduleApiTests(APITestCase):
         self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(valid.status_code, status.HTTP_201_CREATED)
         self.assertEqual(valid.data["professional"], self.user.id)
+
+    def test_recurrence_rejects_conflict_in_a_future_occurrence(self):
+        academy = Academy.objects.create(name="Agenda Recorrente")
+        unit = Unit.objects.create(academy=academy, name="Centro", code="centro")
+        AcademyUser.objects.create(
+            academy=academy,
+            user=self.user,
+            role=AcademyUser.Role.ADMIN,
+            active_unit=unit,
+        )
+        self.client.force_authenticate(self.user)
+        start = timezone.now() + timedelta(days=3)
+        future_conflict_start = start + timedelta(days=7, minutes=15)
+        self.client.post(
+            reverse("schedule-event-list"),
+            {
+                "title": "Compromisso futuro",
+                "event_type": "task",
+                "starts_at": future_conflict_start,
+                "ends_at": future_conflict_start + timedelta(minutes=30),
+            },
+            format="json",
+        )
+
+        recurring = self.client.post(
+            reverse("schedule-event-list"),
+            {
+                "title": "Aula semanal",
+                "event_type": "class",
+                "starts_at": start,
+                "ends_at": start + timedelta(hours=1),
+                "recurrence": "weekly",
+                "recurrence_count": 3,
+            },
+            format="json",
+        )
+
+        self.assertEqual(recurring.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("recurrence_count", recurring.data)

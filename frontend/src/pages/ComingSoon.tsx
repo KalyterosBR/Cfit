@@ -23,6 +23,8 @@ export default function ComingSoon({
             <PageHeader
                 title={title}
                 subtitle={description}
+                eyebrow="Evolução Cfit"
+                context="Módulo previsto no roadmap"
             />
 
             <div className="flex min-h-[420px] items-center justify-center rounded-[1.75rem] border border-slate-200/80 bg-white p-6 text-center shadow-[0_18px_45px_-32px_rgba(15,23,42,0.3)]">

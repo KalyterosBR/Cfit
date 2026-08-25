@@ -205,8 +205,8 @@ export default function FinancialForecast({
                                         <stop offset="100%" stopColor="#10b981" />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="2 5" vertical={false} stroke="#dbe3ee" />
-                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} />
+                                <CartesianGrid strokeDasharray="2 5" vertical={false} stroke="var(--cfit-border-default)" />
+                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--cfit-text-secondary)" }} />
                                 <YAxis
                                     axisLine={false}
                                     tickLine={false}
@@ -214,15 +214,17 @@ export default function FinancialForecast({
                                     domain={[0, axisMaximum]}
                                     ticks={axisTicks}
                                     allowDecimals={false}
-                                    tick={{ fontSize: 10, fill: "#64748b" }}
+                                    tick={{ fontSize: 10, fill: "var(--cfit-text-secondary)" }}
                                     tickFormatter={(value) => axisMoney(Number(value))}
                                 />
                                 <Tooltip
-                                    cursor={{ fill: "rgba(37, 99, 235, 0.04)" }}
+                                    cursor={{ fill: "var(--cfit-surface-selected)" }}
                                     contentStyle={{
-                                        border: "1px solid #e2e8f0",
+                                        background: "var(--cfit-surface-elevated)",
+                                        color: "var(--cfit-text-primary)",
+                                        border: "1px solid var(--cfit-border-default)",
                                         borderRadius: "12px",
-                                        boxShadow: "0 12px 30px -18px rgba(15, 23, 42, 0.45)",
+                                        boxShadow: "var(--cfit-shadow-elevated)",
                                     }}
                                     formatter={(value, name) => [money(Number(value)), name === "expected" ? "Previsto" : "Recebido"]}
                                 />

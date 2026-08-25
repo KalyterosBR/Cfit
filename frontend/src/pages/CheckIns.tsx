@@ -119,6 +119,8 @@ export default function CheckIns() {
       <PageHeader
         title="Check-ins"
         subtitle="Consulte os acessos reais registrados na academia."
+        eyebrow="Controle de acesso"
+        context="Movimento, decisão e contingência"
         actions={
           <button
             type="button"

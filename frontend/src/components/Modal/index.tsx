@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { X } from "lucide-react";
 
 interface ModalProps {
     open: boolean;
@@ -22,14 +23,29 @@ export default function Modal({
     onClose,
     maxWidth = "xl",
 }: ModalProps) {
-    if (!open) return null;
+    const [mounted, setMounted] = useState(open);
+
+    useEffect(() => {
+        if (open) {
+            setMounted(true);
+            return;
+        }
+
+        const closeTimer = window.setTimeout(() => setMounted(false), 180);
+        return () => window.clearTimeout(closeTimer);
+    }, [open]);
+
+    if (!mounted) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#050b1c]/70 p-4 backdrop-blur-sm sm:p-6">
+        <div data-closing={!open} className="cfit-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-[var(--cfit-overlay)] p-3 backdrop-blur-sm sm:p-6">
             <div
-                className={`flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[1.75rem] border border-white/70 bg-white shadow-[0_35px_100px_-35px_rgba(2,6,23,0.7)] ${maxWidthClasses[maxWidth]}`}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cfit-modal-title"
+                className={`cfit-modal cfit-floating-panel flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[var(--cfit-radius-modal)] border border-slate-200/80 bg-white shadow-[var(--cfit-shadow-elevated)] sm:max-h-[90vh] ${maxWidthClasses[maxWidth]}`}
             >
-                <div className="relative flex shrink-0 items-center justify-between overflow-hidden border-b border-slate-200/80 px-6 py-5 sm:px-8">
+                <div className="relative flex shrink-0 items-center justify-between overflow-hidden border-b border-slate-200/80 bg-white px-5 py-4 sm:px-8">
                     <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-blue-600 via-cyan-400 to-transparent" />
 
                     <div>
@@ -37,7 +53,7 @@ export default function Modal({
                             Ambiente Cfit
                         </p>
 
-                        <h2 className="mt-1 text-xl font-black tracking-[-0.025em] text-slate-950 sm:text-2xl">
+                        <h2 id="cfit-modal-title" className="mt-1 text-xl font-black tracking-[-0.025em] text-slate-950 sm:text-2xl">
                             {title}
                         </h2>
                     </div>
@@ -45,14 +61,15 @@ export default function Modal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
+                        title="Fechar"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-slate-100 hover:text-slate-900"
                         aria-label="Fechar"
                     >
-                        ×
+                        <X size={19} />
                     </button>
                 </div>
 
-                <div className="overflow-y-auto px-6 py-6 sm:px-8">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8 sm:py-6">
                     {children}
                 </div>
             </div>

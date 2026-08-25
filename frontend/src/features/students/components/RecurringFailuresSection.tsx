@@ -41,12 +41,12 @@ function money(value: string) {
 }
 
 
-function statusClass(status: RecurringAttemptStatus) {
+function statusTone(status: RecurringAttemptStatus) {
     return {
-        pending: "bg-amber-50 text-amber-700",
-        processing: "bg-blue-50 text-blue-700",
-        approved: "bg-emerald-50 text-emerald-700",
-        rejected: "bg-red-50 text-red-700",
+        pending: "warning",
+        processing: "info",
+        approved: "success",
+        rejected: "danger",
     }[status];
 }
 
@@ -127,9 +127,9 @@ export default function RecurringFailuresSection() {
                 <div className="p-10 text-center"><RotateCcw className="mx-auto text-slate-300" /><p className="mt-3 font-semibold text-slate-800">Nenhuma tentativa real registrada</p><p className="mx-auto mt-1 max-w-xl text-sm text-slate-500">Quando uma integração ou automação enviar tentativas de recorrência, elas aparecerão aqui com resultado, falha e próxima ação.</p></div>
             ) : (
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1100px]">
+                    <table className="cfit-data-table w-full min-w-[1100px]">
                         <thead className="bg-slate-50 text-left text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500"><tr><th className="px-6 py-4">Aluno</th><th className="px-6 py-4">Cobrança</th><th className="px-6 py-4">Tentativa</th><th className="px-6 py-4">Situação</th><th className="px-6 py-4">Falha</th><th className="px-6 py-4">Próxima tentativa</th><th className="px-6 py-4">Origem</th></tr></thead>
-                        <tbody className="divide-y divide-slate-100">{attempts.map((attempt) => <tr key={attempt.id} className="text-sm text-slate-700"><td className="px-6 py-4"><button type="button" onClick={() => navigate(`/students/${attempt.student}`)} className="font-bold text-slate-900 hover:text-blue-600">{attempt.student_name}</button><p className="mt-1 text-xs text-slate-500">{attempt.plan_name}</p></td><td className="px-6 py-4"><p className="font-semibold text-slate-800">{attempt.charge_description}</p><p className="mt-1 text-xs text-slate-500">{money(attempt.charge_amount)}</p></td><td className="px-6 py-4">#{attempt.attempt_number}<p className="mt-1 text-xs text-slate-500">{dateTime(attempt.occurred_at)}</p></td><td className="px-6 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(attempt.status)}`}>{attempt.status_label}</span></td><td className="max-w-[260px] px-6 py-4"><p className="font-semibold text-red-700">{attempt.failure_code || "—"}</p><p className="mt-1 text-xs text-slate-500">{attempt.failure_reason || "Sem falha informada"}</p></td><td className="px-6 py-4">{dateTime(attempt.next_retry_at)}</td><td className="px-6 py-4">{attempt.source_label}<p className="mt-1 text-xs text-slate-500">{attempt.provider || attempt.recorded_by || "—"}</p></td></tr>)}</tbody>
+                        <tbody className="divide-y divide-slate-100">{attempts.map((attempt) => <tr key={attempt.id} className="text-sm text-slate-700"><td className="px-6 py-4"><button type="button" onClick={() => navigate(`/students/${attempt.student}`)} className="font-bold text-slate-900 hover:text-blue-600">{attempt.student_name}</button><p className="mt-1 text-xs text-slate-500">{attempt.plan_name}</p></td><td className="px-6 py-4"><p className="font-semibold text-slate-800">{attempt.charge_description}</p><p className="mt-1 text-xs text-slate-500">{money(attempt.charge_amount)}</p></td><td className="px-6 py-4">#{attempt.attempt_number}<p className="mt-1 text-xs text-slate-500">{dateTime(attempt.occurred_at)}</p></td><td className="px-6 py-4"><span className="cfit-chip" data-tone={statusTone(attempt.status)}><span aria-hidden="true" className="cfit-chip-dot" />{attempt.status_label}</span></td><td className="max-w-[260px] px-6 py-4"><p className="font-semibold text-red-700">{attempt.failure_code || "—"}</p><p className="mt-1 text-xs text-slate-500">{attempt.failure_reason || "Sem falha informada"}</p></td><td className="px-6 py-4">{dateTime(attempt.next_retry_at)}</td><td className="px-6 py-4">{attempt.source_label}<p className="mt-1 text-xs text-slate-500">{attempt.provider || attempt.recorded_by || "—"}</p></td></tr>)}</tbody>
                     </table>
                 </div>
             )}

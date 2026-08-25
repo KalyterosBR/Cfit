@@ -15,7 +15,7 @@ import ConfirmDialog from "../../../components/ConfirmDialog";
 import useStudents from "../hooks/useStudents";
 
 import StudentForm from "../components/StudentForm";
-import StudentsTable from "../components/StudentsTable";
+import StudentsTable, { StudentsTableSkeleton } from "../components/StudentsTable";
 
 import {
   activateStudent,
@@ -159,6 +159,8 @@ export default function StudentsListPage() {
       <PageHeader
         title="Alunos"
         subtitle="Gerencie todos os alunos da academia."
+        eyebrow="Jornada do aluno"
+        context="Base, vínculo e próxima ação"
         actions={<Button onClick={handleNewStudent}>+ Novo Aluno</Button>}
       />
 
@@ -244,14 +246,7 @@ export default function StudentsListPage() {
         </div>
         <div className="mt-6">
           {loading ? (
-            <div className="space-y-3" aria-label="Carregando alunos">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-16 animate-pulse rounded-xl bg-slate-100"
-                />
-              ))}
-            </div>
+            <StudentsTableSkeleton />
           ) : error ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
               <h2 className="font-semibold text-red-700">

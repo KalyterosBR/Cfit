@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, BarChart3, Building2, Check, DoorOpen, MapPin, S
 import { useEffect, useState, type FormEvent } from "react";
 import toast from "react-hot-toast";
 
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useSession } from "@/features/auth/access-control";
 import { Api } from "@/services/http";
 import { phoneMask } from "@/utils/masks";
@@ -71,40 +72,44 @@ export default function Onboarding() {
     const title = step === 1 ? "Conte sobre seu estabelecimento" : step === 2 ? "Configure sua primeira unidade" : "Ajustes para começar";
     const subtitle = step === 1 ? "Use as informações comerciais que sua equipe reconhece." : step === 2 ? "Essa será a unidade selecionada inicialmente no sistema." : "Personalize o início da operação. Tudo poderá ser alterado depois.";
 
-    if (welcome) return <main className="relative min-h-screen overflow-hidden bg-[#f5f7fb] px-4 py-6 sm:px-6 sm:py-10">
+    if (welcome) return <main className="cfit-internal relative min-h-screen overflow-hidden bg-[#f5f7fb] px-4 py-6 transition-colors duration-300 sm:px-6 sm:py-10 dark:bg-[#07101f]">
+        <ThemeToggle className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6" />
         <div className="pointer-events-none absolute -right-52 -top-52 h-[34rem] w-[34rem] rounded-full bg-cyan-300/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-60 -left-52 h-[36rem] w-[36rem] rounded-full bg-blue-400/15 blur-3xl" />
         <div className="relative mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl items-center sm:min-h-[calc(100vh-5rem)]">
-            <section className="grid w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/60 lg:grid-cols-[1.08fr_0.92fr]">
-                <div className="flex flex-col justify-center px-6 py-10 sm:px-10 sm:py-14 lg:px-14 lg:py-16">
+            <section className="cfit-module-header grid w-full overflow-hidden border-y border-blue-200/70 bg-[linear-gradient(115deg,rgba(255,255,255,.78),rgba(239,246,255,.76)_52%,rgba(236,254,255,.6))] lg:grid-cols-[1.08fr_0.92fr]">
+                <div className="relative flex flex-col justify-center px-6 py-10 sm:px-10 sm:py-14 lg:px-14 lg:py-16">
+                    <div className="pointer-events-none absolute -left-24 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-blue-200/25 blur-[85px]" />
+                    <div className="relative">
                     <div className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#07152d] text-lg font-black text-white">C</span><div><p className="text-lg font-black tracking-tight text-[#07152d]">Cfit</p><p className="text-xs font-semibold text-slate-400">Performance para sua gestão</p></div></div>
-                    <div className="mt-10 max-w-xl"><span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-blue-700"><Sparkles size={14} /> Seu ambiente está pronto</span><h1 className="mt-5 text-4xl font-black leading-[1.08] tracking-[-0.04em] text-slate-950 sm:text-5xl">Bem-vindo ao novo ritmo da sua academia.</h1><p className="mt-5 text-base leading-7 text-slate-600 sm:text-lg">O Cfit conecta alunos, planos, financeiro, acesso e operação para transformar a rotina da sua equipe em decisões mais simples.</p></div>
+                    <div className="mt-10 max-w-xl"><span className="inline-flex items-center gap-2 border-l-2 border-cyan-400 pl-3 text-[10px] font-black uppercase tracking-[0.18em] text-blue-700"><Sparkles size={14} /> Seu ambiente está pronto</span><h1 className="mt-5 text-[clamp(2.7rem,5vw,5rem)] font-black leading-[.94] tracking-[-0.065em] text-slate-950">Bem-vindo ao novo ritmo da sua academia.</h1><p className="mt-6 border-l-2 border-cyan-400 pl-5 text-base leading-7 text-slate-600 sm:text-lg">O Cfit conecta alunos, planos, financeiro, acesso e operação para transformar a rotina da sua equipe em decisões mais simples.</p></div>
                     <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"><button type="button" onClick={() => setWelcome(false)} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-bold text-white shadow-lg shadow-blue-200 transition hover:-translate-y-0.5 hover:bg-blue-700">Configurar minha academia <ArrowRight size={18} /></button><p className="text-xs leading-5 text-slate-400 sm:max-w-48">São apenas 3 etapas rápidas. Você poderá alterar tudo depois.</p></div>
+                    </div>
                 </div>
 
-                <div className="relative overflow-hidden bg-[#07152d] px-6 py-9 text-white sm:px-10 lg:px-12 lg:py-14">
+                <div className="relative overflow-hidden border-t border-blue-200/70 px-6 py-9 text-slate-950 sm:px-10 lg:border-l lg:border-t-0 lg:px-12 lg:py-14">
                     <div className="pointer-events-none absolute -right-24 -top-20 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-                    <div className="relative"><p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-300">Tudo conectado</p><h2 className="mt-3 text-2xl font-black">Uma visão completa da operação.</h2><div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">{[
+                    <div className="relative"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-700">Tudo conectado</p><h2 className="mt-3 text-2xl font-black">Uma visão completa da operação.</h2><div className="mt-8 grid border-y border-blue-200/70 sm:grid-cols-2">{[
                         [Users, "Alunos", "Cadastro, matrículas e relacionamento."],
                         [WalletCards, "Financeiro", "Cobranças, caixa e previsibilidade."],
                         [DoorOpen, "Acesso", "Check-ins e integração com catracas."],
                         [BarChart3, "Performance", "Indicadores para decisões melhores."],
-                    ].map(([Icon, label, description]) => { const FeatureIcon = Icon as typeof Users; return <article key={label as string} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-sm"><span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-500/20 text-cyan-300"><FeatureIcon size={18} /></span><h3 className="mt-4 text-sm font-black">{label as string}</h3><p className="mt-1 text-xs leading-5 text-slate-400">{description as string}</p></article>; })}</div><div className="mt-6 flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-400 text-[#07152d]"><Check size={17} /></span><p className="text-xs font-semibold leading-5 text-emerald-100">Comece com o essencial e evolua sua operação no seu próprio ritmo.</p></div></div>
+                    ].map(([Icon, label, description], index) => { const FeatureIcon = Icon as typeof Users; return <article key={label as string} className={`p-4 ${index % 2 === 0 ? "sm:border-r sm:border-blue-200/70" : ""} ${index < 2 ? "border-b border-blue-200/70" : ""}`}><span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-100 text-blue-700"><FeatureIcon size={18} /></span><h3 className="mt-4 text-sm font-black">{label as string}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{description as string}</p></article>; })}</div><div className="mt-6 flex items-center gap-3 border-y border-emerald-200/70 bg-emerald-50/60 p-4"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-500 text-white"><Check size={17} /></span><p className="text-xs font-semibold leading-5 text-emerald-800">Comece com o essencial e evolua sua operação no seu próprio ritmo.</p></div></div>
                 </div>
             </section>
         </div>
     </main>;
 
-    return <main className="relative min-h-screen overflow-hidden bg-[#f5f7fb] px-4 py-6 sm:px-6 sm:py-10">
+    return <main className="cfit-internal relative min-h-screen overflow-hidden bg-[#f5f7fb] px-4 py-6 transition-colors duration-300 sm:px-6 sm:py-10 dark:bg-[#07101f]">
         <div className="pointer-events-none absolute -right-52 -top-52 h-[32rem] w-[32rem] rounded-full bg-cyan-300/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-56 -left-56 h-[34rem] w-[34rem] rounded-full bg-blue-400/10 blur-3xl" />
         <div className="relative mx-auto w-full max-w-5xl">
-            <header className="mb-6 flex items-center justify-between px-1 sm:mb-8">
+            <header className="mb-6 flex items-center justify-between gap-4 px-1 sm:mb-8">
                 <div><p className="text-xl font-black tracking-tight text-[#07152d]">Cfit</p><p className="mt-1 text-xs font-semibold text-slate-500">Configuração inicial da sua academia</p></div>
-                <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-500 shadow-sm">Etapa {step} de 3</span>
+                <div className="flex items-center gap-3"><span className="border-l-2 border-cyan-400 pl-3 text-xs font-bold text-slate-500">Etapa {step} de 3</span><ThemeToggle /></div>
             </header>
 
-            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
+            <section className="cfit-module-header overflow-hidden border-y border-blue-200/70 bg-[linear-gradient(115deg,rgba(255,255,255,.82),rgba(239,246,255,.52)_55%,rgba(236,254,255,.42))]">
                 <div className="border-b border-slate-100 px-5 py-5 sm:px-8 lg:px-10">
                     <ol className="grid grid-cols-3 gap-2 sm:gap-6">{steps.map(([Icon, label], index) => { const number = index + 1; const complete = step > number; const active = step === number; return <li key={label} className="relative flex min-w-0 items-center gap-2 sm:gap-3">
                         {index > 0 && <span className={`absolute right-full top-5 hidden h-px w-6 sm:block ${step >= number ? "bg-blue-500" : "bg-slate-200"}`} />}

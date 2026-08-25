@@ -12,6 +12,7 @@ import {
     HeartPulse,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { SkeletonBlock } from "@/components/AsyncState";
 
 import { getRecurringAttemptSummary } from "@/features/students/services/recurring-attempt.service";
 import {
@@ -251,9 +252,15 @@ export default function DashboardAttention({ role = "manager", variant = "card" 
             </div>
 
             {loading ? (
-                <div className="grid gap-4 p-5 md:grid-cols-3 sm:p-6" aria-label="Carregando prioridades operacionais">
+                <div className="grid gap-4 p-5 md:grid-cols-3 sm:p-6" aria-label="Carregando prioridades operacionais" aria-busy="true">
                     {[1, 2, 3].map((item) => (
-                        <div key={item} className="h-44 animate-pulse rounded-2xl bg-slate-100" />
+                        <div key={item} className="h-44 rounded-2xl border border-slate-200 p-5">
+                            <div className="flex justify-between"><SkeletonBlock className="h-9 w-9 rounded-xl" /><SkeletonBlock className="h-6 w-16 rounded-full" /></div>
+                            <SkeletonBlock className="mt-5 h-3 w-28" />
+                            <SkeletonBlock className="mt-3 h-5 w-36 max-w-full" />
+                            <SkeletonBlock className="mt-3 h-3 w-full" />
+                            <SkeletonBlock className="mt-2 h-3 w-4/5" />
+                        </div>
                     ))}
                 </div>
             ) : error ? (

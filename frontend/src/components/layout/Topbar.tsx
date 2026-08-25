@@ -11,6 +11,7 @@ import UniversalSearch from "./UniversalSearch";
 import { clearTokens } from "@/features/auth/services/token.service";
 import { Api } from "@/services/http";
 import { hasAccess, routeAccess, useSession } from "@/features/auth/access-control";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 
 type TopbarProps = {
@@ -75,7 +76,7 @@ export default function Topbar({
         : routeLabels[location.pathname] ?? "Ambiente Cfit";
 
     return (
-        <header className="relative z-30 flex h-[76px] shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+        <header className="relative z-30 flex h-[72px] shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
                 <button
                     type="button"
@@ -100,10 +101,13 @@ export default function Topbar({
             <div className="flex items-center gap-2 sm:gap-3">
                 <UniversalSearch />
 
+                <ThemeToggle className="border-0 bg-transparent" />
+
                 <div ref={notificationsRef} className="relative">
                     <button
                         type="button"
-                        aria-label="Notificações"
+                        aria-label={notifications.length > 0 ? `${notifications.length} notificações` : "Notificações"}
+                        title="Notificações"
                         aria-expanded={notificationsOpen}
                         aria-haspopup="dialog"
                         onClick={() => {
@@ -118,7 +122,7 @@ export default function Topbar({
                     </button>
 
                     {notificationsOpen && (
-                        <div role="dialog" aria-label="Notificações" className="absolute right-0 top-[calc(100%+0.65rem)] w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_22px_55px_-28px_rgba(15,23,42,0.45)]"><p className="px-2 py-2 text-xs font-black uppercase tracking-wider text-slate-500">Requer atenção</p>{notifications.length === 0 ? <p className="p-3 text-sm text-slate-500">Nenhuma pendência operacional.</p> : notifications.map(item => <button key={item.id} type="button" onClick={() => { setNotificationsOpen(false); navigate(item.href); }} className="block w-full rounded-xl p-3 text-left hover:bg-slate-50"><span className="block text-sm font-bold text-slate-800">{item.title}</span><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></button>)}</div>
+                        <div role="dialog" aria-label="Notificações" className="cfit-floating-panel absolute right-0 top-[calc(100%+0.65rem)] w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-[var(--cfit-shadow-elevated)]"><p className="px-2 py-2 text-xs font-black uppercase tracking-wider text-slate-500">Requer atenção</p>{notifications.length === 0 ? <p className="p-3 text-sm text-slate-500">Nenhuma pendência operacional.</p> : notifications.map(item => <button key={item.id} type="button" onClick={() => { setNotificationsOpen(false); navigate(item.href); }} className="block w-full rounded-xl p-3 text-left hover:bg-slate-50"><span className="block text-sm font-bold text-slate-800">{item.title}</span><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></button>)}</div>
                     )}
                 </div>
 
@@ -129,6 +133,7 @@ export default function Topbar({
                     type="button"
                     aria-expanded={profileOpen}
                     aria-haspopup="menu"
+                    title="Abrir menu do usuário"
                     onClick={() => {
                         setProfileOpen((current) => !current);
                         setNotificationsOpen(false);
@@ -139,13 +144,13 @@ export default function Topbar({
                         {profile.name.split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}
                     </div>
 
-                    <div className="hidden text-left sm:block">
-                        <p className="text-xs font-semibold text-slate-900">
+                    <div className="hidden min-w-0 max-w-48 text-left sm:block">
+                        <p className="truncate text-xs font-semibold text-slate-900" title={profile.name}>
                             {profile.name}
                         </p>
 
-                        <p className="text-[10px] font-medium text-slate-500">
-                            {profile.academy?.name ?? "Cfit"}
+                        <p className="truncate text-[10px] font-medium text-slate-500" title={`${profile.academy?.name ?? "Cfit"}${profile.active_unit?.name ? ` · ${profile.active_unit.name}` : ""}`}>
+                            {profile.academy?.name ?? "Cfit"}{profile.active_unit?.name ? ` · ${profile.active_unit.name}` : ""}
                         </p>
                     </div>
 
@@ -155,7 +160,7 @@ export default function Topbar({
                     />
                 </button>
                 {profileOpen && (
-                    <div role="menu" className="absolute right-0 top-[calc(100%+0.65rem)] w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_22px_55px_-28px_rgba(15,23,42,0.45)]">
+                    <div role="menu" className="cfit-floating-panel absolute right-0 top-[calc(100%+0.65rem)] w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-[var(--cfit-shadow-elevated)]">
                         <div className="border-b border-slate-100 px-3 py-2.5 sm:hidden">
                             <p className="text-xs font-bold text-slate-900">{profile.name}</p>
                             <p className="mt-0.5 text-[10px] text-slate-500">{profile.role_label}</p>

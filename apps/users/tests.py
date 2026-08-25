@@ -3,6 +3,7 @@ from rest_framework.test import APITestCase
 from apps.academy.models import Academy, Unit
 from apps.students.models import Student
 from apps.users.models import AcademyUser, AdministrativeAudit, User
+from apps.users.permissions import ROLE_CAPABILITIES
 from unittest.mock import patch
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
@@ -29,6 +30,18 @@ class RolePermissionTests(APITestCase):
         self.assertEqual(response.data["role"], AcademyUser.Role.ADMIN)
         self.assertEqual(response.data["capabilities"], ["*"])
 
+    def test_role_capability_matrix_preserves_operational_boundaries(self):
+        self.assertIn("*", ROLE_CAPABILITIES[AcademyUser.Role.OWNER])
+        self.assertIn("*", ROLE_CAPABILITIES[AcademyUser.Role.ADMIN])
+        self.assertIn("settings.view", ROLE_CAPABILITIES[AcademyUser.Role.MANAGER])
+        self.assertNotIn("finance.manage", ROLE_CAPABILITIES[AcademyUser.Role.MANAGER])
+        self.assertIn("checkins.manage", ROLE_CAPABILITIES[AcademyUser.Role.RECEPTION])
+        self.assertNotIn("automations.manage", ROLE_CAPABILITIES[AcademyUser.Role.RECEPTION])
+        self.assertIn("workouts.manage", ROLE_CAPABILITIES[AcademyUser.Role.TRAINER])
+        self.assertNotIn("finance.view", ROLE_CAPABILITIES[AcademyUser.Role.TRAINER])
+        self.assertIn("finance.manage", ROLE_CAPABILITIES[AcademyUser.Role.FINANCIAL])
+        self.assertNotIn("students.manage", ROLE_CAPABILITIES[AcademyUser.Role.FINANCIAL])
+
     def test_trainer_cannot_access_financial_api(self):
         self.client.force_authenticate(self.trainer)
         response = self.client.get("/api/financial/charges/")
@@ -51,6 +64,26 @@ class RolePermissionTests(APITestCase):
         self.assertEqual(audit.previous_state["role"], AcademyUser.Role.RECEPTION)
         self.assertEqual(audit.new_state["role"], AcademyUser.Role.FINANCIAL)
         self.assertEqual(audit.reason, "Mudança de função")
+
+    def test_audit_translates_operational_goals_and_entities(self):
+        audit = AdministrativeAudit.objects.create(
+            academy=self.academy,
+            actor=self.admin,
+            action="goal.revenue_updated",
+            entity_type="monthly_revenue_goal",
+            entity_id="goal-1",
+            previous_state={"target_amount": "1000.00"},
+            new_state={"target_amount": "1500.00"},
+        )
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.get("/api/users/audits/")
+
+        self.assertEqual(response.status_code, 200)
+        item = next(entry for entry in response.data["results"] if entry["id"] == str(audit.id))
+        self.assertEqual(item["action_label"], "Meta de receita atualizada")
+        self.assertEqual(item["entity_label"], "Meta de receita")
+        self.assertEqual(item["changes"][0]["field"], "Target amount")
 
     def test_students_are_isolated_by_academy_and_active_unit(self):
         unit = Unit.objects.create(academy=self.academy, name="Centro", code="centro")

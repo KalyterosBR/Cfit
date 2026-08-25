@@ -410,6 +410,8 @@ export default function Plans() {
             <PageHeader
                 title="Planos"
                 subtitle="Gerencie valores, duração e disponibilidade dos planos da academia."
+                eyebrow="Estratégia comercial"
+                context="Oferta, adesão e impacto"
                 actions={
                     <Button onClick={openCreateModal}>
                         <span className="inline-flex items-center gap-2">

@@ -136,6 +136,8 @@ export default function Automations() {
       <PageHeader
         title="Automações"
         subtitle="Teste, simulação e execução real separados, com responsável, SLA e histórico."
+        eyebrow="Orquestração operacional"
+        context="Evento, resposta e rastreabilidade"
         actions={
           <button
             type="button"

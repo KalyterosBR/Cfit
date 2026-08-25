@@ -65,6 +65,12 @@ class StudentViewSet(viewsets.ModelViewSet):
             "without_plan",
             "without_recent_checkin",
             "at_risk",
+            "plan_ending",
+            "without_workout",
+            "without_assessment",
+            "birthdays",
+            "access_blocked",
+            "incomplete_profile",
         }:
             segment = None
 

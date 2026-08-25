@@ -120,6 +120,24 @@ class StudentApiTests(APITestCase):
         self.assertEqual(summary_response.status_code, status.HTTP_200_OK)
         self.assertEqual(summary_response.data["count"], 1)
 
+    def test_list_accepts_extended_operational_segments(self):
+        birthday_student = Student.objects.create(
+            name="Aniversariante",
+            cpf="999.111.222-33",
+            birth_date=timezone.localdate().replace(year=1995),
+        )
+
+        response = self.client.get(
+            reverse("students-list"),
+            {"segment": "birthdays"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["id"] for item in response.data["results"]],
+            [str(birthday_student.pk)],
+        )
+
     def test_deactivation_requires_reason_and_records_audit_event(self):
         student = Student.objects.get(name="Aluno Ativo")
         url = reverse("students-deactivate", args=[student.id])

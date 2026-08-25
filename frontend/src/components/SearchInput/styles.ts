@@ -12,10 +12,10 @@ font-medium
 text-slate-800
 outline-none
 transition
-placeholder:text-slate-400
+placeholder:text-slate-500
 hover:bg-white
 focus:border-blue-400
 focus:bg-white
 focus:ring-2
-focus:ring-blue-500/10
+focus:ring-blue-500/20
 `;

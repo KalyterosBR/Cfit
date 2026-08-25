@@ -4,4 +4,6 @@ export interface PageHeaderProps {
     title: string;
     subtitle?: string;
     actions?: ReactNode;
+    eyebrow?: string;
+    context?: string;
 }

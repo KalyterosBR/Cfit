@@ -129,6 +129,8 @@ export default function Workouts() {
       <PageHeader
         title="Treinos"
         subtitle="Prescrições, modelos, biblioteca, execução e evolução dos alunos."
+        eyebrow="Performance do aluno"
+        context="Prescrição, aderência e evolução"
         actions={
           tab !== "plans" ? (
             <button

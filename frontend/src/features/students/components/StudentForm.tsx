@@ -80,8 +80,8 @@ export default function StudentForm({
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-                    <div className="lg:col-span-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="md:col-span-2 xl:col-span-4">
                         <Input
                             label="Nome *"
                             required
@@ -151,7 +151,14 @@ export default function StudentForm({
                         />
                     </div>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={whatsappOptIn} onChange={e=>setWhatsappOptIn(e.target.checked)}/> Autoriza comunicação por WhatsApp</label><label className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={emailOptIn} onChange={e=>setEmailOptIn(e.target.checked)}/> Autoriza comunicação por e-mail</label></div>
+                <fieldset className="mt-5 border-t border-slate-200 pt-5">
+                    <legend className="text-sm font-semibold text-slate-900">Preferências de comunicação</legend>
+                    <p className="mt-1 text-sm text-slate-500">Registre os canais autorizados pelo aluno.</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={whatsappOptIn} onChange={e=>setWhatsappOptIn(e.target.checked)}/> Autoriza comunicação por WhatsApp</label>
+                        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={emailOptIn} onChange={e=>setEmailOptIn(e.target.checked)}/> Autoriza comunicação por e-mail</label>
+                    </div>
+                </fieldset>
             </section>
 
             {/* ENDEREÇO */}
@@ -293,7 +300,7 @@ export default function StudentForm({
             </section>
 
             {/* AÇÕES */}
-            <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+            <div className="cfit-modal-footer sticky -bottom-5 z-10 -mx-5 flex justify-end gap-3 border-t px-5 pb-1 pt-4 backdrop-blur-md sm:-bottom-6 sm:-mx-8 sm:px-8">
                 <Button
                     type="button"
                     variant="secondary"

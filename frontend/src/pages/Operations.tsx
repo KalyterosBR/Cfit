@@ -212,6 +212,8 @@ export default function Operations() {
       <PageHeader
         title="Central operacional"
         subtitle="Dispositivos, relacionamento, avaliações e onboarding em fluxos auditáveis."
+        eyebrow="Comando diário"
+        context="Pendência, responsável e resolução"
       />
       {loading ? (
         <LoadingState label="Carregando a Central operacional..." />

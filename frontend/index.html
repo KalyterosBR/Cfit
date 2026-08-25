@@ -1,7 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR" class="cfit-theme-booting">
 <head>
   <meta charset="UTF-8" />
+  <meta name="color-scheme" content="light dark" />
+  <script>
+    (() => {
+      const storageKey = "cfit_color_theme";
+      let savedTheme = null;
+
+      try {
+        savedTheme = localStorage.getItem(storageKey);
+      } catch {
+        // O tema do sistema continua disponível quando o storage é bloqueado.
+      }
+
+      const theme = savedTheme === "light" || savedTheme === "dark"
+        ? savedTheme
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+      const root = document.documentElement;
+
+      root.dataset.cfitTheme = theme;
+      root.classList.toggle("dark", theme === "dark");
+      root.style.colorScheme = theme;
+    })();
+  </script>
+  <style>
+    html { background: #f4f7fb; color-scheme: light; }
+    html.dark { background: #06101f; color-scheme: dark; }
+    html, body, #root { min-height: 100%; }
+    body { margin: 0; background: inherit; }
+    .cfit-theme-booting *, .cfit-theme-booting *::before, .cfit-theme-booting *::after { transition: none !important; }
+  </style>
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />

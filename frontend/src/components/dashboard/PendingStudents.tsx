@@ -3,6 +3,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { SkeletonBlock } from "@/components/AsyncState";
 
 import type { Charge } from "@/features/students/services/financial.service";
 
@@ -61,9 +62,12 @@ export default function PendingStudents({
             </div>
 
             {loading ? (
-                <div className="space-y-3" aria-label="Carregando cobranças vencidas">
+                <div className="divide-y divide-slate-100" aria-label="Carregando cobranças vencidas" aria-busy="true">
                     {[1, 2, 3].map((item) => (
-                        <div key={item} className="h-14 animate-pulse rounded-xl bg-slate-100" />
+                        <div key={item} className="flex h-[4.5rem] items-center justify-between gap-4">
+                            <div className="flex-1"><SkeletonBlock className="h-3 w-32" /><SkeletonBlock className="mt-2 h-2.5 w-28" /></div>
+                            <SkeletonBlock className="h-3 w-20" />
+                        </div>
                     ))}
                 </div>
             ) : error ? (

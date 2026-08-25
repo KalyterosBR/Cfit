@@ -151,6 +151,8 @@ export default function Units() {
       <PageHeader
         title="Academia e unidades"
         subtitle="Cadastre, selecione e compare o contexto operacional de cada unidade."
+        eyebrow="Contexto da rede"
+        context="Escopo, unidade e comparação"
       />
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
         <div>

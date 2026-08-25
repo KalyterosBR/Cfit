@@ -4,7 +4,9 @@ import {
   AlertTriangle,
   Download,
   DollarSign,
+  Save,
   Star,
+  Trash2,
   Users,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -61,12 +63,32 @@ type RetentionItem = {
   factors: Array<{ label: string }>;
   latest_interaction: { next_action: string; status: string } | null;
 };
+type SavedReportView = {
+  id: string;
+  name: string;
+  period: string;
+  favoriteQuestions: string[];
+  isDefault: boolean;
+};
+
+const SAVED_VIEWS_KEY = "cfit_report_saved_views";
+
+function readSavedViews(): SavedReportView[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(SAVED_VIEWS_KEY) ?? "[]");
+    return Array.isArray(value) ? value : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function Reports() {
-  const [selectedPeriod, setSelectedPeriod] = useState(period());
-  const [favorites, setFavorites] = useState<string[]>(() =>
-    JSON.parse(localStorage.getItem("cfit_report_favorites") ?? "[]"),
-  );
+  const initialViews = readSavedViews();
+  const initialDefaultView = initialViews.find((view) => view.isDefault);
+  const [selectedPeriod, setSelectedPeriod] = useState(initialDefaultView?.period ?? period());
+  const [favorites, setFavorites] = useState<string[]>(() => initialDefaultView?.favoriteQuestions ?? JSON.parse(localStorage.getItem("cfit_report_favorites") ?? "[]"));
+  const [savedViews, setSavedViews] = useState<SavedReportView[]>(initialViews);
+  const [selectedView, setSelectedView] = useState(initialDefaultView?.id ?? "");
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -130,6 +152,7 @@ export default function Reports() {
             : `${Number(data.growth) > 0 ? "+" : ""}${Number(data.growth).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% sobre o período anterior`,
         formula: "Soma das cobranças pagas pela data de recebimento",
         source: "Financeiro · caixa",
+        scope: `Período ${selectedPeriod}`,
           icon: DollarSign,
           color: "text-emerald-600 bg-emerald-50",
         },
@@ -139,6 +162,7 @@ export default function Reports() {
         detail: "Base ativa no fechamento do mês",
         formula: "Cadastros ativos na data final do período",
         source: "Alunos",
+        scope: `Fechamento de ${selectedPeriod}`,
           icon: Users,
           color: "text-blue-600 bg-blue-50",
         },
@@ -148,15 +172,17 @@ export default function Reports() {
         detail: "Acessos reais registrados",
         formula: "Contagem de acessos liberados no período",
         source: "Check-ins",
+        scope: `Período ${selectedPeriod}`,
           icon: Activity,
           color: "text-cyan-700 bg-cyan-50",
         },
         {
           question: "Quantos alunos exigem retenção?",
           value: `${data.risk} em risco`,
-        detail: `${data.attention} aluno(s) requerem atenção`,
+        detail: `${data.attention} aluno(s) requerem atenção · estado atual`,
         formula: "Health Score abaixo de 40; atenção entre 40 e 69",
         source: "Health Score compartilhado",
+        scope: "Estado atual da base, independente do período histórico",
           icon: AlertTriangle,
           color: "text-orange-600 bg-orange-50",
         },
@@ -169,10 +195,50 @@ export default function Reports() {
     setFavorites(next);
     localStorage.setItem("cfit_report_favorites", JSON.stringify(next));
   }
+  function persistViews(next: SavedReportView[]) {
+    setSavedViews(next);
+    localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(next));
+  }
+  function saveCurrentView() {
+    const name = window.prompt("Nome da visão gerencial:");
+    if (!name?.trim()) return;
+    const makeDefault = window.confirm("Usar esta visão como padrão neste navegador?");
+    const view: SavedReportView = {
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      period: selectedPeriod,
+      favoriteQuestions: favorites,
+      isDefault: makeDefault,
+    };
+    const next = [
+      ...savedViews.map((item) => ({
+        ...item,
+        isDefault: makeDefault ? false : item.isDefault,
+      })),
+      view,
+    ];
+    persistViews(next);
+    setSelectedView(view.id);
+  }
+  function applyView(id: string) {
+    setSelectedView(id);
+    const view = savedViews.find((item) => item.id === id);
+    if (!view) return;
+    setSelectedPeriod(view.period);
+    setFavorites(view.favoriteQuestions);
+    localStorage.setItem("cfit_report_favorites", JSON.stringify(view.favoriteQuestions));
+  }
+  function removeSelectedView() {
+    if (!selectedView) return;
+    const view = savedViews.find((item) => item.id === selectedView);
+    if (!view || !window.confirm(`Excluir a visão “${view.name}”?`)) return;
+    persistViews(savedViews.filter((item) => item.id !== selectedView));
+    setSelectedView("");
+  }
   function exportCsv() {
     const rows = [
-      ["Pergunta", "Valor", "Detalhe"],
-      ...reports.map((item) => [item.question, item.value, item.detail]),
+      ["Pergunta", "Valor", "Detalhe", "Escopo"],
+      ...reports.map((item) => [item.question, item.value, item.detail, item.scope]),
     ];
     const csv = rows
       .map((row) =>
@@ -209,6 +275,8 @@ export default function Reports() {
       <PageHeader
         title="Relatórios"
         subtitle="Respostas gerenciais calculadas a partir dos dados operacionais reais."
+        eyebrow="Inteligência gerencial"
+        context="Perguntas, evidências e decisão"
       />
       <div className="mb-5 flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4">
         <label className="text-xs font-bold text-slate-600">
@@ -220,6 +288,37 @@ export default function Reports() {
             className="ml-3 h-10 rounded-xl border border-slate-200 px-3"
           />
         </label>
+        <label className="text-xs font-bold text-slate-600">
+          Visão salva
+          <select
+            value={selectedView}
+            onChange={(event) => applyView(event.target.value)}
+            className="ml-3 h-10 min-w-44 rounded-xl border border-slate-200 px-3"
+          >
+            <option value="">Visão atual</option>
+            {savedViews.map((view) => (
+              <option key={view.id} value={view.id}>
+                {view.name}{view.isDefault ? " · padrão" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={saveCurrentView}
+          className="flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700"
+        >
+          <Save size={16} /> Salvar visão
+        </button>
+        <button
+          type="button"
+          disabled={!selectedView}
+          onClick={removeSelectedView}
+          aria-label="Excluir visão selecionada"
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 disabled:opacity-40"
+        >
+          <Trash2 size={16} />
+        </button>
         <button
           type="button"
           disabled={!data}
@@ -228,6 +327,12 @@ export default function Reports() {
         >
           <Download size={16} /> Exportar CSV
         </button>
+        {management && (
+          <p className="w-full text-xs font-semibold text-slate-500">
+            Escopo: {management.scope.unit_name} · {management.scope.basis}
+            {selectedView ? " · visão pessoal salva neste navegador" : ""}
+          </p>
+        )}
       </div>
       {loading ? (
         <div className="grid gap-5 md:grid-cols-2">
@@ -287,7 +392,7 @@ export default function Reports() {
                     {item.value}
                   </p>
                   <p className="mt-2 text-sm text-slate-500">{item.detail}</p>
-                  <details className="mt-4 text-xs text-slate-500"><summary className="cursor-pointer font-bold text-blue-600">Como é calculado</summary><p className="mt-2">Fórmula: {item.formula}</p><p>Fonte: {item.source} · período {selectedPeriod}</p></details>
+                  <details className="mt-4 text-xs text-slate-500"><summary className="cursor-pointer font-bold text-blue-600">Como é calculado</summary><p className="mt-2">Fórmula: {item.formula}</p><p>Fonte: {item.source}</p><p>Escopo: {item.scope}</p></details>
                 </article>
               ))}
           </div>

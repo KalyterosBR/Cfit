@@ -26,6 +26,7 @@ import {
 } from "react-router-dom";
 
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { SkeletonBlock } from "@/components/AsyncState";
 import PageHeader from "@/components/PageHeader";
 import FinancialForecast from "@/features/students/components/FinancialForecast";
 import CashFlowSection from "@/features/students/components/CashFlowSection";
@@ -128,14 +129,14 @@ function getCategoryLabel(category: Charge["operational_category"]) {
 }
 
 
-function getCategoryClass(category: Charge["operational_category"]) {
+function getCategoryTone(category: Charge["operational_category"]) {
     return {
-        overdue: "bg-red-50 text-red-700",
-        due_soon: "bg-amber-50 text-amber-700",
-        future: "bg-blue-50 text-blue-700",
-        paid: "bg-emerald-50 text-emerald-700",
-        canceled: "bg-slate-100 text-slate-600",
-        inconsistent: "bg-violet-50 text-violet-700",
+        overdue: "danger",
+        due_soon: "warning",
+        future: "info",
+        paid: "success",
+        canceled: "neutral",
+        inconsistent: "inconsistency",
     }[category];
 }
 
@@ -657,6 +658,8 @@ export default function Financial() {
             <PageHeader
                 title="Financeiro"
                 subtitle="Acompanhe cobranças, recebimentos e inadimplência da academia."
+                eyebrow="Pulso financeiro"
+                context="Receita, risco e previsibilidade"
                 actions={(
                     <button
                         type="button"
@@ -1043,10 +1046,17 @@ export default function Financial() {
                 </div>
 
                 {loading ? (
-                    <div className="space-y-3 p-6" aria-label="Carregando financeiro">
-                        {[1, 2, 3, 4].map((item) => (
-                            <div key={item} className="h-14 animate-pulse rounded-xl bg-slate-100" />
-                        ))}
+                    <div className="overflow-x-auto" aria-label="Carregando financeiro" aria-busy="true">
+                        <table className="cfit-data-table w-full min-w-[1460px]">
+                            <thead className="cfit-table-header bg-slate-50/80 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                                <tr>{["", "Aluno", "Cobrança", "Plano", "Vencimento", "Competência", "Valor", "Status", "Pagamento", "Conciliação", "Ações"].map((label, index) => <th key={`${label}-${index}`} className="px-6 py-4">{label}</th>)}</tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {[1, 2, 3, 4].map((row) => (
+                                    <tr key={row}>{Array.from({ length: 11 }, (_, cell) => <td key={cell} className="px-6 py-4"><SkeletonBlock className={`h-3 ${cell === 1 || cell === 2 ? "w-32" : cell === 10 ? "ml-auto w-20" : "w-20"}`} /></td>)}</tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 ) : permissionDenied ? (
                     <div className="p-10 text-center">
@@ -1130,7 +1140,7 @@ export default function Financial() {
                             </button>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[1460px]">
+                            <table className="cfit-data-table w-full min-w-[1460px]">
                                 <thead className="bg-slate-50/80 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
                                     <tr>
                                         <th className="w-12 px-4 py-4 text-center">
@@ -1157,7 +1167,7 @@ export default function Financial() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {charges.map((charge) => (
-                                        <tr key={charge.id} className="text-sm text-slate-700 [&>td]:align-top">
+                                        <tr key={charge.id} data-selected={selectedChargeIds.has(charge.id)} className="text-sm text-slate-700 [&>td]:align-top">
                                             <td className="w-12 px-4 py-4 text-center">
                                                 <input
                                                     type="checkbox"
@@ -1186,8 +1196,10 @@ export default function Financial() {
                                             <td className="px-6 py-4">
                                                 <span
                                                     title={`Status registrado: ${getStatusLabel(charge.status)}`}
-                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getCategoryClass(charge.operational_category)}`}
+                                                    className="cfit-chip"
+                                                    data-tone={getCategoryTone(charge.operational_category)}
                                                 >
+                                                    <span aria-hidden="true" className="cfit-chip-dot" />
                                                     {getCategoryLabel(charge.operational_category)}
                                                 </span>
                                                 {charge.overdue_days > 0 && (
@@ -1202,11 +1214,8 @@ export default function Financial() {
                                             <td className="px-6 py-4">
                                                 {charge.status === "paid" ? (
                                                     charge.reconciliation ? (
-                                                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                                                            charge.reconciliation.status === "reconciled"
-                                                                ? "bg-emerald-50 text-emerald-700"
-                                                                : "bg-orange-50 text-orange-700"
-                                                        }`}>
+                                                        <span className="cfit-chip" data-tone={charge.reconciliation.status === "reconciled" ? "success" : "warning"}>
+                                                            <span aria-hidden="true" className="cfit-chip-dot" />
                                                             {charge.reconciliation.status === "reconciled"
                                                                 ? "Conciliada"
                                                                 : "Divergente"}
@@ -1376,7 +1385,8 @@ export default function Financial() {
                                                                     <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 lg:hidden">
                                                                         Situação
                                                                     </p>
-                                                                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getCategoryClass(charge.operational_category)}`}>
+                                                                    <span className="cfit-chip" data-tone={getCategoryTone(charge.operational_category)}>
+                                                                        <span aria-hidden="true" className="cfit-chip-dot" />
                                                                         {getCategoryLabel(charge.operational_category)}
                                                                     </span>
                                                                 </div>

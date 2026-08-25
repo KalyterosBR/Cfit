@@ -11,6 +11,7 @@ import ProtectedRoute from "@/features/auth/components/ProtectedRoute";
 import CapabilityRoute from "@/features/auth/components/CapabilityRoute";
 import { routeAccess } from "@/features/auth/access-control";
 import { ChangePassword, ForgotPassword, ResetPassword } from "../pages/PasswordAccess";
+import { AppBootSkeleton } from "@/components/AsyncState";
 
 const Login = lazy(() => import("@/pages/Login"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -74,7 +75,7 @@ export default function AppRoutes() {
         <BrowserRouter>
             <DocumentTitle />
 
-            <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-50 font-semibold text-slate-500">Carregando módulo...</div>}><Routes>
+            <Suspense fallback={<AppBootSkeleton />}><Routes>
                 {/* ROTA PÚBLICA */}
                 <Route
                     path="/"

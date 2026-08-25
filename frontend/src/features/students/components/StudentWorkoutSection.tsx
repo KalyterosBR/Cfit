@@ -360,7 +360,7 @@ export default function StudentWorkoutSection({
                     )}
                   </div>
                   <div className="mt-5 overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="cfit-data-table w-full text-sm">
                       <thead>
                         <tr className="border-b text-left text-xs uppercase text-slate-400">
                           <th className="py-2">Exercício</th>

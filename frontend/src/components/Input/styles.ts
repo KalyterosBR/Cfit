@@ -4,12 +4,18 @@ export const inputStyles = {
         rounded-xl
         border
         border-slate-300
+        bg-slate-50/80
         px-4
         py-3
+        text-slate-900
         outline-none
         transition
+        placeholder:text-slate-500
+        hover:border-slate-400
+        focus:border-blue-500
+        focus:bg-white
         focus:ring-2
-        focus:ring-blue-500
+        focus:ring-blue-500/20
     `,
 
     error: `
@@ -20,7 +26,8 @@ export const inputStyles = {
     label: `
         block
         mb-2
-        font-medium
+        text-sm
+        font-semibold
         text-slate-700
     `,
 

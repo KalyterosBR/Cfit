@@ -27,3 +27,7 @@ createRoot(
     />
   </StrictMode>,
 );
+
+window.requestAnimationFrame(() => {
+  document.documentElement.classList.remove("cfit-theme-booting");
+});

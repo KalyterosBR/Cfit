@@ -525,27 +525,27 @@ export default function StudentDetailsPage() {
     }
 
 
-    function getEnrollmentStatusClass(
+    function getEnrollmentStatusTone(
         status: Enrollment["status"],
     ) {
         switch (status) {
             case "active":
-                return "bg-emerald-50 text-emerald-700";
+                return "success";
 
             case "frozen":
-                return "bg-blue-50 text-blue-700";
+                return "info";
 
             case "canceled":
-                return "bg-red-50 text-red-700";
+                return "danger";
 
             case "finished":
-                return "bg-slate-100 text-slate-600";
+                return "neutral";
 
             case "expired":
-                return "bg-amber-50 text-amber-700";
+                return "warning";
 
             default:
-                return "bg-slate-100 text-slate-600";
+                return "neutral";
         }
     }
 
@@ -572,24 +572,24 @@ export default function StudentDetailsPage() {
     }
 
 
-    function getChargeStatusClass(
+    function getChargeStatusTone(
         status: Charge["status"],
     ) {
         switch (status) {
             case "paid":
-                return "bg-emerald-50 text-emerald-700";
+                return "success";
 
             case "pending":
-                return "bg-amber-50 text-amber-700";
+                return "warning";
 
             case "overdue":
-                return "bg-red-50 text-red-700";
+                return "danger";
 
             case "canceled":
-                return "bg-slate-100 text-slate-600";
+                return "neutral";
 
             default:
-                return "bg-slate-100 text-slate-600";
+                return "neutral";
         }
     }
 
@@ -765,7 +765,7 @@ export default function StudentDetailsPage() {
 
 
                     {/* CABEÇALHO DO ALUNO */}
-                    <div className="relative overflow-hidden rounded-[1.6rem] border border-slate-200/80 bg-white p-5 shadow-[0_20px_50px_-34px_rgba(15,23,42,0.3)] sm:p-6">
+                    <div className="cfit-module-header relative overflow-hidden border-y border-blue-200/70 bg-[linear-gradient(115deg,rgba(255,255,255,.76),rgba(239,246,255,.72)_55%,rgba(236,254,255,.55))] p-5 sm:p-6 lg:p-8">
                         <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-blue-600 via-cyan-400 to-transparent" />
 
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -1325,11 +1325,8 @@ export default function StudentDetailsPage() {
                                                                 }
                                                             </h3>
 
-                                                            <span
-                                                                className={`rounded-full px-3 py-1 text-xs font-semibold ${getEnrollmentStatusClass(
-                                                                    enrollment.status,
-                                                                )}`}
-                                                            >
+                                                            <span className="cfit-chip" data-tone={getEnrollmentStatusTone(enrollment.status)}>
+                                                                <span aria-hidden="true" className="cfit-chip-dot" />
                                                                 {getEnrollmentStatusLabel(
                                                                     enrollment.status,
                                                                 )}
@@ -1510,7 +1507,7 @@ export default function StudentDetailsPage() {
                                     ) : (
                                         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                                             <div className="overflow-x-auto">
-                                                <table className="w-full">
+                                                <table className="cfit-data-table w-full">
                                                     <thead className="border-b border-slate-200 bg-slate-50">
                                                         <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                                                             <th className="px-6 py-4">
@@ -1561,11 +1558,8 @@ export default function StudentDetailsPage() {
                                                                 </td>
 
                                                                 <td className="px-6 py-4">
-                                                                    <span
-                                                                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getChargeStatusClass(
-                                                                            charge.status,
-                                                                        )}`}
-                                                                    >
+                                                                    <span className="cfit-chip" data-tone={getChargeStatusTone(charge.status)}>
+                                                                        <span aria-hidden="true" className="cfit-chip-dot" />
                                                                         {getChargeStatusLabel(
                                                                             charge.status,
                                                                         )}
@@ -1693,7 +1687,7 @@ export default function StudentDetailsPage() {
 
                                     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                                         <div className="overflow-x-auto">
-                                            <table className="w-full">
+                                            <table className="cfit-data-table w-full">
                                                 <thead className="border-b border-slate-200 bg-slate-50">
                                                     <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                                                         <th className="px-6 py-4">
@@ -1729,7 +1723,8 @@ export default function StudentDetailsPage() {
                                                             </td>
 
                                                             <td className="px-6 py-4">
-                                                                <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                                                                <span className="cfit-chip" data-tone="neutral">
+                                                                    <span aria-hidden="true" className="cfit-chip-dot" />
                                                                     {checkIn.source_label}
                                                                 </span>
                                                             </td>

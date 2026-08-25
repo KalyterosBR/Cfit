@@ -249,12 +249,12 @@ export default function CashFlowSection() {
                     <div className="mt-4 h-72 rounded-2xl bg-slate-50/50 p-3">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData} margin={{ top: 8, right: 12, left: 4, bottom: 0 }}>
-                                <CartesianGrid vertical={false} strokeDasharray="2 5" stroke="#dbe3ee" />
-                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748b" }} />
-                                <YAxis axisLine={false} tickLine={false} width={84} tick={{ fontSize: 10, fill: "#64748b" }} tickFormatter={(value) => axisMoney(Number(value))} />
+                                <CartesianGrid vertical={false} strokeDasharray="2 5" stroke="var(--cfit-border-default)" />
+                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--cfit-text-secondary)" }} />
+                                <YAxis axisLine={false} tickLine={false} width={84} tick={{ fontSize: 10, fill: "var(--cfit-text-secondary)" }} tickFormatter={(value) => axisMoney(Number(value))} />
                                 <Tooltip
-                                    cursor={{ stroke: "#cbd5e1", strokeDasharray: "3 3" }}
-                                    contentStyle={{ border: "1px solid #e2e8f0", borderRadius: "12px" }}
+                                    cursor={{ stroke: "var(--cfit-border-strong)", strokeDasharray: "3 3" }}
+                                    contentStyle={{ background: "var(--cfit-surface-elevated)", color: "var(--cfit-text-primary)", border: "1px solid var(--cfit-border-default)", borderRadius: "12px", boxShadow: "var(--cfit-shadow-elevated)" }}
                                     formatter={(value, name) => [money(Number(value)), name === "income" ? "Entradas previstas" : name === "expense" ? "Saídas previstas" : "Saldo projetado"]}
                                 />
                                 <Line dataKey="income" name="income" type="monotone" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 2.5, fill: "#3b82f6", strokeWidth: 0 }} activeDot={{ r: 5 }} />

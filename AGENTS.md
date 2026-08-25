@@ -167,6 +167,7 @@ apps/checkins
 apps/workouts
 apps/schedule
 apps/automations
+apps/operations
 ```
 
 Também está habilitado `django.contrib.postgres`.
@@ -488,6 +489,13 @@ O interceptor HTTP adiciona o access token às requisições privadas. Em respos
 /settings          Configurações organizadas e pesquisáveis
 /units             Academia e unidades
 /automations       Automações orientadas por eventos
+/checkins          Monitor e operação de acessos
+/growth            Comercial e turmas
+/documents         Documentos e portal
+/operations        Central operacional
+/onboarding        Configuração inicial da academia
+/password-access   Primeiro acesso e troca obrigatória de senha
+/portal            Portal do aluno
 ```
 
 A rota `/` é homepage institucional + login, não só login.
@@ -730,32 +738,38 @@ O fechamento antes do scroll é intencional.
 ---
 
 ## 31. Dashboard
-O Dashboard possui integração parcial com dados reais: resumo financeiro, histórico de receita, pagamentos recentes, check-ins recentes e cobranças em atraso usam as APIs operacionais. Alguns indicadores e conteúdos ainda permanecem demonstrativos.
-
-Não apresentar a parte demonstrativa como consolidação real e não conectar ou redesenhar todo o Dashboard sem solicitação.
+O Dashboard possui integração com dados operacionais para resumo financeiro, histórico de receita, pagamentos, alunos ativos, check-ins, cobranças vencidas, metas e prioridades. Qualquer conteúdo fictício deve permanecer explicitamente marcado como demonstrativo.
 
 Visual atual:
-- fundo interno claro `#f4f7fb`, com iluminação azul/ciano controlada;
+- temas claro e noturno baseados em tokens semânticos compartilhados;
 - largura de conteúdo limitada a `1600px`;
-- cards brancos com bordas suaves, cantos grandes e sombras discretas;
-- títulos fortes e compactos;
-- azul e ciano como assinatura, com cores semânticas nos indicadores;
-- layout responsivo em grids de uma, duas ou quatro colunas conforme a largura.
+- linguagem `Mapa Operacional Cfit`, com composição aberta e assimétrica;
+- abertura editorial compacta, integrada ao painel operacional de prioridade;
+- profundidade criada por contraste, divisórias, tipografia e tonalidade, sem sombras pretas;
+- painéis harmonizados `Leitura financeira` e `Leitura da base`, ambos em matriz `2 × 2`;
+- metas em uma faixa contínua, prioridades operacionais em matriz `3 × 2` e análise em capítulos;
+- check-ins recentes com data e horário separados e layout protegido contra sobreposição;
+- responsividade considera a largura útil após a Sidebar, evitando ativar colunas precocemente.
+
+O painel operacional de prioridade usa exclusivamente dados reais disponíveis. Quando não existem pendências, apresenta um estado resolvido compacto, sem inventar métricas ou ações.
 
 Componentes principais:
 ```text
 DashboardLayout
 DashboardHeader
-StatCard
 RevenueChart
 RecentPayments
 RecentCheckins
 PendingStudents
+DashboardAttention
+RevenueGoalCard
+CheckInGoalCard
+ActiveStudentGoalCard
 ```
 
 Alguns são reutilizados na homepage.
 
-Preservar a linguagem visual atual e não substituir os dados demonstrativos por integrações de backend sem solicitação específica.
+Preservar a linguagem visual atual e não reintroduzir uma grade genérica de cards brancos, grandes superfícies pretas ou sombras escuras sem solicitação explícita.
 
 ---
 
@@ -778,12 +792,19 @@ Sidebar atual:
 - overlay fecha o menu mobile;
 - selecionar um item também fecha o menu mobile;
 - item da rota atual usa gradiente azul e destaque visual;
-- bloco “Ambiente seguro” no rodapé;
-- botão “Sair da conta” no rodapé.
+- módulos sem permissão não aparecem;
+- grupos por domínio são recolhíveis;
+- favoritos são persistidos em `cfit_sidebar_favorites` e só aparecem quando adicionados pelo usuário;
+- a seção `Recentes` e o rastreamento `cfit_sidebar_recent` foram removidos;
+- logo específico de alta visibilidade usa `cfit-logo-sidebar.png`;
+- clicar no logo navega para `/dashboard` e fecha a Sidebar mobile;
+- a navegação central possui scroll independente e retorna ao início quando a rota muda, mantendo logo e primeiros grupos previsíveis;
+- a Sidebar não projeta sombra escura sobre o conteúdo;
+- logout permanece funcional no menu de perfil da Topbar.
 
-Fluxo de logout:
+Fluxo de logout atual:
 ```text
-clique em “Sair da conta”
+clique no perfil da Topbar e em “Sair”
 ↓
 clearTokens()
 ↓
@@ -968,6 +989,9 @@ Comportamento atual:
 - a listagem usa a paginação padrão da API;
 - o usuário pode registrar manualmente um check-in;
 - a observação é opcional e limitada a `255` caracteres;
+- quando uma política bloqueia o acesso, a interface mostra a causa real retornada pela API;
+- o usuário autorizado pode marcar `Autorizar em contingência` e deve informar motivo obrigatório;
+- a contingência respeita `allow_manual_contingency`, registra `authorized_by` e alimenta a auditoria;
 - após o registro, a primeira página é recarregada;
 - existem estados de carregamento, vazio, erro e nova tentativa.
 
@@ -980,7 +1004,7 @@ O modelo `CheckIn` preserva:
 
 A API permite somente leitura e criação por HTTP (`GET` e `POST`). Não adicionar alteração ou exclusão sem uma decisão explícita sobre preservação do histórico.
 
-Existem testes para autenticação obrigatória, filtro/ordenação do histórico e persistência de um novo check-in.
+Existem testes para autenticação obrigatória, filtro/ordenação, persistência e liberação manual em contingência com motivo e usuário autorizador.
 
 Futuro: reconhecimento facial.
 
@@ -1161,7 +1185,9 @@ Limites atuais confirmados:
 
 ---
 
-## 48. PONTO EXATO DE RETOMADA
+## 48. PONTO EXATO DE RETOMADA — histórico de 20/08/2026
+
+> **Estado: superado.** Preservado como histórico da migração para WSL. Para retomada atual, usar a seção 48.4.
 O workspace oficial agora é:
 ```text
 /home/kalyteros/projetos/Cfit
@@ -1995,7 +2021,7 @@ Decisões positivas que devem ser preservadas:
 
 Os itens P0 antecedem ampliações significativas do produto.
 
-#### P0.1 Unificar o Health Score — implementado, validação visual pendente
+#### P0.1 Unificar o Health Score — implementado e validado por integração; inspeção visual humana pendente
 
 Problema confirmado: Relatórios calculam score e fatores, enquanto a ficha do mesmo aluno pode mostrar `Risco de evasão: ainda não calculado`.
 
@@ -2023,7 +2049,7 @@ Critérios de aceite:
 
 Dependências: modelos e estados de matrícula, cobrança e vigência. Antecede Health Score final, situação financeira e modelo comercial de planos.
 
-#### P0.3 Padronizar situação financeira — implementado, validação visual pendente
+#### P0.3 Padronizar situação financeira — implementado e validado por integração; inspeção visual humana pendente
 
 `Financeiro regular` não pode significar somente ausência de cobrança vencida. Definir uma regra única considerando matrícula, vencidos, cobranças futuras, recorrências com falha, inconsistências, conciliação, pagamentos incompletos, saldo e tolerância da unidade.
 
@@ -2052,9 +2078,11 @@ Critérios de aceite:
 
 Dependências: rotas estáveis de Academia, Unidades, Usuários, Planos e Dashboard.
 
-#### P0.5 Padronizar períodos e escopos — avançado, auditoria visual pendente
+#### P0.5 Padronizar períodos e escopos — avançado, com distinção explícita entre histórico e estado atual
 
 Todo indicador deve informar se representa mês atual, período selecionado, últimos 30 dias, acumulado, previsto, recebido, competência, caixa, unidade ou rede consolidada.
+
+Relatórios tratam receita, base ativa e check-ins conforme o período selecionado. Health Score e fila de retenção representam o estado operacional atual e devem permanecer explicitamente identificados dessa forma, inclusive nas exportações, sem aparentar reconstrução histórica.
 
 Critérios de aceite:
 - nenhum valor financeiro aparece sem período e escopo;
@@ -2078,7 +2106,7 @@ Critérios de aceite:
 
 Dependências: P0.2, geração de cobranças, contratos e preservação de histórico.
 
-#### P0.7 Tornar a auditoria amigável — implementada, validação visual pendente
+#### P0.7 Tornar a auditoria amigável — implementada com catálogo operacional traduzido; validação visual pendente
 
 Substituir JSON bruto como apresentação principal por diferenças estruturadas: campo, anterior, posterior, usuário, data, motivo e entidade. Traduzir eventos como `academy.onboarding_completed`, `membership.updated`, `charge.payment_registered` e `charge.reconciled`. Manter detalhes técnicos em expansão restrita.
 
@@ -2107,7 +2135,7 @@ Dependências: identificação confiável da sessão atual, auditoria e polític
 
 ### 48.3.5 Prioridade alta — P1
 
-#### P1.9 Consolidar permissões por perfil e unidade — avançado, homologação por perfil pendente
+#### P1.9 Consolidar permissões por perfil e unidade — avançado, matriz automatizada; homologação interativa por perfil pendente
 
 Perfis: Proprietário, Administrador, Gerente, Recepção, Professor e Financeiro. Consolidar capacidades, unidade operacional, escopo de visualização, estado do vínculo, motivo e auditoria.
 
@@ -2175,9 +2203,11 @@ Critérios de aceite:
 
 Dependências: nenhuma de negócio; aplicar incrementalmente, começando pelas superfícies P0/P1 alteradas.
 
-#### P1.14 Evoluir gestão de alunos — avançada, filtros e colunas ampliados
+#### P1.14 Evoluir gestão de alunos — avançada, filtros e colunas ampliados e conectados ao backend
 
 Adicionar colunas configuráveis; filtros salvos e compartilhados; plano próximo do fim; sem treino; sem avaliação; aniversariantes; acesso bloqueado; pendências; Health Score; responsável; unidade; paginação ou virtualização.
+
+Os segmentos rápidos `plan_ending`, `without_workout`, `without_assessment`, `birthdays`, `access_blocked` e `incomplete_profile` são aceitos pela API e usam os selectors existentes. Ao adicionar um segmento no frontend, atualizar também a lista permitida do `StudentViewSet`; não deixar a API descartar silenciosamente um filtro visível.
 
 Revisar mascaramento de CPF/telefone, tooltips, confirmação/motivo de inativação e permissões por ação.
 
@@ -2203,9 +2233,9 @@ Critérios de aceite:
 
 Dependências: P0.5 e P1.9.
 
-#### P1.16 Revisar a navegação — implementada com grupos, favoritos e recentes
+#### P1.16 Revisar a navegação — implementada com grupos e favoritos
 
-Adicionar grupos recolhíveis, módulos conforme perfil, favoritos, recentes e indicadores de pendência. Diferenciar operação diária de administração e avaliar sobreposição entre Central operacional, Check-ins, Documentos e Automações.
+Grupos recolhíveis, módulos conforme perfil e favoritos foram implementados. A seção de recentes foi testada e depois removida por decisão de produto para reduzir ruído. Ainda avaliar indicadores de pendência e a sobreposição entre Central operacional, Check-ins, Documentos e Automações.
 
 Critérios de aceite:
 - usuário não vê módulos sem acesso;
@@ -2218,9 +2248,11 @@ Dependências: P1.9 e mapa de informação aprovado.
 
 ### 48.3.6 Prioridade média-alta — P2
 
-#### P2.17 Completar Agenda unificada — avançada, recorrência e conflitos implementados
+#### P2.17 Completar Agenda unificada — avançada, recorrência e conflitos de toda a série implementados
 
 Preservar novo evento, dia/semana/mês, período, aulas, avaliações, tarefas, contatos e visitas. Completar grade visual, recorrência, profissionais, salas, unidades, disponibilidade, conflitos, confirmação, lembretes, estados e vínculos com aluno, Comercial e Avaliações.
+
+Na criação recorrente, a API valida cada ocorrência futura contra a agenda do profissional e a ocupação da sala/local antes do `bulk_create`. Nenhuma série pode ser criada parcialmente nem introduzir conflito fora da primeira ocorrência.
 
 Critérios de aceite:
 - conflitos e disponibilidade são confiáveis;
@@ -2328,35 +2360,41 @@ Dependências: P1.9, auditoria, armazenamento seguro, matrículas e políticas d
 
 ### 48.3.7 Prioridade média — P3
 
-#### P3.25 Personalização do Dashboard — parcial
+#### P3.25 Personalização do Dashboard — avançada, preferências individuais implementadas
 
 Permitir reordenar seções, ocultar cards, salvar preferências, configurar por perfil/unidade e selecionar indicadores favoritos.
 
 Critérios de aceite: preferências persistem sem alterar dados; padrão recuperável; cards respeitam permissão; comportamento responsivo preservado.
 
+Implementação atual: o usuário pode ocultar e restaurar as seções Metas, Atenção e Análise. A preferência é local, individualizada pelo e-mail da sessão na chave `cfit_dashboard_hidden_sections:<email>`, não altera dados nem capacidades e mantém o Pulso como abertura obrigatória. Reordenação e configuração administrativa por perfil/unidade continuam futuras.
+
 Dependências: P0.5, P1.9 e P1.15.
 
-#### P3.26 Relatórios salvos e favoritos — não iniciado
+#### P3.26 Relatórios salvos e favoritos — implementado no escopo pessoal local
 
 Permitir salvar filtros, nomear, compartilhar, favoritar, exportar e definir visão padrão.
 
 Critérios de aceite: escopo de compartilhamento explícito; visão reproduz filtros; permissões aplicadas; exclusão confirmada.
 
+Implementação atual: favoritos usam `cfit_report_favorites`; visões nomeadas usam `cfit_report_saved_views` e reproduzem período e indicadores favoritos. Uma visão pode ser definida como padrão, é restaurada na entrada do módulo e sua exclusão exige confirmação. O escopo aparece explicitamente como pessoal neste navegador; compartilhamento entre usuários e persistência server-side continuam futuros.
+
 Dependências: P2.19 e P1.9.
 
-#### P3.27 Navegação personalizada — não iniciado
+#### P3.27 Navegação personalizada — parcial
 
-Adicionar favoritos, recentes, módulos mais usados e atalhos por perfil.
+Favoritos individuais e módulos conforme perfil estão implementados. `Recentes` deixou de ser requisito e não deve ser reintroduzido sem nova solicitação. Módulos mais usados, redefinição de preferências e atalhos adicionais continuam pendentes.
 
 Critérios de aceite: preferências individuais; sem revelar rotas proibidas; opção de redefinir; mobile preservado.
 
 Dependências: P1.16 e P1.9.
 
-#### P3.28 Portal do aluno — estrutura funcional, precisa evoluir
+#### P3.28 Portal do aluno — avançado na experiência web
 
 Evoluir documentos, contratos, cobranças, check-ins, treinos, avaliações, agenda, dados pessoais e notificações.
 
 Critérios de aceite: isolamento absoluto por aluno; ações próprias autorizadas; estados claros; dados sensíveis protegidos; integrações usam as mesmas fontes administrativas.
+
+Implementação atual: o portal isolado apresenta planos, turmas e reservas, treino atual, cobranças, check-ins, avaliações e documentos. Possui atualização dos próprios dados permitidos, aceite documental, estados vazios por domínio, skeleton acessível, erro com nova tentativa e bloqueio visual durante operações. Notificações reais e aplicativo dedicado continuam futuros.
 
 Dependências: P2.17, P2.18, P2.24, financeiro e notificações futuras.
 
@@ -2447,6 +2485,225 @@ Toda implementação futura deve:
 - Onboarding visual e cadastro inicial estão **implementados**; o P0 trata especificamente do checklist operacional calculado incorretamente.
 - Monitor de acesso, políticas e dispositivos avançaram; integrações externas e homologação física não devem ser apresentadas como concluídas.
 - A orientação antiga de escolher automaticamente o próximo módulo foi superada: primeiro resolver P0, respeitando solicitação explícita e entrega incremental.
+
+---
+
+## 48.4 Estado confirmado de encerramento — 24/08/2026
+
+Esta seção registra o estado mais recente confirmado no código após o commit `458111b` (`feat: consolida roadmap operacional e nova dashboard`). Em conflitos de estado com as seções 47, 48 ou 48.2, prevalece esta seção. O roadmap oficial e suas dependências continuam na seção 48.3.
+
+### 48.4.1 Dashboard e identidade interna
+
+- Dashboard adotou a linguagem `Mapa Operacional Cfit`, evitando o padrão genérico de muitos cards brancos iguais;
+- abertura composta por texto editorial, `Pulso Cfit`, órbita operacional em SVG e indicadores conectados;
+- ícones de base ativa, receita realizada, ritmo de hoje e trajetória da receita possuem contraste, tamanho, borda tonal e traço reforçados;
+- `Leitura financeira` e `Leitura da base` compartilham o mesmo padrão visual `2 × 2`, com fundo azul suave, divisórias, rótulo, valor e contexto;
+- prioridades operacionais usam matriz responsiva `3 × 2`, com altura e linhas internas uniformes;
+- gráfico de receita, pagamentos, check-ins e cobranças usam o modo visual `canvas`, sem cascas e sombras repetidas;
+- sombras pretas foram removidas da Dashboard e da lateral da Sidebar;
+- check-ins recentes preservam respiro lateral e apresentam data e horário sem invadir a coluna vizinha;
+- o `Sinal prioritário` é financeiro nesta etapa: usa cobranças vencidas reais e, quando não existem, exibe cenário fictício claramente marcado como `Demonstração`;
+- o exemplo demonstrativo não constitui motor completo de priorização. Evolução futura deve comparar impacto e urgência de financeiro, retenção, acesso, dispositivos e SLAs.
+
+Arquivos principais:
+```text
+frontend/src/pages/Dashboard.tsx
+frontend/src/components/dashboard/DashboardAttention.tsx
+frontend/src/components/dashboard/RevenueChart.tsx
+frontend/src/components/dashboard/RecentPayments.tsx
+frontend/src/components/dashboard/RecentCheckins.tsx
+frontend/src/components/dashboard/PendingStudents.tsx
+frontend/src/components/dashboard/RevenueGoalCard.tsx
+frontend/src/components/dashboard/CheckInGoalCard.tsx
+frontend/src/components/dashboard/ActiveStudentGoalCard.tsx
+```
+
+### 48.4.2 Sidebar e navegação
+
+- menu filtrado pelas capacidades da sessão;
+- grupos por domínio recolhíveis;
+- favoritos persistidos localmente e exibidos somente quando escolhidos;
+- `Recentes` removido da interface e do rastreamento;
+- logo da Sidebar possui variante própria legível em fundo escuro;
+- clicar no logo abre `/dashboard` sem nova guia e fecha o menu mobile;
+- sombra lateral escura removida;
+- favoritos nunca podem revelar rota proibida, pois são filtrados pelos itens visíveis.
+
+### 48.4.3 Check-in manual
+
+- check-in comum continua sujeito à política de acesso da unidade;
+- bloqueios retornam a causa operacional real na interface;
+- contingência manual é opção explícita, exige motivo e respeita a configuração da unidade;
+- usuário autorizador é persistido em `authorized_by` e a ação é auditada;
+- teste automatizado cobre bloqueio por política e liberação em contingência;
+- integração física Topdata/Control iD continua fora da homologação atual e não deve ser apresentada como concluída.
+
+### 48.4.4 Entregas funcionais consolidadas
+
+- Health Score possui fundação compartilhada, mas a consistência total entre todas as superfícies ainda deve ser validada conforme P0.1;
+- financeiro possui períodos, metas, previsão, caixa, recorrências, inconsistências com workflow e webhooks preparados;
+- permissões e escopo de unidade avançaram em backend e frontend;
+- Agenda possui recorrência, confirmação, lembrete e detecção de conflitos;
+- Treinos web possui biblioteca, modelos, prescrição, execução, evolução e revisão;
+- Relatórios expõem fórmulas/fontes e indicadores ampliados;
+- Automações possuem teste, simulação, execução real, SLA, tentativas, pausa e idempotência;
+- Central operacional, Documentos, Crescimento e Portal possuem estruturas funcionais, ainda sujeitas aos critérios P2;
+- onboarding inicial está implementado; consistência do checklist derivado do estado real permanece regida por P0.4.
+
+### 48.4.5 Validações confirmadas
+
+- migrações aplicadas para automações `0004`, financeiro `0011` e agenda `0004` durante a etapa;
+- `python manage.py check` passou;
+- `makemigrations --check --dry-run` não encontrou alterações pendentes na validação de fechamento do roadmap;
+- suíte combinada de check-ins, financeiro, alunos, agenda, treinos e automações: `73` testes aprovados;
+- suíte de check-ins após a correção de contingência: `11` testes aprovados;
+- testes do frontend para política de acesso: `6` aprovados;
+- builds de produção do frontend passaram após cada ajuste visual final;
+- ESLint passou nos arquivos diretamente alterados da Dashboard;
+- `git diff --check` passou antes do commit e nas correções subsequentes.
+
+### 48.4.6 Estado Git e ponto exato de retomada
+
+- commit funcional enviado para `origin/main`: `458111b`;
+- após esse commit, somente esta atualização documental do `AGENTS.md` permanece local por solicitação explícita do usuário;
+- não criar commit nem fazer push desta alteração documental sem nova autorização;
+- na próxima sessão, executar `pwd`, ler integralmente este arquivo e consultar `git status --short --branch`;
+- validar visualmente a Dashboard em resoluções reais antes de propagar a linguagem `Mapa Operacional Cfit` para outros módulos;
+- não tratar o roadmap inteiro como autorização para implementação em lote.
+
+---
+
+## 48.5 Fundação visual interna — 25/08/2026
+
+Esta etapa consolidou a fundação visual da área autenticada sem alterar backend, contratos de API, cálculos, dados, permissões ou regras de negócio.
+
+Implementado:
+- tokens semânticos únicos para canvas, quatro níveis de superfície, bordas, textos, ações, estados, foco, overlay, raios, sombras e espaçamento;
+- hierarquia própria para os temas claro e noturno, persistida em `cfit_color_theme` e aplicada somente à área interna;
+- focus ring compartilhado, scrollbars discretas, transições curtas e respeito a `prefers-reduced-motion`;
+- cabeçalho operacional compartilhado mais compacto e Dashboard editorial reduzida sem perder sua identidade;
+- Sidebar com contraste maior, foco visível, favorito disponível no foco e correção do scroll ao navegar;
+- Topbar com áreas clicáveis e rótulos acessíveis, melhor truncamento de usuário e destaque de academia/unidade;
+- tabelas de alunos com divisores suaves, hover, foco, zebra sutil, overflow controlado, ações rotuladas e chips semânticos;
+- Health Score combina pontuação e significado textual na tabela;
+- inputs, placeholders e estados desabilitados possuem contraste e superfícies padronizados;
+- modal compartilhado ganhou overlay, elevação, cabeçalho fixo e área central rolável; o cadastro de aluno mantém ações fixas e agrupa consentimentos em `Preferências de comunicação`;
+- busca universal preserva `Ctrl K` e APIs existentes, com navegação por setas, `Enter`, `Esc`, seleção acessível, grupos e estado sem resultados;
+- Configurações recebeu busca útil durante o scroll, navegação mais compacta e ações com largura natural;
+- gráficos de Dashboard e Financeiro usam tokens nos eixos, grids, cursor e tooltip nos dois temas;
+- estados compartilhados de loading, vazio e erro usam superfícies e elevação consistentes.
+
+Arquivos de fundação:
+```text
+frontend/index.html
+frontend/src/main.tsx
+frontend/src/index.css
+frontend/src/features/theme/
+frontend/src/components/theme/ThemeToggle.tsx
+frontend/src/components/AsyncState.tsx
+frontend/src/components/PageHeader/
+frontend/src/components/Modal/index.tsx
+```
+
+Padrões duráveis de tema e carregamento:
+- o tema inicial é resolvido por um bootstrap síncrono no `<head>`, antes do carregamento do React e do CSS da aplicação;
+- `cfit_color_theme` aceita somente `light` ou `dark`; sem escolha persistida, usa-se `prefers-color-scheme`, sem gravar automaticamente essa preferência como decisão do usuário;
+- o bootstrap aplica `data-cfit-theme`, a classe `dark`, `color-scheme` e o fundo inicial no elemento raiz; o `ThemeProvider` parte desse mesmo estado para não produzir divergência na hidratação/renderização;
+- `html`, `body` e `#root` compartilham o canvas semântico desde o primeiro frame; durante o bootstrap, transições ficam desabilitadas e são liberadas no frame seguinte à montagem do React;
+- não substituir o bootstrap síncrono por efeito React, atraso artificial ou tela ocultada, pois isso reintroduz o clarão claro no modo noturno;
+- carregamentos de rota usam `AppBootSkeleton` antes da sessão e `ModuleSkeleton` dentro da área protegida; quando o perfil já existe, o `Suspense` interno preserva a Sidebar e a Topbar e substitui somente o conteúdo;
+- `AsyncState.tsx` centraliza blocos, cartões, tabelas, detalhes, formulários e fallback genérico de skeleton; skeletons são decorativos, enquanto o contêiner expõe `role="status"`, `aria-busy` e texto exclusivo para leitores de tela;
+- skeletons devem manter geometria responsiva próxima do conteúdo final, sem números ou registros simulados e sem overflow horizontal;
+- divisores de tabela usam `--cfit-table-divider`, separado das bordas de controles e superfícies; no modo noturno, o divisor deve permanecer mais discreto que o texto e que os estados de hover, seleção e foco;
+- animações compartilhadas usam `--cfit-motion-fast`, `--cfit-motion-base` e `--cfit-motion-ease`; modais, menus, busca e skeletons devem usar movimentos curtos, sem glow permanente e respeitar `prefers-reduced-motion`;
+- foco por teclado permanece visível com contorno e halo controlado; não remover o contorno nem representar estado somente por brilho ou cor.
+
+Validações desta etapa:
+- `npm run lint`: sem erros; cinco avisos de dependências de hooks já existentes fora do escopo visual;
+- `npm run build`: aprovado;
+- testes do frontend no contêiner oficial: `6` aprovados;
+- `git diff --check`: aprovado;
+- serviços Django, frontend e PostgreSQL permaneceram em execução;
+- nenhuma API, modelo, migração, regra de negócio ou dado foi alterado.
+
+Limitações e backlog visual deliberadamente não assumido nesta etapa:
+- modo compacto da Sidebar não foi criado porque a estrutura atual não possui uma fundação segura para ele;
+- tabelas específicas que não usam a tabela de alunos ainda devem migrar gradualmente para um componente compartilhado completo, incluindo densidade configurável;
+- rodapé fixo foi aplicado ao fluxo longo de cadastro de aluno; formulários especializados devem ser avaliados individualmente antes de generalizar a API do modal;
+- o diretório `frontend/src/theme/` anterior permanece como legado não importado; não removê-lo sem uma tarefa de limpeza explícita;
+- QA automatizado por screenshots autenticados não está configurado no repositório. A validação final em navegador real, com sessão e dados reais, permanece necessária para todas as rotas e larguras definidas antes de tratar a modernização visual completa como encerrada.
+
+---
+
+## 48.6 Refinamentos visuais pós-auditoria — 25/08/2026
+
+Esta rodada corrigiu problemas residuais da fundação visual sem alterar lógica funcional, backend, APIs, modelos, cálculos, permissões ou dados.
+
+Correções confirmadas:
+- tabelas internas prioritárias usam a classe compartilhada `cfit-data-table` e tokens próprios para linha normal, alternada, hover, seleção, foco e desabilitada;
+- a linha alternada noturna não depende mais de `odd:bg-slate-50/50`, evitando superfícies claras no tema escuro;
+- tabela de alunos, cobranças, recorrências, ficha financeira, check-ins e tabela de treinos aderem aos mesmos estados de linha;
+- chips financeiros, de Health Score, matrícula, recorrência, conciliação e status do aluno usam os tons semânticos compartilhados com texto, ponto indicador, altura e padding consistentes;
+- o rodapé fixo do cadastro de aluno usa `cfit-modal-footer`, baseado em `surface-elevated`, borda temática e sombra superior própria para cada tema;
+- o botão secundário compartilhado usa superfícies e bordas semânticas, preservando o contraste de `Cancelar` no rodapé noturno;
+- Dashboard substituiu valores e mensagens grandes de carregamento por skeletons estruturais para métricas, prioridade operacional, leituras financeira e da base, gráfico, pagamentos, check-ins e cobranças vencidas;
+- listagem de alunos e tabela financeira mantêm cabeçalho e geometria aproximada durante o loading;
+- skeleton compartilhado respeita `prefers-reduced-motion` através da fundação global;
+- seletor de tema ficou neutro em repouso, sem sombra ou glow permanente, mantendo hover, tooltip e focus ring;
+- contraste do token terciário foi elevado discretamente nos dois temas;
+- botão de fechar da command palette e botão de fechar do modal possuem `aria-label`, tooltip, área de 40 px e foco global visível;
+- scrollbars ganharam thumb ligeiramente mais largo e contrastado, incluindo hover e compatibilidade por `scrollbar-color` no Firefox;
+- gradiente claro do cabeçalho operacional foi dessaturado sem alterar altura ou composição.
+
+Causas dos defeitos críticos:
+- a zebra clara vinha da variante Tailwind `odd:bg-slate-50/50`; o seletor noturno anterior tratava `.bg-slate-50/50`, mas não a classe variante gerada com prefixo `odd:`;
+- o rodapé branco vinha de `bg-white/95` aplicado diretamente no `StudentForm`, variante que não fazia parte do mapeamento noturno de utilitários.
+
+Validações desta rodada:
+- `npm run lint`: sem erros; permanecem cinco avisos preexistentes de dependências de hooks;
+- checagem TypeScript executada por `npm run build`: aprovada;
+- build Vite de produção: aprovado;
+- testes do frontend no contêiner oficial: `6` aprovados;
+- `git diff --check`: aprovado;
+- containers frontend, Django e PostgreSQL ativos; frontend respondeu HTTP `200` e a raiz `/api/` respondeu `404` esperado por não ser um endpoint registrado.
+
+Limitação de QA:
+- o ambiente de execução continua sem navegador gráfico, Chromium, Playwright ou sessão autenticada disponível. Foi possível validar a aplicação real em execução, os estados no código, tokens compilados, responsividade declarada e navegação por teclado, mas não produzir screenshots autenticados nas matrizes de viewport. A inspeção humana final nos dois temas e nas alturas `900`, `768` e `640` px permanece necessária.
+
+---
+
+## 48.7 Consolidação dos dez pontos seguintes do roadmap — 25/08/2026
+
+Esta rodada auditou em conjunto P1.9, P1.11, P2.19, P2.21 a P2.24, P3.25, P3.26 e P3.28. Ela não substituiu módulos funcionais: consolidou as fundações existentes, corrigiu integrações desconectadas e completou preferências pessoais que não exigem novo domínio server-side.
+
+Estado confirmado por ponto:
+- permissões: a matriz backend continua como fonte de autorização e a política de rotas do frontend foi validada para perfis administrativos, operacionais e portal; homologação humana com seis contas reais ainda é necessária;
+- check-ins e dispositivos: monitor, diagnóstico, latência, estados `never_connected`, `online`, `offline` e `error`, webhook autenticado, idempotência e comandos de conectores possuem cobertura automatizada; homologação física Topdata/Control iD permanece externa;
+- relatórios: período e escopo estão explícitos, a exportação reflete o período ativo, contatos alimentam o histórico do aluno e visões pessoais reproduzíveis foram adicionadas;
+- planos e matrículas: prévia comercial, histórico, unidade, contrato e cobranças permanecem usando as fontes existentes; nenhuma regra comercial foi duplicada no frontend;
+- unidades: comparação consolidada continua servida pela API e respeita a unidade ativa e capacidades da sessão; normalização total depende do particionamento incremental de todos os domínios históricos;
+- Comercial e Turmas: origem do lead, conversão, capacidade, espera, presença, cancelamento e vínculo com unidade permanecem integrados às APIs operacionais;
+- Documentos: versões, validade, aceite imutável e acesso do portal permanecem vinculados ao aluno; armazenamento externo e assinatura qualificada não são apresentados como prontos;
+- Dashboard: seções opcionais podem ser ocultadas e restauradas sem alterar dados, escopo ou permissões;
+- relatórios salvos: nome, período, favoritos, visão padrão e exclusão confirmada persistem localmente, com escopo pessoal explícito;
+- portal: avaliações foram incorporadas à visão do aluno e os domínios passaram a ter loading, erro, retry, vazio e proteção contra ações concorrentes.
+
+Decisões duráveis desta etapa:
+- preferências exclusivamente visuais podem usar armazenamento local quando o escopo for identificado como pessoal neste navegador e houver restauração do padrão;
+- preferências locais nunca concedem capacidade, revelam rota proibida ou alteram o escopo confiável de academia/unidade;
+- visões salvas devem armazenar filtros reproduzíveis, não resultados calculados, para evitar dados obsoletos;
+- o Portal consome as mesmas fontes administrativas e o backend filtra sempre pelo `portal_student`; o frontend não recebe identificador livre para escolher outro aluno;
+- linhas da tabela de alunos aplicam `--cfit-table-divider` diretamente e não dependem de utilitários `divide-slate-*`; isso evita divisores claros residuais entre alunos no modo noturno;
+- integração com equipamento físico, assinatura qualificada, compartilhamento entre usuários e particionamento histórico completo não podem ser marcados como concluídos apenas por simulação ou persistência local.
+
+Validações desta consolidação:
+- `npm run lint`: sem erros; cinco avisos preexistentes de dependências de hooks;
+- `npx tsc --noEmit`: aprovado;
+- testes do frontend: `9` aprovados;
+- build Vite de produção: aprovado;
+- suíte integrada Django: `116` testes aprovados;
+- `python manage.py check`: aprovado;
+- `makemigrations --check --dry-run`: nenhuma alteração pendente.
 
 ---
 

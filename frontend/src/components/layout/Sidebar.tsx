@@ -17,10 +17,10 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 
 import Logo from "@/components/branding/Logo";
 import {
@@ -93,6 +93,8 @@ type SidebarProps = {
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const profile = useSession();
+  const location = useLocation();
+  const navigationRef = useRef<HTMLElement>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
   >({});
@@ -115,6 +117,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     favorites.includes(item.path),
   );
 
+  useEffect(() => {
+    navigationRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }, [location.pathname]);
+
   function toggleFavorite(path: string) {
     setFavorites((current) => {
       const next = current.includes(path)
@@ -136,7 +142,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           to={item.path}
           onClick={onClose}
           className={({ isActive }) =>
-            `group flex h-10 w-full items-center gap-3 overflow-hidden rounded-xl px-3.5 pr-9 text-[13px] font-semibold transition-all duration-200 ${isActive ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-[0_14px_30px_-16px_rgba(37,99,235,0.9)]" : "text-slate-400 hover:bg-white/[0.055] hover:text-slate-100"}`
+            `group flex h-10 w-full items-center gap-3 overflow-hidden rounded-xl px-3.5 pr-9 text-[13px] font-semibold outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-cyan-300/70 ${isActive ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-[0_14px_30px_-16px_rgba(37,99,235,0.9)]" : "text-slate-300 hover:bg-white/[0.065] hover:text-white"}`
           }
         >
           <Icon size={18} strokeWidth={2} className="shrink-0" />
@@ -147,7 +153,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             type="button"
             onClick={() => toggleFavorite(item.path)}
             aria-label={`${favorites.includes(item.path) ? "Remover" : "Adicionar"} ${item.title} dos favoritos`}
-            className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md transition ${favorites.includes(item.path) ? "text-cyan-300" : "text-slate-600 opacity-0 group-hover/item:opacity-100"}`}
+            className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md transition focus:opacity-100 focus-visible:ring-2 focus-visible:ring-cyan-300/70 ${favorites.includes(item.path) ? "text-cyan-300" : "text-slate-500 opacity-0 group-hover/item:opacity-100"}`}
           >
             <Star
               size={13}
@@ -204,7 +210,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="relative min-h-0 flex-1 overflow-y-auto px-4 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav ref={navigationRef} className="relative min-h-0 flex-1 overflow-y-auto px-4 py-5">
           <div className="space-y-4">
             {quickItems.length > 0 && (
               <section>

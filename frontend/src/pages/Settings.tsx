@@ -302,8 +302,10 @@ export default function Settings() {
       <PageHeader
         title="Configurações"
         subtitle={`Parâmetros organizados por área e impacto operacional${me?.role_label ? ` · ${me.role_label}` : ""}.`}
+        eyebrow="Estrutura da operação"
+        context="Regras, acesso e governança"
       />
-      <div className="relative mb-5">
+      <div className="sticky top-0 z-20 mb-5 bg-[#f4f7fb]/90 py-2 backdrop-blur-md dark:bg-[#07101f]/90">
         <Search
           size={17}
           className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -374,7 +376,7 @@ export default function Settings() {
                 type="button"
                 disabled={savingAcademy}
                 onClick={saveAcademy}
-                className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white disabled:opacity-60 md:col-span-2"
+                className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white disabled:opacity-60 md:col-span-2 md:justify-self-end"
               >
                 {savingAcademy ? "Salvando..." : "Salvar dados da academia"}
               </button>
@@ -400,7 +402,7 @@ export default function Settings() {
           <a
             href={item.id === "plans" ? "/plans" : `#${item.id}`}
             key={item.title}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[var(--cfit-shadow-card)] transition hover:-translate-y-0.5 hover:border-blue-300"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
               <Icon size={20} />
@@ -495,7 +497,7 @@ export default function Settings() {
             <button
               type="button"
               onClick={saveOperationalSettings}
-              className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white md:col-span-2"
+              className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white md:col-span-2 md:justify-self-end"
             >
               Salvar regras operacionais
             </button>
@@ -575,7 +577,7 @@ export default function Settings() {
               disabled={
                 !invite.name || !invite.email || invite.password.length < 8
               }
-              className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white disabled:opacity-50 xl:col-span-5"
+              className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white disabled:opacity-50 xl:col-span-5 xl:justify-self-end"
             >
               Criar acesso
             </button>

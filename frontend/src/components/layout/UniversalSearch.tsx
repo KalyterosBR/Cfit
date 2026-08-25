@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { CalendarPlus, CreditCard, Dumbbell, Search, UserPlus, Users, WalletCards, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -26,9 +26,10 @@ export default function UniversalSearch() {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(0);
 
     useEffect(() => {
-        const handleShortcut = (event: KeyboardEvent) => {
+        const handleShortcut = (event: globalThis.KeyboardEvent) => {
             if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
                 event.preventDefault();
                 setOpen(true);
@@ -83,6 +84,25 @@ export default function UniversalSearch() {
 
     const visibleActions = useMemo(() => actions.filter(action => hasAccess(profile.capabilities, routeAccess[`/${action.href.split("/")[1].split("?")[0]}`])).filter((action) => !query.trim() || `${action.title} ${action.detail}`.toLowerCase().includes(query.toLowerCase())), [profile.capabilities, query]);
     const go = (href: string) => { setOpen(false); setQuery(""); navigate(href); };
+    const commandItems = useMemo(() => [
+        ...visibleActions.map((action) => ({ href: action.href, title: action.title })),
+        ...(query.trim().length >= 2 ? results.map((result) => ({ href: result.href, title: result.title })) : []),
+    ], [query, results, visibleActions]);
+
+    useEffect(() => setActiveIndex(0), [open, query]);
+
+    function handleCommandKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setActiveIndex((current) => commandItems.length === 0 ? 0 : (current + 1) % commandItems.length);
+        } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setActiveIndex((current) => commandItems.length === 0 ? 0 : (current - 1 + commandItems.length) % commandItems.length);
+        } else if (event.key === "Enter" && commandItems[activeIndex]) {
+            event.preventDefault();
+            go(commandItems[activeIndex].href);
+        }
+    }
 
     return <>
         <button type="button" onClick={() => setOpen(true)} className="hidden h-10 w-[min(24vw,320px)] items-center gap-3 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3.5 text-xs font-medium text-slate-400 transition hover:bg-white md:flex">
@@ -90,11 +110,11 @@ export default function UniversalSearch() {
         </button>
         <button type="button" onClick={() => setOpen(true)} aria-label="Buscar no Cfit" className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-blue-50 hover:text-blue-600 md:hidden"><Search size={18} /></button>
         {open && <div className="fixed inset-0 z-[80] flex items-start justify-center bg-slate-950/55 px-4 pt-[10vh] backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-            <div role="dialog" aria-modal="true" aria-label="Busca e comandos do Cfit" className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                <div className="flex items-center gap-3 border-b px-4"><Search size={19} className="text-blue-600" /><input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Busque alunos, matrículas, finanças, acessos ou agenda..." className="h-14 flex-1 outline-none" /><button type="button" onClick={() => setOpen(false)} aria-label="Fechar"><X size={19} /></button></div>
-                <div className="max-h-[60vh] overflow-y-auto p-3">
-                    {visibleActions.length > 0 && <><p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Ações rápidas</p>{visibleActions.map(({ icon: Icon, ...action }) => <button key={action.href} type="button" onClick={() => go(action.href)} className="flex w-full items-center gap-3 rounded-xl p-3 text-left hover:bg-blue-50"><span className="rounded-lg bg-blue-100 p-2 text-blue-700"><Icon size={16} /></span><span><strong className="block text-sm text-slate-900">{action.title}</strong><small className="text-slate-500">{action.detail}</small></span></button>)}</>}
-                    {query.trim().length >= 2 && <><p className="px-2 pb-2 pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Resultados</p>{loading ? <p className="p-4 text-sm text-slate-500">Buscando...</p> : results.length === 0 ? <p className="p-4 text-sm text-slate-500">Nenhum resultado encontrado.</p> : results.map((result) => <button key={`${result.kind}-${result.id}`} type="button" onClick={() => go(result.href)} className="flex w-full items-center gap-3 rounded-xl p-3 text-left hover:bg-slate-50"><Users size={17} className="text-slate-400" /><span className="flex-1"><strong className="block text-sm text-slate-900">{result.title}</strong><small className="text-slate-500">{result.detail}</small></span><span className="text-[10px] font-bold uppercase text-blue-600">{result.kind}</span></button>)}</>}
+            <div role="dialog" aria-modal="true" aria-label="Busca e comandos do Cfit" className="cfit-floating-panel w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--cfit-shadow-elevated)]">
+                <div className="flex items-center gap-3 border-b px-4"><Search size={19} className="text-blue-600" /><input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleCommandKeyDown} aria-controls="cfit-command-results" aria-activedescendant={commandItems[activeIndex] ? `cfit-command-${activeIndex}` : undefined} placeholder="Busque alunos, matrículas, finanças, acessos ou agenda..." className="h-14 flex-1 outline-none" /><kbd className="hidden rounded border border-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-500 sm:block">Esc</kbd><button type="button" onClick={() => setOpen(false)} aria-label="Fechar" title="Fechar" className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"><X size={19} /></button></div>
+                <div id="cfit-command-results" role="listbox" className="max-h-[min(60vh,32rem)] overflow-y-auto p-3">
+                    {visibleActions.length > 0 && <><p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Ações rápidas</p>{visibleActions.map(({ icon: Icon, ...action }, index) => <button id={`cfit-command-${index}`} role="option" aria-selected={activeIndex === index} key={action.href} type="button" onMouseEnter={() => setActiveIndex(index)} onClick={() => go(action.href)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left ${activeIndex === index ? "bg-blue-50 text-blue-800" : "hover:bg-blue-50"}`}><span className="rounded-lg bg-blue-100 p-2 text-blue-700"><Icon size={16} /></span><span><strong className="block text-sm text-slate-900">{action.title}</strong><small className="text-slate-600">{action.detail}</small></span><span className="ml-auto text-[10px] font-bold uppercase text-blue-600">Ação</span></button>)}</>}
+                    {query.trim().length >= 2 && <><div className="mx-2 mt-3 border-t border-slate-200 pt-4"><p className="pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Resultados</p></div>{loading ? <p className="p-4 text-sm text-slate-500">Buscando...</p> : results.length === 0 ? <p className="p-4 text-sm text-slate-500">Nenhum resultado encontrado para “{query.trim()}”.</p> : results.map((result, resultIndex) => { const index = visibleActions.length + resultIndex; return <button id={`cfit-command-${index}`} role="option" aria-selected={activeIndex === index} key={`${result.kind}-${result.id}`} type="button" onMouseEnter={() => setActiveIndex(index)} onClick={() => go(result.href)} className={`flex w-full items-center gap-3 rounded-xl p-3 text-left ${activeIndex === index ? "bg-blue-50" : "hover:bg-slate-50"}`}><Users size={17} className="text-slate-500" /><span className="flex-1"><strong className="block text-sm text-slate-900">{result.title}</strong><small className="text-slate-600">{result.detail}</small></span><span className="text-[10px] font-bold uppercase text-blue-600">{result.kind}</span></button>; })}</>}
                 </div>
             </div>
         </div>}

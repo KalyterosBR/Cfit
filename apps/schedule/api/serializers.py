@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from rest_framework import serializers
 from apps.schedule.models import ScheduleEvent
 from apps.users.permissions import get_request_scope
@@ -45,4 +47,30 @@ class ScheduleEventSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"location": "A sala ou local já está ocupado neste horário."})
         if attrs.get("recurrence_count", getattr(self.instance, "recurrence_count", 1)) > 52:
             raise serializers.ValidationError({"recurrence_count": "Crie no máximo 52 ocorrências por série."})
+        recurrence = attrs.get("recurrence", getattr(self.instance, "recurrence", "none"))
+        recurrence_count = attrs.get("recurrence_count", getattr(self.instance, "recurrence_count", 1))
+        if not self.instance and recurrence != "none" and recurrence_count > 1 and start and end and unit:
+            interval = timedelta(days=1 if recurrence == "daily" else 7)
+            for offset in range(1, recurrence_count):
+                occurrence_start = start + interval * offset
+                occurrence_end = end + interval * offset
+                if ScheduleEvent.objects.filter(
+                    unit=unit,
+                    professional=professional,
+                    starts_at__lt=occurrence_end,
+                    ends_at__gt=occurrence_start,
+                ).exclude(status=ScheduleEvent.Status.CANCELED).exists():
+                    raise serializers.ValidationError({
+                        "recurrence_count": f"A ocorrência {offset + 1} conflita com outro compromisso do profissional.",
+                    })
+                location = attrs.get("location", "")
+                if location and ScheduleEvent.objects.filter(
+                    unit=unit,
+                    location__iexact=location,
+                    starts_at__lt=occurrence_end,
+                    ends_at__gt=occurrence_start,
+                ).exclude(status=ScheduleEvent.Status.CANCELED).exists():
+                    raise serializers.ValidationError({
+                        "recurrence_count": f"A ocorrência {offset + 1} conflita com a ocupação da sala ou local.",
+                    })
         return attrs
