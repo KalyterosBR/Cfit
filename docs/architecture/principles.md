@@ -1,103 +1,57 @@
-﻿# CFIT - Princípios da Arquitetura
+# Princípios da arquitetura
 
-> Este documento define as regras de desenvolvimento do CFIT.
-> Sempre que houver dúvida sobre uma decisão técnica, consulte este documento antes de implementar.
+## Regras do sistema e da academia
 
----
+Regras de integridade, segurança, autorização, auditoria e isolamento pertencem ao Cfit. Regras comerciais e operacionais que variam por academia devem ser configuráveis quando houver necessidade real.
 
-# 1. Regras do Sistema
+Exemplos de invariantes do sistema:
 
-As regras técnicas pertencem ao CFIT e não podem ser alteradas pela academia.
+- identidade única e relacionamentos íntegros;
+- backend como fonte de autorização;
+- isolamento entre academias, unidades e alunos;
+- preservação de histórico;
+- secrets fora do código e do frontend;
+- ações sensíveis auditáveis.
 
-Exemplos:
+Exemplos configuráveis:
 
-- CPF único.
-- Integridade dos dados.
-- Logs obrigatórios.
-- Auditoria.
-- Permissões.
-- Segurança.
-- Relacionamentos entre entidades.
+- tolerância financeira;
+- condições de plano e fidelidade;
+- regras de congelamento/cancelamento;
+- política e horários de acesso;
+- motivos operacionais;
+- automações habilitadas.
 
----
+Não transforme toda possibilidade futura em configuração antecipada. Configuração também tem custo de produto, validação e manutenção.
 
-# 2. Regras da Academia
+## Evolução incremental
 
-As regras comerciais pertencem à academia e devem ser configuráveis.
+- Entregue etapas pequenas, completas e testáveis.
+- Não crie módulos vazios ou grandes abstrações preventivas.
+- Preserve contratos funcionais durante a evolução.
+- Migrações devem tratar dados existentes explicitamente.
+- Multiunidade é uma evolução por domínio, não uma flag global presumida.
 
-Exemplos:
+## Responsabilidades claras
 
-- Cobrar matrícula.
-- Valor da matrícula.
-- Fidelidade.
-- Multa por quebra de fidelidade.
-- Congelamento.
-- Dias permitidos.
-- Horários permitidos.
-- Quantidade de check-ins.
-- Benefícios do plano.
-- Reajuste de mensalidades.
-- Promoções.
+Models preservam estado e invariantes; serializers validam contratos; selectors concentram consultas reutilizáveis; services executam operações; views autorizam e orquestram HTTP. No frontend, páginas compõem módulos, features concentram domínios e componentes compartilhados só existem quando há reutilização real.
 
----
+Essa organização é uma orientação, não uma exigência de pastas vazias ou uma classe por arquivo.
 
-# 3. Configuração antes de Programação
+## Fonte de verdade
 
-Sempre que possível:
+- código e constraints: comportamento executável;
+- testes: exemplos verificáveis do contrato;
+- `docs/`: visão geral técnica e de produto;
+- `AGENTS.md`: regras e estado operacional para desenvolvimento assistido;
+- ADRs: decisões duráveis com alternativas relevantes.
 
-Não criar regras fixas.
+Quando houver divergência, investigue antes de sobrescrever e atualize a documentação junto com a correção.
 
-Criar configurações.
+## Experiência e acessibilidade
 
----
+O sistema deve explicar o que aconteceu, por que aconteceu e qual é a próxima ação. Carregamento, vazio, erro, bloqueio e falta de permissão não são o mesmo estado. Interface responsiva, foco visível, contraste e redução de movimento são requisitos, não acabamento opcional.
 
-# 4. Simplicidade
+## Auditabilidade e integrações
 
-Não criar abstrações sem necessidade.
-
-Toda abstração deve resolver um problema real.
-
----
-
-# 5. Módulos
-
-Nenhum módulo nasce vazio.
-
-O módulo só é criado quando houver desenvolvimento.
-
----
-
-# 6. Arquitetura
-
-Todo módulo deve seguir a arquitetura oficial do CFIT.
-
-
-module/
-│
-├── api/
-├── models/
-├── services/
-├── validators/
-├── migrations/
-│
-├── serializers.py
-├── selectors.py
-├── admin.py
-├── apps.py
-├── constants.py
-└── init.py
-
-
----
-
-# 7. Filosofia
-
-O CFIT deve se adaptar à academia.
-
-A academia não deve precisar se adaptar ao CFIT.
-
-Sempre que surgir uma nova regra de negócio, a primeira pergunta deve ser:
-
-> Isso é uma regra do sistema ou uma regra da academia?
-
-Se for uma regra da academia, ela deve ser configurável.
+Integrações devem tolerar repetição de eventos e expor diagnóstico sem vazar segredo. Simuladores comprovam contratos internos, não o comportamento do fornecedor. A homologação externa continua obrigatória.

@@ -1,28 +1,25 @@
-## Entidade: Matrícula
+# Entidade: Matrícula
 
-Representa o vínculo entre um aluno e um plano.
+Representa o vínculo comercial e temporal entre aluno e plano.
 
-### Campos
+Campos atuais relevantes:
 
-- id
-- aluno_id
-- plano_id
-- unidade_id
-- valor_contratado
-- data_inicio
-- data_vencimento
-- status
-- forma_cobranca
-- observacoes
+- aluno, plano e unidade;
+- preço original, preço contratado, desconto e justificativa;
+- início, vencimento e forma de cobrança;
+- estado: ativa, congelada, cancelada, encerrada ou vencida;
+- snapshot, versão, data e responsável pelo aceite contratual;
+- criador, observações e motivo de cancelamento;
+- congelamento até uma data e vínculo com matrícula renovada.
 
-### Regras
+## Regras
 
-- Um aluno pode possuir várias matrículas.
-- Cada matrícula possui seu próprio histórico.
-- O valor contratado é preservado, mesmo que o plano seja alterado futuramente.
-- A matrícula pode ser:
-  - Ativa
-  - Congelada
-  - Cancelada
-  - Encerrada
-  - Vencida
+- aluno pode possuir mais de uma matrícula, mas não duas ativas/congeladas para o mesmo plano;
+- preço e contrato aceitos são preservados mesmo que o plano seja alterado;
+- prévia comercial deve coincidir com as cobranças geradas;
+- renovação, congelamento e cancelamento preservam histórico;
+- cancelamento exige motivo no fluxo operacional;
+- relacionamentos críticos usam proteção contra exclusão destrutiva;
+- disponibilidade e escopo por unidade evoluem sem contaminar dados de outra academia.
+
+Históricos e auditorias comerciais complementam o estado atual da matrícula.

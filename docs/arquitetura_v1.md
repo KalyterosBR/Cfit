@@ -1,35 +1,27 @@
-# Arquitetura do CFIT — Versão 1
+# Arquitetura do Cfit — referência histórica e atual
 
-## Objetivo do Sistema
+Este arquivo era a primeira visão arquitetural do projeto. A referência canônica atual é [architecture/overview.md](architecture/overview.md).
 
-Criar uma plataforma SaaS para gerenciamento de academias, estúdios e unidades fitness.
+Princípios que permanecem válidos:
 
-## Filosofia do Projeto
+- segurança e auditabilidade;
+- evolução incremental;
+- código legível e responsabilidades claras;
+- preparação para múltiplas academias e unidades;
+- histórico operacional preservado;
+- interface responsiva e consistente.
 
-- Arquitetura escalável.
-- Código limpo e organizado.
-- Fácil manutenção.
-- Interface moderna e intuitiva.
-- Sistema SaaS.
-- Segurança em primeiro lugar.
-- Auditoria completa.
-- Preparado para expansão.
+Evoluções desde a versão inicial:
 
-## Estrutura da documentação
+- o frontend é React + TypeScript + Vite, não Django Templates;
+- a API Django REST Framework é privada por padrão e usa JWT;
+- existem módulos funcionais para todos os principais domínios operacionais;
+- RBAC, unidade ativa, Portal do aluno, automações e integrações possuem fundações próprias;
+- temas claro/escuro usam tokens e bootstrap antes da renderização.
 
-### Entidades
+Entidades principais documentadas:
 
-- Academia → `docs/entidades/academia.md`
-- Usuário → `docs/entidades/usuario.md`
-- Aluno → `docs/entidades/aluno.md`
-- Matrícula → `docs/entidades/matricula.md`
-
-### Próximas entidades
-
-- Plano
-- Pagamento
-- Acesso
-- Unidade
-- Agendamento
-- Aviso
-- Auditoria
+- [Academia e unidade](entidades/academia.md)
+- [Usuário e vínculo](entidades/usuario.md)
+- [Aluno](entidades/aluno.md)
+- [Matrícula](entidades/matricula.md)

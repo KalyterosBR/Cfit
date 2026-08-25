@@ -1,36 +1,37 @@
-# Fechamento dos 28 pontos do roadmap
+# Fechamento das fundações operacionais
 
-Esta lista registra o critério técnico entregue. “Concluído internamente” significa que existe fluxo persistido, permissão e contrato testável no Cfit; não substitui homologação com fornecedores.
+Este documento registra entregas internas já existentes. “Implementado” significa fluxo e contrato presentes no Cfit; não substitui homologação com fornecedor, equipamento ou infraestrutura definitiva.
 
-1. CRM: cadastro e edição de oportunidades.
-2. CRM: etapas, próxima ação, perda com motivo e auditoria.
-3. CRM: conversão segura em aluno.
-4. CRM: totais e taxa de conversão.
-5. Turmas: criação, capacidade e inscrição.
-6. Turmas: lista de espera e promoção automática.
-7. Turmas: chamada com presença, ausência e cancelamento.
-8. Turmas: cancelamento coletivo e duplicação de horário.
-9. Portal: planos, cobranças, check-ins, avaliações e treino.
-10. Portal: reserva e cancelamento de aulas.
-11. Portal: atualização limitada de contato.
-12. Documentos: operação administrativa pesquisável por aluno.
-13. Documentos: versões automáticas, validade e alertas.
-14. Documentos: aceite digital com data, nome e IP.
-15. Comunicação: sandbox, e-mail Django e WhatsApp HTTP.
-16. Comunicação: templates e agendamento persistidos.
-17. Comunicação: tentativas, reprocessamento e webhook de entrega.
-18. Dispositivos: webhook autenticado e idempotente.
-19. Dispositivos: heartbeat, diagnóstico e detecção de offline.
-20. Segurança: 2FA por código de e-mail.
-21. Segurança: listagem e revogação de sessões JWT.
-22. Governança: transferência transacional de propriedade.
-23. Segurança: bloqueio temporário após tentativas de login.
-24. Pagamentos: contrato sandbox/HTTP para Pix e link de pagamento.
-25. Pagamentos: webhook autenticado e idempotente para baixa/estorno.
-26. Relatórios: receita, inadimplência, retenção, conversão, ocupação, documentos e unidades.
-27. Produção: health check, request ID, rotina operacional e runbook de backup/deploy.
-28. Qualidade: CI, testes automatizados e roteiro final de homologação.
+## Produto e operação
 
-## Limite da conclusão interna
+- CRM com etapas, origem, próxima ação, perda e conversão em aluno;
+- Turmas com capacidade, espera, promoção, presença e cancelamento;
+- Portal com dados próprios, treino, financeiro, acessos, avaliações, documentos e reservas;
+- documentos com versão, validade e aceite interno auditável;
+- campanhas com consentimento, fila, tentativas, sandbox e adaptadores;
+- dispositivos com webhook autenticado, idempotência, heartbeat, diagnóstico e comandos;
+- segurança com JWT, Turnstile, 2FA, sessões, troca/recuperação e transferência de propriedade;
+- financeiro com cobranças, pagamento, recorrência, conciliação, caixa, inconsistências e webhooks;
+- relatórios com escopo, período, retenção, comparação, CSV e preferências pessoais;
+- Dashboard com dados reais disponíveis, metas, visão por função e personalização básica;
+- tema antes do primeiro frame, estados compartilhados e consistência claro/escuro;
+- health check, request ID, rotinas operacionais e runbook.
 
-Turnstile, SMTP, WhatsApp, gateway financeiro, catracas, DNS/HTTPS, armazenamento de backup e alertas exigem contas ou infraestrutura externas. Os contratos e adaptadores estão no Cfit, mas a aprovação final depende dos cenários descritos em `homologacao-final.md`.
+## Qualidade validada em 25/08/2026
+
+- 116 testes Django;
+- 9 testes frontend;
+- TypeScript e build aprovados;
+- lint sem erros e com 5 avisos conhecidos;
+- nenhuma migração pendente.
+
+## Não encerrado externamente
+
+- homologação física Topdata/Control iD;
+- Turnstile, SMTP, WhatsApp e gateway em ambiente definitivo;
+- DNS, HTTPS, proxy, backup externo e alertas;
+- particionamento histórico completo por unidade;
+- screenshots autenticados e homologação humana de todos os perfis;
+- assinatura eletrônica qualificada.
+
+As próximas prioridades estão em [roadmap.md](roadmap.md) e os cenários de liberação em [homologacao-final.md](homologacao-final.md).

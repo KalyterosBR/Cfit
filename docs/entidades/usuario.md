@@ -1,28 +1,32 @@
-# Entidade: Usuário
+# Entidades: Usuário e vínculo com academia
 
-Representa os funcionários que acessam o sistema.
+## Usuário
 
-### Campos
+`users.User` é o modelo de autenticação do Django.
 
-- id
-- academia_id
-- unidade_id
-- nome
-- cpf
-- email
-- senha
-- perfil
-- status
-- data_cadastro
-- ultimo_acesso
+- login por e-mail único;
+- telefone e foto opcionais;
+- troca obrigatória de senha quando `must_change_password`;
+- marcação de conta exclusiva do Portal;
+- opção de 2FA;
+- senha armazenada somente pelo mecanismo seguro do Django.
 
-### Regras
+## AcademyUser
 
-- Cada usuário pertence a uma academia.
-- Cada usuário pertence inicialmente a uma única unidade.
-- O login poderá ser feito com CPF ou e-mail.
-- CPF e e-mail devem ser únicos.
-- Um administrador pode criar outro administrador.
-- Apenas administradores podem redefinir senhas.
-- O Super Administrador pode acessar academias para suporte.
-- Todas as ações importantes devem ser registradas em auditoria.
+Vincula usuário e academia e define:
+
+- perfil: Proprietário, Administrador, Gerente, Recepção, Professor ou Financeiro;
+- unidade ativa;
+- vínculo ativo;
+- data de entrada;
+- unicidade do par academia/usuário.
+
+Capacidades são derivadas no backend a partir do perfil. Proprietário e Administrador possuem todas as capacidades na matriz atual; os demais recebem conjuntos operacionais específicos. Contas administrativas antigas sem vínculo possuem compatibilidade temporária documentada no código.
+
+## Portal do aluno
+
+Conta marcada como `is_student_portal` recebe somente `portal.view` e é vinculada por `Student.portal_user`. Ela não herda acesso administrativo.
+
+## Auditoria e sessões
+
+Alterações administrativas relevantes usam `AdministrativeAudit`, com ator, ação, entidade, estados anterior/novo, motivo, origem e data. Sessões JWT podem ser listadas e revogadas; transferência de propriedade é uma ação sensível e transacional.
