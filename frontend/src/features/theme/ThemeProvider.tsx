@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import {
     ThemeContext,
@@ -11,6 +11,7 @@ import {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setTheme] = useState<ColorTheme>(getInitialTheme);
+    const transitionFrame = useRef<number | null>(null);
 
     useLayoutEffect(() => {
         const root = document.documentElement;
@@ -19,7 +20,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         root.style.colorScheme = theme;
     }, [theme]);
 
+    useEffect(() => () => {
+        if (transitionFrame.current !== null) {
+            window.cancelAnimationFrame(transitionFrame.current);
+        }
+        document.documentElement.classList.remove("cfit-theme-changing");
+    }, []);
+
     const toggleTheme = useCallback(() => {
+        const root = document.documentElement;
+        root.classList.add("cfit-theme-changing");
+        if (transitionFrame.current !== null) {
+            window.cancelAnimationFrame(transitionFrame.current);
+        }
+
         setTheme((current) => {
             const nextTheme = current === "light" ? "dark" : "light";
             try {
@@ -28,6 +42,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
                 // A troca continua válida durante a sessão quando o storage é bloqueado.
             }
             return nextTheme;
+        });
+
+        transitionFrame.current = window.requestAnimationFrame(() => {
+            transitionFrame.current = window.requestAnimationFrame(() => {
+                root.classList.remove("cfit-theme-changing");
+                transitionFrame.current = null;
+            });
         });
     }, []);
 

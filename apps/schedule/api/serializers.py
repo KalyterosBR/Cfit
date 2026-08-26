@@ -10,11 +10,37 @@ class ScheduleEventSerializer(serializers.ModelSerializer):
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     student_name = serializers.CharField(source="student.name", read_only=True)
     professional_name = serializers.CharField(source="professional.email", read_only=True)
+    group_class_id = serializers.UUIDField(source="group_class.id", read_only=True)
+    group_class_modality = serializers.CharField(source="group_class.modality", read_only=True)
+    capacity = serializers.IntegerField(source="group_class.capacity", read_only=True)
+    confirmed_count = serializers.SerializerMethodField()
+    waitlist_count = serializers.SerializerMethodField()
+    available_spots = serializers.SerializerMethodField()
 
     class Meta:
         model = ScheduleEvent
         fields = "__all__"
         extra_kwargs = {"professional": {"required": False}}
+
+    def _group_class(self, obj):
+        try:
+            return obj.group_class
+        except ScheduleEvent.group_class.RelatedObjectDoesNotExist:
+            return None
+
+    def get_confirmed_count(self, obj):
+        group_class = self._group_class(obj)
+        return group_class.bookings.filter(status__in=["confirmed", "attended"]).count() if group_class else None
+
+    def get_waitlist_count(self, obj):
+        group_class = self._group_class(obj)
+        return group_class.bookings.filter(status="waitlist").count() if group_class else None
+
+    def get_available_spots(self, obj):
+        group_class = self._group_class(obj)
+        if not group_class:
+            return None
+        return max(group_class.capacity - self.get_confirmed_count(obj), 0)
 
     def validate(self, attrs):
         start = attrs.get("starts_at", getattr(self.instance, "starts_at", None))

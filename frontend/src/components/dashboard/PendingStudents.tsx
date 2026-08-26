@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SkeletonBlock } from "@/components/AsyncState";
+import RecordList from "@/components/RecordList";
 
 import type { Charge } from "@/features/students/services/financial.service";
 
@@ -62,14 +63,14 @@ export default function PendingStudents({
             </div>
 
             {loading ? (
-                <div className="divide-y divide-slate-100" aria-label="Carregando cobranças vencidas" aria-busy="true">
+                <RecordList aria-label="Carregando cobranças vencidas" aria-busy="true">
                     {[1, 2, 3].map((item) => (
                         <div key={item} className="flex h-[4.5rem] items-center justify-between gap-4">
                             <div className="flex-1"><SkeletonBlock className="h-3 w-32" /><SkeletonBlock className="mt-2 h-2.5 w-28" /></div>
                             <SkeletonBlock className="h-3 w-20" />
                         </div>
                     ))}
-                </div>
+                </RecordList>
             ) : error ? (
                 <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
                     <p>Não foi possível carregar as cobranças vencidas.</p>
@@ -86,7 +87,7 @@ export default function PendingStudents({
                     Nenhuma cobrança vencida requer atenção agora.
                 </div>
             ) : (
-                <div className="divide-y divide-slate-100">
+                <RecordList>
                     {charges.map((charge) => {
                         const daysLate = getDaysLate(charge.due_date);
 
@@ -119,7 +120,7 @@ export default function PendingStudents({
                             </Link>
                         );
                     })}
-                </div>
+                </RecordList>
             )}
         </div>
     );

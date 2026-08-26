@@ -1531,7 +1531,7 @@ export default function StudentDetailsPage() {
                                                         </tr>
                                                     </thead>
 
-                                                    <tbody className="divide-y divide-slate-100">
+                                                    <tbody className="cfit-record-list">
                                                         {charges.map((charge) => (
                                                             <tr
                                                                 key={charge.id}
@@ -1702,7 +1702,7 @@ export default function StudentDetailsPage() {
                                                     </tr>
                                                 </thead>
 
-                                                <tbody className="divide-y divide-slate-100">
+                                                <tbody className="cfit-record-list">
                                                     {checkIns.map((checkIn) => (
                                                         <tr
                                                             key={checkIn.id}
@@ -1859,7 +1859,10 @@ export default function StudentDetailsPage() {
                                                     >
                                                         {/* LINHA DA TIMELINE */}
                                                         {!isLast && (
-                                                            <div className="absolute left-[21px] top-11 h-[calc(100%-20px)] w-px bg-slate-200" />
+                                                            <div
+                                                                aria-hidden="true"
+                                                                className="absolute bottom-1 left-[21px] top-12 w-px bg-slate-200"
+                                                            />
                                                         )}
 
                                                         {/* ÍCONE */}

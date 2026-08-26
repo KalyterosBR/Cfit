@@ -5,9 +5,11 @@ from rest_framework.test import APITestCase
 
 from apps.academy.models import Academy, Unit
 from apps.checkins.models import CheckIn
-from apps.operations.models import ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, Lead, MessageDelivery, OnboardingProgress, PhysicalAssessment
+from apps.operations.models import ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, MessageDelivery, OnboardingProgress, OperationalIssue, PhysicalAssessment
+from apps.schedule.models import ScheduleEvent
 from apps.students.models import Student
-from apps.users.models import AcademyUser
+from apps.users.models import AcademyUser, AdministrativeAudit
+from apps.workouts.models import WorkoutPlan
 
 
 class OperationsApiTests(APITestCase):
@@ -27,6 +29,18 @@ class OperationsApiTests(APITestCase):
         self.assertTrue(CheckIn.objects.filter(student=self.student, equipment="Simulador recepção").exists())
         monitor = self.client.get(reverse("access-device-monitor"))
         self.assertEqual(monitor.data["events"][0]["student_name"], self.student.name)
+
+    def test_operational_central_syncs_and_resolves_issue_with_history(self):
+        response = self.client.get(reverse("operational-issue-list"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        issue = OperationalIssue.objects.filter(source="retention", source_key=f"student:{self.student.id}").first()
+        self.assertIsNotNone(issue)
+        updated = self.client.patch(reverse("operational-issue-detail", args=[issue.id]), {
+            "status": "resolved", "resolution": "Contato realizado e retorno agendado.",
+        }, format="json")
+        self.assertEqual(updated.status_code, status.HTTP_200_OK)
+        self.assertEqual(updated.data["status"], "resolved")
+        self.assertGreaterEqual(len(updated.data["history"]), 2)
 
     def test_campaign_prepares_audience_without_delivery(self):
         self.student.whatsapp_opt_in = True
@@ -61,6 +75,25 @@ class OperationsApiTests(APITestCase):
         comparison = self.client.get(reverse("assessment-comparison"), {"student": self.student.id})
         self.assertEqual(comparison.data["change"]["weight_kg"], -5.0)
 
+    def test_device_update_is_audited_and_cannot_leave_active_scope(self):
+        other_academy = Academy.objects.create(name="Outra academia")
+        other_unit = Unit.objects.create(academy=other_academy, name="Externa", code="externa")
+        created = self.client.post(reverse("access-device-list"), {"unit": self.unit.id, "name": "Leitor", "identifier": "READ-01", "kind": "reader"}, format="json")
+        rejected = self.client.patch(reverse("access-device-detail", args=[created.data["id"]]), {"unit": other_unit.id}, format="json")
+        self.assertEqual(rejected.status_code, status.HTTP_400_BAD_REQUEST)
+        updated = self.client.patch(reverse("access-device-detail", args=[created.data["id"]]), {"active": False}, format="json")
+        self.assertEqual(updated.status_code, status.HTTP_200_OK)
+        self.assertTrue(AdministrativeAudit.objects.filter(action="access_device.updated", entity_id=str(created.data["id"])).exists())
+
+    def test_assessment_links_workout_review_and_is_audited(self):
+        workout = WorkoutPlan.objects.create(student=self.student, unit=self.unit, name="Treino A", objective="Força", instructor=self.user, start_date="2026-08-01")
+        response = self.client.post(reverse("assessment-list"), {"student": self.student.id, "workout_plan": workout.id, "assessed_at": "2026-08-24", "next_assessment_at": "2026-09-24", "weight_kg": "70.50"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        workout.refresh_from_db()
+        self.assertEqual(str(workout.review_date), "2026-09-24")
+        self.assertEqual(response.data["workout_plan_name"], "Treino A")
+        self.assertTrue(AdministrativeAudit.objects.filter(action="physical_assessment.created", entity_id=str(response.data["id"])).exists())
+
     def test_lead_conversion_preserves_origin(self):
         created = self.client.post(reverse("lead-list"), {"name": "Novo aluno", "phone": "11999990000", "source": "Instagram"}, format="json")
         self.assertEqual(created.status_code, status.HTTP_201_CREATED)
@@ -83,6 +116,51 @@ class OperationsApiTests(APITestCase):
         canceled = self.client.patch(reverse("group-class-booking", args=[created.data["id"], first.data["id"]]), {"status": "canceled"}, format="json")
         self.assertEqual(canceled.status_code, status.HTTP_200_OK)
         self.assertEqual(ClassBooking.objects.get(pk=second.data["id"]).status, "confirmed")
+
+    def test_group_class_creates_linked_schedule_series_atomically(self):
+        created = self.client.post(reverse("group-class-list"), {
+            "title": "Funcional recorrente",
+            "modality": "Funcional",
+            "starts_at": "2026-09-07T10:00:00-03:00",
+            "ends_at": "2026-09-07T11:00:00-03:00",
+            "capacity": 12,
+            "location": "Sala 1",
+            "recurrence": "weekly",
+            "recurrence_count": 3,
+        }, format="json")
+
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(GroupClass.objects.filter(series_id=created.data["series_id"]).count(), 3)
+        self.assertEqual(ScheduleEvent.objects.filter(series_id=created.data["series_id"]).count(), 3)
+        self.assertEqual(str(created.data["schedule_event"]), str(GroupClass.objects.get(pk=created.data["id"]).schedule_event_id))
+
+        conflict = self.client.post(reverse("group-class-list"), {
+            "title": "Conflito futuro",
+            "modality": "Bike",
+            "starts_at": "2026-09-21T10:30:00-03:00",
+            "ends_at": "2026-09-21T11:30:00-03:00",
+            "capacity": 8,
+            "location": "Sala 2",
+        }, format="json")
+        self.assertEqual(conflict.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(GroupClass.objects.count(), 3)
+
+    def test_group_class_cancellation_requires_reason_and_syncs_schedule(self):
+        created = self.client.post(reverse("group-class-list"), {
+            "title": "Bike",
+            "modality": "Bike",
+            "starts_at": "2026-10-01T10:00:00-03:00",
+            "ends_at": "2026-10-01T11:00:00-03:00",
+            "capacity": 10,
+        }, format="json")
+        missing_reason = self.client.post(reverse("group-class-cancel", args=[created.data["id"]]), {}, format="json")
+        canceled = self.client.post(reverse("group-class-cancel", args=[created.data["id"]]), {"reason": "Professor indisponível"}, format="json")
+
+        self.assertEqual(missing_reason.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(canceled.status_code, status.HTTP_200_OK)
+        group_class = GroupClass.objects.get(pk=created.data["id"])
+        self.assertEqual(group_class.status, GroupClass.Status.CANCELED)
+        self.assertEqual(group_class.schedule_event.status, ScheduleEvent.Status.CANCELED)
 
     def test_device_webhook_is_authenticated_and_idempotent(self):
         created = self.client.post(reverse("access-device-list"), {"unit": self.unit.id, "name": "Catraca", "identifier": "CAT-01", "kind": "turnstile"}, format="json")

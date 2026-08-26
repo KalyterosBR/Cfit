@@ -195,9 +195,16 @@ class EnrollmentSerializer(serializers.ModelSerializer):
                         ]
                     }
                 )
+            request = self.context.get("request")
+            membership = request.user.academy_users.filter(active=True).first() if request else None
+            if plan.available_units.exists() and (not membership or not plan.available_units.filter(pk=membership.active_unit_id).exists()):
+                raise serializers.ValidationError({"plan": ["Este plano não está disponível na unidade ativa."]})
+            effective_price = plan.price
+            if plan.promotion_price is not None and (plan.promotion_ends_at is None or plan.promotion_ends_at >= timezone.localdate()):
+                effective_price = plan.promotion_price
             discount = attrs.get("discount_amount", 0)
 
-            if discount > plan.price:
+            if discount > effective_price:
                 raise serializers.ValidationError(
                     {
                         "discount_amount": [
@@ -215,8 +222,8 @@ class EnrollmentSerializer(serializers.ModelSerializer):
                     }
                 )
 
-            attrs["original_price"] = plan.price
-            attrs["contracted_price"] = plan.price - discount
+            attrs["original_price"] = effective_price
+            attrs["contracted_price"] = effective_price - discount
 
         return attrs
 

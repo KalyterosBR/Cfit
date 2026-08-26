@@ -67,33 +67,36 @@ type SavedReportView = {
   id: string;
   name: string;
   period: string;
-  favoriteQuestions: string[];
-  isDefault: boolean;
+  favorite_questions: string[];
+  is_default: boolean;
+  scope: "personal" | "unit" | "academy";
+  owner_name: string;
+  editable: boolean;
 };
 
-const SAVED_VIEWS_KEY = "cfit_report_saved_views";
-
-function readSavedViews(): SavedReportView[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(SAVED_VIEWS_KEY) ?? "[]");
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function Reports() {
-  const initialViews = readSavedViews();
-  const initialDefaultView = initialViews.find((view) => view.isDefault);
-  const [selectedPeriod, setSelectedPeriod] = useState(initialDefaultView?.period ?? period());
-  const [favorites, setFavorites] = useState<string[]>(() => initialDefaultView?.favoriteQuestions ?? JSON.parse(localStorage.getItem("cfit_report_favorites") ?? "[]"));
-  const [savedViews, setSavedViews] = useState<SavedReportView[]>(initialViews);
-  const [selectedView, setSelectedView] = useState(initialDefaultView?.id ?? "");
+  const [selectedPeriod, setSelectedPeriod] = useState(period);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [savedViews, setSavedViews] = useState<SavedReportView[]>([]);
+  const [selectedView, setSelectedView] = useState("");
+  const [viewScope, setViewScope] = useState<SavedReportView["scope"]>("personal");
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [management, setManagement] = useState<ManagementData | null>(null);
   const [retention, setRetention] = useState<RetentionItem[]>([]);
+  useEffect(() => {
+    Api.get<SavedReportView[]>("/users/report-views/").then(({ data: views }) => {
+      setSavedViews(views);
+      const defaultView = views.find((view) => view.is_default && view.editable);
+      if (defaultView) {
+        setSelectedView(defaultView.id);
+        setSelectedPeriod(defaultView.period);
+        setFavorites(defaultView.favorite_questions);
+        setViewScope(defaultView.scope);
+      }
+    }).catch(() => undefined);
+  }, []);
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -193,31 +196,19 @@ export default function Reports() {
       ? favorites.filter((item) => item !== question)
       : [...favorites, question];
     setFavorites(next);
-    localStorage.setItem("cfit_report_favorites", JSON.stringify(next));
   }
-  function persistViews(next: SavedReportView[]) {
-    setSavedViews(next);
-    localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(next));
-  }
-  function saveCurrentView() {
+  async function saveCurrentView() {
     const name = window.prompt("Nome da visão gerencial:");
     if (!name?.trim()) return;
-    const makeDefault = window.confirm("Usar esta visão como padrão neste navegador?");
-    const view: SavedReportView = {
-      id: crypto.randomUUID(),
+    const makeDefault = window.confirm("Usar esta visão como padrão?");
+    const { data: view } = await Api.post<SavedReportView>("/users/report-views/", {
       name: name.trim(),
       period: selectedPeriod,
-      favoriteQuestions: favorites,
-      isDefault: makeDefault,
-    };
-    const next = [
-      ...savedViews.map((item) => ({
-        ...item,
-        isDefault: makeDefault ? false : item.isDefault,
-      })),
-      view,
-    ];
-    persistViews(next);
+      favorite_questions: favorites,
+      is_default: makeDefault,
+      scope: viewScope,
+    });
+    setSavedViews((current) => [...current.map((item) => ({ ...item, is_default: makeDefault && item.editable ? false : item.is_default })), view]);
     setSelectedView(view.id);
   }
   function applyView(id: string) {
@@ -225,14 +216,15 @@ export default function Reports() {
     const view = savedViews.find((item) => item.id === id);
     if (!view) return;
     setSelectedPeriod(view.period);
-    setFavorites(view.favoriteQuestions);
-    localStorage.setItem("cfit_report_favorites", JSON.stringify(view.favoriteQuestions));
+    setFavorites(view.favorite_questions);
+    setViewScope(view.scope);
   }
-  function removeSelectedView() {
+  async function removeSelectedView() {
     if (!selectedView) return;
     const view = savedViews.find((item) => item.id === selectedView);
-    if (!view || !window.confirm(`Excluir a visão “${view.name}”?`)) return;
-    persistViews(savedViews.filter((item) => item.id !== selectedView));
+    if (!view?.editable || !window.confirm(`Excluir a visão “${view.name}”?`)) return;
+    await Api.delete(`/users/report-views/${view.id}/`);
+    setSavedViews((current) => current.filter((item) => item.id !== selectedView));
     setSelectedView("");
   }
   function exportCsv() {
@@ -298,7 +290,7 @@ export default function Reports() {
             <option value="">Visão atual</option>
             {savedViews.map((view) => (
               <option key={view.id} value={view.id}>
-                {view.name}{view.isDefault ? " · padrão" : ""}
+                {view.name}{view.is_default ? " · padrão" : ""}{!view.editable ? ` · ${view.owner_name}` : ""}
               </option>
             ))}
           </select>
@@ -310,9 +302,17 @@ export default function Reports() {
         >
           <Save size={16} /> Salvar visão
         </button>
+        <label className="text-xs font-bold text-slate-600">
+          Compartilhar
+          <select value={viewScope} onChange={(event) => setViewScope(event.target.value as SavedReportView["scope"])} className="ml-3 h-10 rounded-xl border border-slate-200 px-3">
+            <option value="personal">Somente comigo</option>
+            <option value="unit">Unidade atual</option>
+            <option value="academy">Toda a academia</option>
+          </select>
+        </label>
         <button
           type="button"
-          disabled={!selectedView}
+          disabled={!savedViews.find((view) => view.id === selectedView)?.editable}
           onClick={removeSelectedView}
           aria-label="Excluir visão selecionada"
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 disabled:opacity-40"
@@ -330,7 +330,7 @@ export default function Reports() {
         {management && (
           <p className="w-full text-xs font-semibold text-slate-500">
             Escopo: {management.scope.unit_name} · {management.scope.basis}
-            {selectedView ? " · visão pessoal salva neste navegador" : ""}
+            {selectedView ? ` · visão ${viewScope === "personal" ? "pessoal" : viewScope === "unit" ? "da unidade" : "da academia"}` : ""}
           </p>
         )}
       </div>
@@ -400,7 +400,7 @@ export default function Reports() {
             <div className="mt-6 grid gap-5 xl:grid-cols-2">
               <section className="rounded-2xl border bg-white p-6">
                 <h2 className="font-black">Receita por plano</h2>
-                <div className="mt-4 divide-y">
+                <div className="cfit-record-list mt-4">
                   {management.revenue_by_plan.map((item) => (
                     <div
                       key={item.enrollment__plan__name}
@@ -419,7 +419,7 @@ export default function Reports() {
               </section>
               <section className="rounded-2xl border bg-white p-6">
                 <h2 className="font-black">Inadimplência por plano</h2>
-                <div className="mt-4 divide-y">
+                <div className="cfit-record-list mt-4">
                   {management.overdue_by_plan.map((item) => (
                     <div
                       key={item.enrollment__plan__name}
@@ -484,7 +484,7 @@ export default function Reports() {
               Alunos em risco ou atenção, com fatores explicáveis e próxima
               ação.
             </p>
-            <div className="mt-4 divide-y">
+            <div className="cfit-record-list mt-4">
               {retention.map((item) => (
                 <article
                   key={item.student}

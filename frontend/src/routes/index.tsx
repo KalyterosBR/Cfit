@@ -26,6 +26,7 @@ const Automations = lazy(() => import("../pages/Automations"));
 const Units = lazy(() => import("../pages/Units"));
 const Operations = lazy(() => import("../pages/Operations"));
 const Growth = lazy(() => import("../pages/Growth"));
+const Relationship = lazy(() => import("../pages/Relationship"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Documents = lazy(() => import("../pages/Documents"));
 const Onboarding = lazy(() => import("../pages/Onboarding"));
@@ -48,6 +49,7 @@ const routeTitles: Record<string, string> = {
     "/units": "Academia e unidades",
     "/operations": "Central operacional",
     "/growth": "Comercial e turmas",
+    "/relationship": "Relacionamento",
     "/portal": "Portal do aluno",
     "/documents": "Documentos e portal",
     "/change-password": "Alterar senha",
@@ -141,6 +143,7 @@ export default function AppRoutes() {
                     <Route path="/units" element={<CapabilityRoute requirement={routeAccess["/units"]}><Units /></CapabilityRoute>} />
                     <Route path="/operations" element={<CapabilityRoute requirement={routeAccess["/operations"]}><Operations /></CapabilityRoute>} />
                     <Route path="/growth" element={<CapabilityRoute requirement={routeAccess["/growth"]}><Growth /></CapabilityRoute>} />
+                    <Route path="/relationship" element={<CapabilityRoute requirement={routeAccess["/relationship"]}><Relationship /></CapabilityRoute>} />
                     <Route path="/portal" element={<CapabilityRoute requirement={routeAccess["/portal"]}><Portal /></CapabilityRoute>} />
                     <Route path="/documents" element={<CapabilityRoute requirement={routeAccess["/documents"]}><Documents /></CapabilityRoute>} />
                 </Route>

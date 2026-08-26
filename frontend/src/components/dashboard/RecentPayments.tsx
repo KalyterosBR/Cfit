@@ -1,6 +1,7 @@
 import { CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SkeletonBlock } from "@/components/AsyncState";
+import RecordList from "@/components/RecordList";
 
 import type { Charge } from "@/features/students/services/financial.service";
 
@@ -83,14 +84,14 @@ export default function RecentPayments({
             </div>
 
             {loading ? (
-                <div className="divide-y divide-slate-100" aria-label="Carregando pagamentos recentes" aria-busy="true">
+                <RecordList aria-label="Carregando pagamentos recentes" aria-busy="true">
                     {[1, 2, 3].map((item) => (
                         <div key={item} className="flex h-[4.5rem] items-center justify-between gap-4">
                             <div className="flex-1"><SkeletonBlock className="h-3 w-32" /><SkeletonBlock className="mt-2 h-2.5 w-24" /></div>
                             <div className="flex flex-col items-end"><SkeletonBlock className="h-3 w-20" /><SkeletonBlock className="mt-2 h-2.5 w-14" /></div>
                         </div>
                     ))}
-                </div>
+                </RecordList>
             ) : error ? (
                 <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
                     <p>Não foi possível carregar os pagamentos recentes.</p>
@@ -109,7 +110,7 @@ export default function RecentPayments({
                         : "Nenhum pagamento foi registrado até o momento."}
                 </div>
             ) : (
-                <div className="divide-y divide-slate-100">
+                <RecordList>
                     {payments.map((payment) => (
                         <Link
                             key={payment.id}
@@ -149,7 +150,7 @@ export default function RecentPayments({
                             </div>
                         </Link>
                     ))}
-                </div>
+                </RecordList>
             )}
         </div>
     );

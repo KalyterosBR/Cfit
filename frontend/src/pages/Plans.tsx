@@ -14,6 +14,7 @@ import {
     Users,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { useSession } from "@/features/auth/access-control";
 
 import DashboardLayout from "../layouts/DashboardLayout";
 import Button from "../components/Button";
@@ -43,6 +44,11 @@ const initialForm: SavePlanPayload = {
     recurring: true,
     installment_count: 1,
     enrollment_fee: "0.00",
+    promotion_price: null,
+    promotion_ends_at: null,
+    grace_period_days: 0,
+    cancellation_penalty_percentage: "0.00",
+    available_units: [],
     minimum_commitment_months: 0,
     auto_renew: true,
     available_for_enrollment: true,
@@ -56,6 +62,7 @@ const initialForm: SavePlanPayload = {
 
 
 export default function Plans() {
+    const session = useSession();
     const [searchParams, setSearchParams] = useSearchParams();
     const [plans, setPlans] =
         useState<Plan[]>([]);
@@ -237,6 +244,11 @@ export default function Plans() {
             recurring: plan.recurring,
             installment_count: plan.installment_count,
             enrollment_fee: plan.enrollment_fee,
+            promotion_price: plan.promotion_price,
+            promotion_ends_at: plan.promotion_ends_at,
+            grace_period_days: plan.grace_period_days,
+            cancellation_penalty_percentage: plan.cancellation_penalty_percentage,
+            available_units: plan.available_units,
             minimum_commitment_months: plan.minimum_commitment_months,
             auto_renew: plan.auto_renew,
             available_for_enrollment: plan.available_for_enrollment,
@@ -916,6 +928,28 @@ export default function Plans() {
                                 className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10"
                             />
                         </div>
+
+                        <div>
+                            <label htmlFor="plan-promotion-price" className="text-sm font-semibold text-slate-700">Valor promocional</label>
+                            <input id="plan-promotion-price" type="number" min="0" step="0.01" value={form.promotion_price ?? ""} onChange={(event) => setForm((current) => ({ ...current, promotion_price: event.target.value || null }))} disabled={saving} placeholder="Sem promoção" className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+                        </div>
+                        <div>
+                            <label htmlFor="plan-promotion-end" className="text-sm font-semibold text-slate-700">Promoção válida até</label>
+                            <input id="plan-promotion-end" type="date" value={form.promotion_ends_at ?? ""} onChange={(event) => setForm((current) => ({ ...current, promotion_ends_at: event.target.value || null }))} disabled={saving} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+                        </div>
+                        <div>
+                            <label htmlFor="plan-grace" className="text-sm font-semibold text-slate-700">Carência em dias</label>
+                            <input id="plan-grace" type="number" min="0" value={form.grace_period_days} onChange={(event) => setForm((current) => ({ ...current, grace_period_days: Number(event.target.value) }))} disabled={saving} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+                        </div>
+                        <div>
+                            <label htmlFor="plan-penalty" className="text-sm font-semibold text-slate-700">Multa de cancelamento (%)</label>
+                            <input id="plan-penalty" type="number" min="0" max="100" step="0.01" value={form.cancellation_penalty_percentage} onChange={(event) => setForm((current) => ({ ...current, cancellation_penalty_percentage: event.target.value }))} disabled={saving} className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm" />
+                        </div>
+                        <fieldset className="sm:col-span-2 rounded-2xl border border-slate-200 p-4">
+                            <legend className="px-2 text-sm font-semibold text-slate-700">Disponibilidade por unidade</legend>
+                            <p className="mb-3 text-xs text-slate-500">Sem seleção, o plano fica disponível em todas as unidades.</p>
+                            <div className="grid gap-2 sm:grid-cols-2">{session.units.map((unit) => <label key={unit.id} className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={form.available_units.includes(unit.id)} onChange={(event) => setForm((current) => ({ ...current, available_units: event.target.checked ? [...current.available_units, unit.id] : current.available_units.filter((id) => id !== unit.id) }))} />{unit.name}</label>)}</div>
+                        </fieldset>
 
                         <div className="sm:col-span-2 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3">
                             {([

@@ -15,6 +15,9 @@ from apps.users.api.viewsets import (
     ActiveSessionView,
     TwoFactorSettingsView,
     OwnershipTransferView,
+    DashboardPreferenceView,
+    SavedReportViewDetail,
+    SavedReportViewList,
 )
 
 urlpatterns = [
@@ -24,6 +27,9 @@ urlpatterns = [
     path("members/<uuid:pk>/", MembershipDetailView.as_view()),
     path("audits/", AdministrativeAuditListView.as_view()),
     path("notifications/", OperationalNotificationView.as_view()),
+    path("preferences/dashboard/", DashboardPreferenceView.as_view()),
+    path("report-views/", SavedReportViewList.as_view()),
+    path("report-views/<uuid:pk>/", SavedReportViewDetail.as_view()),
     path("password/change/", PasswordChangeView.as_view()),
     path("password/reset/", PasswordResetRequestView.as_view()),
     path("password/reset/confirm/", PasswordResetConfirmView.as_view()),

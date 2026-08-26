@@ -582,7 +582,7 @@ export default function Settings() {
               Criar acesso
             </button>
           </div>
-          <div className="mt-5 divide-y divide-slate-100">
+          <div className="cfit-record-list mt-5">
             {members.map((member) => (
               <div
                 key={member.id}
@@ -706,7 +706,7 @@ export default function Settings() {
             {me?.two_factor_enabled ? "2FA ativado" : "Ativar 2FA"}
           </button>
         </div>
-        <div className="mt-4 divide-y">
+        <div className="cfit-record-list mt-4">
           {sessions.map((session) => (
             <div
               key={session.id}

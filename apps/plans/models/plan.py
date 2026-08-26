@@ -59,6 +59,12 @@ class Plan(BaseModel):
         verbose_name="Taxa de matrícula",
     )
 
+    promotion_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Valor promocional")
+    promotion_ends_at = models.DateField(null=True, blank=True, verbose_name="Fim da promoção")
+    grace_period_days = models.PositiveSmallIntegerField(default=0, verbose_name="Carência (dias)")
+    cancellation_penalty_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Multa de cancelamento (%)")
+    available_units = models.ManyToManyField("academy.Unit", blank=True, related_name="available_plans", verbose_name="Unidades disponíveis")
+
     minimum_commitment_months = models.PositiveSmallIntegerField(
         default=0,
         verbose_name="Fidelidade mínima (meses)",

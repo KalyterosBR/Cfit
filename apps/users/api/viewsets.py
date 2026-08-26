@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
-from django.db import transaction
+from django.db import models, transaction
 from rest_framework.generics import ListCreateAPIView, ListAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
@@ -19,8 +19,8 @@ from django.conf import settings
 import secrets
 
 from apps.users.api.turnstile import validate_turnstile
-from apps.users.api.serializers import AcademyUserSerializer, AdministrativeAuditSerializer, MembershipInviteSerializer, PasswordChangeSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer
-from apps.users.models import AcademyUser, AdministrativeAudit, User
+from apps.users.api.serializers import AcademyUserSerializer, AdministrativeAuditSerializer, DashboardPreferenceSerializer, MembershipInviteSerializer, PasswordChangeSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, SavedReportViewSerializer
+from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, OperationalNotificationState, SavedReportView, User
 from apps.users.permissions import ROLE_CAPABILITIES, HasCapability, get_active_membership
 from apps.academy.models import Academy
 from apps.academy.models import Unit
@@ -437,7 +437,135 @@ class OperationalNotificationView(APIView):
             items.append({"id": "assessments", "title": f"{assessment_due.count()} avaliação(ões) vencida(s)", "detail": "Agende a reavaliação dos alunos.", "href": "/operations", "severity": "medium"})
         if expiring_documents.exists():
             items.append({"id": "documents", "title": f"{expiring_documents.count()} documento(s) vencido(s) ou a vencer", "detail": "Revise contratos, atestados e autorizações.", "href": "/documents", "severity": "medium"})
-        return Response({"count": sum(1 for _ in items), "results": items})
+        states = {state.notification_key: state for state in OperationalNotificationState.objects.filter(user=request.user)}
+        visible_items = []
+        include_archived = request.query_params.get("include_archived") == "true"
+        for item in items:
+            item_state = states.get(item["id"])
+            item["read"] = bool(item_state and item_state.read_at)
+            item["archived"] = bool(item_state and item_state.archived_at)
+            if include_archived or not item["archived"]:
+                visible_items.append(item)
+        return Response({"count": len(visible_items), "unread_count": sum(not item["read"] for item in visible_items if not item["archived"]), "archived_count": sum(item["archived"] for item in visible_items), "results": visible_items})
+
+    def patch(self, request):
+        notification_key = str(request.data.get("id", "")).strip()
+        action = request.data.get("action")
+        if not notification_key or action not in {"read", "archive", "restore"}:
+            return Response({"detail": "Informe a notificação e uma ação válida."}, status=status.HTTP_400_BAD_REQUEST)
+        state_item, _ = OperationalNotificationState.objects.get_or_create(user=request.user, notification_key=notification_key)
+        now = timezone.now()
+        if action == "read":
+            state_item.read_at = now
+        elif action == "archive":
+            state_item.read_at = state_item.read_at or now
+            state_item.archived_at = now
+        else:
+            state_item.archived_at = None
+        state_item.save(update_fields=["read_at", "archived_at", "updated_at"])
+        return Response({"id": notification_key, "read": bool(state_item.read_at), "archived": bool(state_item.archived_at)})
+
+
+class DashboardPreferenceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        membership = get_active_membership(request.user)
+        if not membership:
+            return Response({"hidden_sections": [], "section_order": ["goals", "attention", "indicators"], "source": "default"})
+        scoped = DashboardPreference.objects.filter(academy=membership.academy, user__isnull=True, role=membership.role)
+        base = scoped.filter(unit=membership.active_unit).first() if membership.active_unit else None
+        base = base or scoped.filter(unit__isnull=True).first()
+        personal = DashboardPreference.objects.filter(academy=membership.academy, user=request.user).first()
+        selected = personal or base
+        data = DashboardPreferenceSerializer(selected).data if selected else {"hidden_sections": [], "section_order": ["goals", "attention", "indicators"]}
+        return Response({**data, "source": "personal" if personal else "unit_role" if base and base.unit_id else "role" if base else "default"})
+
+    def put(self, request):
+        membership = get_active_membership(request.user)
+        if not membership:
+            return Response({"detail": "Vínculo com academia não encontrado."}, status=status.HTTP_400_BAD_REQUEST)
+        target_role = request.data.get("target_role")
+        if target_role:
+            if membership.role not in {AcademyUser.Role.OWNER, AcademyUser.Role.ADMIN}:
+                return Response({"detail": "Somente administradores podem definir padrões por perfil."}, status=status.HTTP_403_FORBIDDEN)
+            if target_role not in AcademyUser.Role.values:
+                return Response({"target_role": ["Selecione um perfil válido."]}, status=status.HTTP_400_BAD_REQUEST)
+            target_unit = None
+            if request.data.get("unit"):
+                target_unit = Unit.objects.filter(pk=request.data["unit"], academy=membership.academy).first()
+                if not target_unit:
+                    return Response({"unit": ["Selecione uma unidade da mesma academia."]}, status=status.HTTP_400_BAD_REQUEST)
+            preference, _ = DashboardPreference.objects.get_or_create(academy=membership.academy, user=None, role=target_role, unit=target_unit)
+            serializer = DashboardPreferenceSerializer(preference, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            AdministrativeAudit.objects.create(academy=membership.academy, actor=request.user, action="dashboard_preference.updated", entity_type="dashboard_preference", entity_id=str(preference.pk), new_state={"role": target_role, "unit": str(target_unit.pk) if target_unit else None, **serializer.data})
+            return Response({**serializer.data, "source": "unit_role" if target_unit else "role"})
+        preference, _ = DashboardPreference.objects.get_or_create(academy=membership.academy, user=request.user)
+        serializer = DashboardPreferenceSerializer(preference, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({**serializer.data, "source": "personal"})
+
+    def delete(self, request):
+        membership = get_active_membership(request.user)
+        if membership:
+            DashboardPreference.objects.filter(academy=membership.academy, user=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SavedReportViewList(APIView):
+    permission_classes = [HasCapability]
+    required_capability = "reports.view"
+
+    def get(self, request):
+        membership = get_active_membership(request.user)
+        queryset = SavedReportView.objects.filter(academy=membership.academy).filter(
+            models.Q(owner=request.user) | models.Q(scope=SavedReportView.Scope.ACADEMY) |
+            models.Q(scope=SavedReportView.Scope.UNIT, unit=membership.active_unit)
+        ).select_related("owner", "unit")
+        return Response(SavedReportViewSerializer(queryset.distinct(), many=True, context={"request": request}).data)
+
+    def post(self, request):
+        membership = get_active_membership(request.user)
+        serializer = SavedReportViewSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        scope = serializer.validated_data.get("scope", SavedReportView.Scope.PERSONAL)
+        unit = membership.active_unit if scope == SavedReportView.Scope.UNIT else None
+        if serializer.validated_data.get("is_default"):
+            SavedReportView.objects.filter(owner=request.user, is_default=True).update(is_default=False)
+        view = serializer.save(academy=membership.academy, owner=request.user, unit=unit)
+        AdministrativeAudit.objects.create(academy=membership.academy, actor=request.user, action="report_view.created", entity_type="saved_report_view", entity_id=str(view.pk), new_state={"name": view.name, "scope": view.scope})
+        return Response(SavedReportViewSerializer(view, context={"request": request}).data, status=status.HTTP_201_CREATED)
+
+
+class SavedReportViewDetail(APIView):
+    permission_classes = [HasCapability]
+    required_capability = "reports.view"
+
+    def get_object(self, request, pk):
+        membership = get_active_membership(request.user)
+        return SavedReportView.objects.filter(pk=pk, academy=membership.academy, owner=request.user).first()
+
+    def patch(self, request, pk):
+        view = self.get_object(request, pk)
+        if not view:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = SavedReportViewSerializer(view, data=request.data, partial=True, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        if serializer.validated_data.get("is_default"):
+            SavedReportView.objects.filter(owner=request.user, is_default=True).exclude(pk=view.pk).update(is_default=False)
+        serializer.save(unit=get_active_membership(request.user).active_unit if serializer.validated_data.get("scope", view.scope) == SavedReportView.Scope.UNIT else None)
+        return Response(serializer.data)
+
+    def delete(self, request, pk):
+        view = self.get_object(request, pk)
+        if not view:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        AdministrativeAudit.objects.create(academy=view.academy, actor=request.user, action="report_view.deleted", entity_type="saved_report_view", entity_id=str(view.pk), previous_state={"name": view.name, "scope": view.scope})
+        view.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AcademyScopedMixin:

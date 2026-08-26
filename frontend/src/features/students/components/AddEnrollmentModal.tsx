@@ -707,7 +707,7 @@ export default function AddEnrollmentModal({
                                 <div className="border-b border-slate-200 bg-slate-50 px-5 py-3">
                                     <h3 className="text-sm font-semibold text-slate-800">Cobranças que serão geradas</h3>
                                 </div>
-                                <div className="divide-y divide-slate-100">
+                                <div className="cfit-record-list">
                                     {chargePreview.charges.map((charge, index) => (
                                         <div key={`${charge.description}-${index}`} className="grid gap-2 px-5 py-3 text-sm sm:grid-cols-[1fr_auto_auto] sm:items-center sm:gap-6">
                                             <span className="font-medium text-slate-700">{charge.description}</span>

@@ -62,6 +62,7 @@ class CommunicationCampaign(BaseModel):
 class PhysicalAssessment(BaseModel):
     student = models.ForeignKey("students.Student", on_delete=models.PROTECT, related_name="physical_assessments")
     unit = models.ForeignKey("academy.Unit", on_delete=models.PROTECT, null=True, blank=True, related_name="physical_assessments")
+    workout_plan = models.ForeignKey("workouts.WorkoutPlan", on_delete=models.PROTECT, null=True, blank=True, related_name="physical_assessments")
     assessed_at = models.DateField()
     next_assessment_at = models.DateField(null=True, blank=True)
     weight_kg = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
@@ -166,6 +167,13 @@ class Lead(BaseModel):
 
 
 class GroupClass(BaseModel):
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled", "Agendada"
+        IN_PROGRESS = "in_progress", "Em andamento"
+        COMPLETED = "completed", "Realizada"
+        CANCELED = "canceled", "Cancelada"
+        INACTIVE = "inactive", "Inativa"
+
     academy = models.ForeignKey("academy.Academy", on_delete=models.PROTECT, related_name="group_classes")
     unit = models.ForeignKey("academy.Unit", on_delete=models.PROTECT, related_name="group_classes")
     title = models.CharField(max_length=120)
@@ -176,6 +184,21 @@ class GroupClass(BaseModel):
     capacity = models.PositiveSmallIntegerField(default=10)
     location = models.CharField(max_length=120, blank=True)
     canceled = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SCHEDULED, db_index=True)
+    schedule_event = models.OneToOneField(
+        "schedule.ScheduleEvent",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="group_class",
+    )
+    series_id = models.UUIDField(null=True, blank=True, db_index=True)
+    recurrence = models.CharField(
+        max_length=20,
+        choices=[("none", "Não repetir"), ("daily", "Diariamente"), ("weekly", "Semanalmente")],
+        default="none",
+    )
+    recurrence_count = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
         ordering = ["starts_at"]
@@ -219,3 +242,49 @@ class LoginSession(BaseModel):
 
     class Meta:
         ordering = ["-last_seen_at"]
+
+
+class OperationalIssue(BaseModel):
+    class Priority(models.TextChoices):
+        CRITICAL = "critical", "Crítica"
+        HIGH = "high", "Alta"
+        MEDIUM = "medium", "Média"
+        LOW = "low", "Baixa"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Aberta"
+        IN_PROGRESS = "in_progress", "Em andamento"
+        RESOLVED = "resolved", "Resolvida"
+        DISMISSED = "dismissed", "Descartada"
+
+    academy = models.ForeignKey("academy.Academy", on_delete=models.PROTECT, related_name="operational_issues")
+    unit = models.ForeignKey("academy.Unit", on_delete=models.PROTECT, null=True, blank=True, related_name="operational_issues")
+    source = models.CharField(max_length=30, db_index=True)
+    source_key = models.CharField(max_length=160)
+    source_url = models.CharField(max_length=255, blank=True)
+    title = models.CharField(max_length=180)
+    detail = models.CharField(max_length=255, blank=True)
+    next_action = models.CharField(max_length=180)
+    priority = models.CharField(max_length=20, choices=Priority.choices, default=Priority.MEDIUM, db_index=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True)
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="assigned_operational_issues")
+    due_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution = models.TextField(blank=True)
+    last_synced_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-priority", "due_at", "-created_at"]
+        constraints = [models.UniqueConstraint(fields=["academy", "source", "source_key"], name="unique_operational_issue_source")]
+
+
+class OperationalIssueHistory(BaseModel):
+    issue = models.ForeignKey(OperationalIssue, on_delete=models.CASCADE, related_name="history")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="operational_issue_history")
+    event = models.CharField(max_length=40)
+    message = models.CharField(max_length=255, blank=True)
+    previous_state = models.JSONField(default=dict, blank=True)
+    new_state = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]

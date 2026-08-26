@@ -216,6 +216,13 @@ html {
 html.dark { color-scheme: dark; }
 body, #root { min-height: 100%; background-color: var(--cfit-canvas); }
 
+.cfit-theme-changing,
+.cfit-theme-changing *,
+.cfit-theme-changing *::before,
+.cfit-theme-changing *::after {
+  transition: none !important;
+}
+
 /* Tema noturno restrito à área autenticada do Cfit. */
 .dark .cfit-internal {
   color: var(--cfit-text-primary);
@@ -313,6 +320,10 @@ body, #root { min-height: 100%; background-color: var(--cfit-canvas); }
   border-color: var(--cfit-table-divider) !important;
 }
 
+.cfit-record-list > * + * {
+  border-top: 1px solid var(--cfit-table-divider);
+}
+
 .cfit-theme-toggle {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cfit-border-subtle) 45%, transparent);
 }
@@ -332,11 +343,13 @@ body, #root { min-height: 100%; background-color: var(--cfit-canvas); }
 
 .cfit-modal-overlay[data-closing="true"] {
   animation-name: cfit-fade-out;
+  animation-fill-mode: forwards;
   pointer-events: none;
 }
 
 .cfit-modal-overlay[data-closing="true"] .cfit-modal {
   animation-name: cfit-panel-out;
+  animation-fill-mode: forwards;
 }
 
 @keyframes cfit-fade-in { from { opacity: 0; } }
@@ -509,6 +522,33 @@ body, #root { min-height: 100%; background-color: var(--cfit-canvas); }
   background: color-mix(in srgb, var(--cfit-text-secondary) 82%, transparent);
   background-clip: padding-box;
 }
+
+.cfit-primary-button,
+.cfit-secondary-button,
+.cfit-danger-button,
+.cfit-icon-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background-color var(--cfit-motion-fast) var(--cfit-motion-ease), border-color var(--cfit-motion-fast) var(--cfit-motion-ease);
+}
+
+.cfit-primary-button { background: var(--cfit-primary); color: white; }
+.cfit-primary-button:hover { background: var(--cfit-primary-hover); }
+.cfit-secondary-button { border: 1px solid var(--cfit-border-default); background: var(--cfit-surface-elevated); color: var(--cfit-text-primary); }
+.cfit-secondary-button:hover { background: var(--cfit-surface-hover); }
+.cfit-danger-button { border: 1px solid color-mix(in srgb, var(--cfit-danger) 45%, transparent); background: color-mix(in srgb, var(--cfit-danger) 12%, transparent); color: var(--cfit-danger); }
+.cfit-icon-button { width: 40px; padding: 0; border: 1px solid var(--cfit-border-default); background: var(--cfit-surface-elevated); }
+.cfit-filter-control { height: 40px; min-width: 0; border-radius: 0.75rem; border: 1px solid var(--cfit-border-default); background: var(--cfit-surface-elevated); padding: 0 0.75rem; color: var(--cfit-text-primary); font-size: 0.875rem; }
+.cfit-status-chip { display: inline-flex; min-height: 24px; align-items: center; border-radius: 999px; background: var(--cfit-surface-subtle); padding: 0.125rem 0.5rem; color: var(--cfit-text-secondary); font-size: 0.6875rem; font-weight: 800; }
+.cfit-primary-button:disabled,
+.cfit-secondary-button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 @media (prefers-reduced-motion: reduce) {
   .cfit-internal *,

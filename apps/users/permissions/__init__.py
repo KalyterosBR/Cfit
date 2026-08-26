@@ -10,18 +10,19 @@ ROLE_CAPABILITIES = {
         "students.manage", "plans.manage", "enrollments.manage",
         "checkins.manage", "workouts.manage", "schedule.manage",
         "reports.view", "finance.view", "automations.manage",
-        "units.view", "settings.view",
+        "units.view", "settings.view", "operations.view", "operations.manage",
     },
     AcademyUser.Role.RECEPTION: {
         "students.manage", "enrollments.manage", "checkins.manage",
         "schedule.manage", "finance.view", "plans.view", "units.view",
+        "operations.view", "operations.manage",
     },
     AcademyUser.Role.TRAINER: {
-        "students.view", "workouts.manage", "schedule.manage", "units.view",
+        "students.view", "workouts.manage", "schedule.manage", "units.view", "operations.view",
     },
     AcademyUser.Role.FINANCIAL: {
         "finance.view", "finance.manage", "reports.view", "students.view",
-        "plans.view", "units.view",
+        "plans.view", "units.view", "operations.view",
     },
 }
 

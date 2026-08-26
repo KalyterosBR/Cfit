@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { Link } from "react-router-dom";
 import { useSession } from "@/features/auth/access-control";
+import { Api } from "@/services/http";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
 
@@ -364,6 +365,7 @@ export default function Dashboard() {
             return [];
         }
     });
+    const [sectionOrder, setSectionOrder] = useState<OptionalDashboardSection[]>(["goals", "attention", "indicators"]);
     const [customizing, setCustomizing] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState(getCurrentPeriod);
     const [activeStudentsCount, setActiveStudentsCount] =
@@ -405,6 +407,15 @@ export default function Dashboard() {
         useState(true);
     const [checkInsError, setCheckInsError] =
         useState(false);
+
+    useEffect(() => {
+        Api.get<{ hidden_sections: OptionalDashboardSection[]; section_order: OptionalDashboardSection[] }>("/users/preferences/dashboard/")
+            .then(({ data }) => {
+                setHiddenSections(data.hidden_sections);
+                setSectionOrder(data.section_order);
+            })
+            .catch(() => undefined);
+    }, []);
 
     useEffect(() => {
         let current = true;
@@ -546,10 +557,22 @@ export default function Dashboard() {
             : [...hiddenSections, section];
         setHiddenSections(next);
         localStorage.setItem(preferencesKey, JSON.stringify(next));
+        void Api.put("/users/preferences/dashboard/", { hidden_sections: next, section_order: sectionOrder });
+    }
+    function moveSection(section: OptionalDashboardSection, direction: -1 | 1) {
+        const currentIndex = sectionOrder.indexOf(section);
+        const nextIndex = currentIndex + direction;
+        if (nextIndex < 0 || nextIndex >= sectionOrder.length) return;
+        const next = [...sectionOrder];
+        [next[currentIndex], next[nextIndex]] = [next[nextIndex], next[currentIndex]];
+        setSectionOrder(next);
+        void Api.put("/users/preferences/dashboard/", { hidden_sections: hiddenSections, section_order: next });
     }
     function resetSections() {
         setHiddenSections([]);
+        setSectionOrder(["goals", "attention", "indicators"]);
         localStorage.removeItem(preferencesKey);
+        void Api.delete("/users/preferences/dashboard/");
     }
     return (
         <DashboardLayout>
@@ -568,15 +591,19 @@ export default function Dashboard() {
                 <section aria-label="Preferências do Dashboard" className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4">
                     <p className="mr-2 text-xs font-bold uppercase tracking-wide text-slate-500">Seções visíveis</p>
                     {(Object.entries(DASHBOARD_SECTION_LABELS) as Array<[OptionalDashboardSection, string]>).map(([id, label]) => (
-                        <label key={id} className="flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+                        <div key={id} className="flex items-center gap-1 rounded-full border border-slate-200 px-2 py-1 text-sm font-semibold text-slate-700">
+                        <label className="flex cursor-pointer items-center gap-2 px-1 py-1">
                             <input type="checkbox" checked={!hiddenSections.includes(id)} onChange={() => toggleSection(id)} />
                             {label}
                         </label>
+                        <button type="button" onClick={() => moveSection(id, -1)} disabled={sectionOrder.indexOf(id) === 0} aria-label={`Mover ${label} para cima`} className="h-7 w-7 rounded-full disabled:opacity-30">↑</button>
+                        <button type="button" onClick={() => moveSection(id, 1)} disabled={sectionOrder.indexOf(id) === sectionOrder.length - 1} aria-label={`Mover ${label} para baixo`} className="h-7 w-7 rounded-full disabled:opacity-30">↓</button>
+                        </div>
                     ))}
                     <button type="button" onClick={resetSections} className="ml-auto flex items-center gap-2 text-sm font-bold text-blue-700">
                         <RotateCcw size={15} /> Restaurar padrão
                     </button>
-                    <p className="w-full text-xs text-slate-500">Preferência pessoal deste navegador; dados e permissões não são alterados.</p>
+                    <p className="w-full text-xs text-slate-500">Preferência pessoal sincronizada com sua conta; dados e permissões não são alterados.</p>
                 </section>
             )}
 
@@ -793,7 +820,8 @@ export default function Dashboard() {
                 )}
             </section>
 
-            {!hiddenSections.includes("goals") && <section id="goals" className="mt-12 scroll-mt-6">
+            <div className="flex flex-col">
+            {!hiddenSections.includes("goals") && <section id="goals" style={{ order: sectionOrder.indexOf("goals") }} className="mt-12 scroll-mt-6">
                 <div className="mb-5 flex items-end justify-between gap-6 border-b border-slate-200 pb-4">
                     <div>
                         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">Ritmo esperado</p>
@@ -832,11 +860,11 @@ export default function Dashboard() {
                 </div>
             </section>}
 
-            {!hiddenSections.includes("attention") && <div id="attention" className="scroll-mt-6">
+            {!hiddenSections.includes("attention") && <div id="attention" style={{ order: sectionOrder.indexOf("attention") }} className="scroll-mt-6">
                 <DashboardAttention role={dashboardRole} variant="canvas" />
             </div>}
 
-            {!hiddenSections.includes("indicators") && <div id="indicators" className="mt-12 scroll-mt-6 border-t border-slate-200 pt-8">
+            {!hiddenSections.includes("indicators") && <div id="indicators" style={{ order: sectionOrder.indexOf("indicators") }} className="mt-12 scroll-mt-6 border-t border-slate-200 pt-8">
             <div className="mb-2">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Camada analítica</p>
                 <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">Entenda o que moveu os números</h2>
@@ -889,6 +917,7 @@ export default function Dashboard() {
                 />}
             </div>}
             </div>}
+            </div>
         </DashboardLayout>
     );
 }

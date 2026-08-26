@@ -13,8 +13,10 @@ import {
   RadioTower,
   TrendingUp,
   FileSignature,
+  Mail,
   ChevronDown,
   Star,
+  RotateCcw,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -58,6 +60,7 @@ const menuGroups: MenuGroup[] = [
       { title: "Planos", icon: Layers3, path: "/plans" },
       { title: "Check-ins", icon: Footprints, path: "/checkins" },
       { title: "Comercial e turmas", icon: TrendingUp, path: "/growth" },
+      { title: "Relacionamento", icon: Mail, path: "/relationship" },
       { title: "Documentos e portal", icon: FileSignature, path: "/documents" },
     ],
   },
@@ -101,6 +104,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const [favorites, setFavorites] = useState<string[]>(() =>
     JSON.parse(localStorage.getItem("cfit_sidebar_favorites") ?? "[]"),
   );
+  const [usage, setUsage] = useState<Record<string, number>>(() => JSON.parse(localStorage.getItem("cfit_sidebar_usage") ?? "{}"));
   const visibleGroups = menuGroups
     .map((group) => ({
       ...group,
@@ -116,6 +120,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const quickItems = visibleItems.filter((item) =>
     favorites.includes(item.path),
   );
+  const mostUsedItems = [...visibleItems]
+    .filter((item) => !favorites.includes(item.path) && (usage[item.path] ?? 0) > 0)
+    .sort((a, b) => (usage[b.path] ?? 0) - (usage[a.path] ?? 0))
+    .slice(0, 3);
 
   useEffect(() => {
     navigationRef.current?.scrollTo({ top: 0, behavior: "auto" });
@@ -131,6 +139,23 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     });
   }
 
+  function registerUsage(path: string) {
+    setUsage((current) => {
+      const next = { ...current, [path]: (current[path] ?? 0) + 1 };
+      localStorage.setItem("cfit_sidebar_usage", JSON.stringify(next));
+      return next;
+    });
+    onClose();
+  }
+
+  function resetNavigationPreferences() {
+    setFavorites([]);
+    setUsage({});
+    setCollapsedGroups({});
+    localStorage.removeItem("cfit_sidebar_favorites");
+    localStorage.removeItem("cfit_sidebar_usage");
+  }
+
   const renderItem = (item: MenuItem, compact = false) => {
     const Icon = item.icon;
     return (
@@ -140,7 +165,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       >
         <NavLink
           to={item.path}
-          onClick={onClose}
+          onClick={() => registerUsage(item.path)}
           className={({ isActive }) =>
             `group flex h-10 w-full items-center gap-3 overflow-hidden rounded-xl px-3.5 pr-9 text-[13px] font-semibold outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-cyan-300/70 ${isActive ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-[0_14px_30px_-16px_rgba(37,99,235,0.9)]" : "text-slate-300 hover:bg-white/[0.065] hover:text-white"}`
           }
@@ -222,6 +247,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 </div>
               </section>
             )}
+            {mostUsedItems.length > 0 && (
+              <section>
+                <p className="mb-2 px-3 text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-300/60">Mais usados</p>
+                <div className="space-y-1">{mostUsedItems.map((item) => renderItem(item, true))}</div>
+              </section>
+            )}
             {visibleGroups.map((group) => (
               <section key={group.label}>
                 <button
@@ -247,6 +278,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 )}
               </section>
             ))}
+            {(favorites.length > 0 || Object.keys(usage).length > 0) && <button type="button" onClick={resetNavigationPreferences} className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-300"><RotateCcw size={13} /> Redefinir navegação</button>}
           </div>
         </nav>
       </aside>

@@ -1,7 +1,49 @@
 from rest_framework import serializers
 
 from apps.academy.models import Unit
-from apps.users.models import AcademyUser, AdministrativeAudit, User
+from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, SavedReportView, User
+
+
+class DashboardPreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DashboardPreference
+        fields = ["hidden_sections", "section_order"]
+
+    def validate_hidden_sections(self, value):
+        allowed = {"goals", "attention", "indicators"}
+        if not isinstance(value, list) or any(item not in allowed for item in value):
+            raise serializers.ValidationError("Informe somente seções válidas.")
+        return list(dict.fromkeys(value))
+
+    def validate_section_order(self, value):
+        allowed = {"goals", "attention", "indicators"}
+        if not isinstance(value, list) or set(value) != allowed or len(value) != len(allowed):
+            raise serializers.ValidationError("Informe todas as seções uma única vez.")
+        return value
+
+
+class SavedReportViewSerializer(serializers.ModelSerializer):
+    owner_name = serializers.SerializerMethodField()
+    editable = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SavedReportView
+        fields = ["id", "name", "period", "favorite_questions", "is_default", "scope", "unit", "owner_name", "editable"]
+        read_only_fields = ["id", "owner_name", "editable"]
+
+    def get_owner_name(self, obj):
+        return obj.owner.get_full_name() or obj.owner.email
+
+    def get_editable(self, obj):
+        return obj.owner_id == self.context["request"].user.id
+
+    def validate_period(self, value):
+        from datetime import date
+        try:
+            date.fromisoformat(f"{value}-01")
+        except ValueError as error:
+            raise serializers.ValidationError("Informe o período no formato AAAA-MM.") from error
+        return value
 
 
 class AcademyUserSerializer(serializers.ModelSerializer):
@@ -112,12 +154,15 @@ class AdministrativeAuditSerializer(serializers.ModelSerializer):
         "goal.active_students_updated": "Meta de alunos ativos atualizada",
         "security.2fa_updated": "Verificação em duas etapas alterada",
         "security.session_revoked": "Sessão encerrada",
+        "report_view.created": "Visão de relatório criada",
+        "report_view.deleted": "Visão de relatório excluída",
+        "dashboard_preference.updated": "Padrão do Dashboard atualizado",
     }
     ENTITY_LABELS = {
         "academy": "Academia", "academy_user": "Usuário", "charge": "Cobrança",
         "membership": "Matrícula", "student": "Aluno", "access_device": "Dispositivo",
-        "login_session": "Sessão", "user": "Usuário", "unit": "Unidade",
-        "access_policy": "Política de acesso", "checkin": "Check-in",
+        "login_session": "Sessão", "user": "Usuário", "unit": "Unidade", "saved_report_view": "Visão de relatório",
+        "access_policy": "Política de acesso", "checkin": "Check-in", "dashboard_preference": "Preferência do Dashboard",
         "schedule_event": "Evento da agenda", "automation_rule": "Automação",
         "plan": "Plano", "student_document": "Documento", "lead": "Oportunidade",
         "monthly_revenue_goal": "Meta de receita",

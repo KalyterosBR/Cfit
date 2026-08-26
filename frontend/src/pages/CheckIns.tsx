@@ -13,6 +13,7 @@ import {
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Api } from "@/services/http";
 import toast from "react-hot-toast";
+import DeviceManagement from "@/features/students/components/DeviceManagement";
 
 function today() {
   const date = new Date();
@@ -204,6 +205,7 @@ export default function CheckIns() {
           </div>
         </details>
       )}
+      <DeviceManagement />
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         {[
           {
@@ -327,7 +329,7 @@ export default function CheckIns() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="cfit-record-list">
             {checkins.map((checkin) => (
               <Link
                 key={checkin.id}

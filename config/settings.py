@@ -5,7 +5,9 @@ Django settings for config project.
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import parse_qs, unquote, urlparse
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 
@@ -18,7 +20,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SEGURANÇA
 # ==========================================
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+if os.getenv("VERCEL") and not os.getenv("DJANGO_SECRET_KEY"):
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY é obrigatória na Vercel.")
+
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-local-development-key")
 
 DEBUG = (
     os.getenv(
@@ -68,6 +73,9 @@ INSTALLED_APPS = [
     "apps.operations",
 ]
 
+if os.getenv("VERCEL_URL"):
+    ALLOWED_HOSTS.append(os.environ["VERCEL_URL"])
+
 
 # ==========================================
 # MIDDLEWARE
@@ -116,16 +124,38 @@ WSGI_APPLICATION = "config.wsgi.application"
 # BANCO DE DADOS
 # ==========================================
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB"),
-        "USER": os.getenv("POSTGRES_USER"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": os.getenv("POSTGRES_HOST", "postgres"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+database_url = os.getenv("DATABASE_URL", "").strip()
+if os.getenv("VERCEL") and not database_url:
+    raise ImproperlyConfigured("DATABASE_URL do Neon é obrigatória na Vercel.")
+if database_url:
+    parsed_database_url = urlparse(database_url)
+    database_query = parse_qs(parsed_database_url.query)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(parsed_database_url.path.lstrip("/")),
+            "USER": unquote(parsed_database_url.username or ""),
+            "PASSWORD": unquote(parsed_database_url.password or ""),
+            "HOST": parsed_database_url.hostname or "",
+            "PORT": str(parsed_database_url.port or 5432),
+            "CONN_MAX_AGE": 0 if os.getenv("VERCEL") else 60,
+            "DISABLE_SERVER_SIDE_CURSORS": "-pooler." in (parsed_database_url.hostname or ""),
+            "OPTIONS": {
+                "sslmode": database_query.get("sslmode", ["require"])[0],
+            },
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB"),
+            "USER": os.getenv("POSTGRES_USER"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+            "HOST": os.getenv("POSTGRES_HOST", "postgres"),
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        }
+    }
 
 
 # ==========================================
@@ -176,6 +206,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
@@ -187,7 +219,7 @@ STATICFILES_DIRS = [
 
 MEDIA_URL = "/media/"
 
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path("/tmp/cfit-media") if os.getenv("VERCEL") else BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -221,10 +253,34 @@ REST_FRAMEWORK = {
 # ==========================================
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    expression.strip()
+    for expression in os.getenv("CORS_ALLOWED_ORIGIN_REGEXES", "").split(",")
+    if expression.strip()
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = os.getenv("DJANGO_SECURE_SSL_REDIRECT", "True").lower() == "true"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_SECURE_HSTS_SECONDS", "3600"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    X_FRAME_OPTIONS = "DENY"
 
 
 # ==========================================

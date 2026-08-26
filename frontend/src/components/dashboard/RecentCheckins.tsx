@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SkeletonBlock } from "@/components/AsyncState";
+import RecordList from "@/components/RecordList";
 
 import type { CheckIn } from "@/features/students/services/checkin.service";
 
@@ -50,7 +51,7 @@ export default function RecentCheckins({
             </div>
 
             {loading ? (
-                <div className="divide-y divide-slate-100" aria-label="Carregando check-ins recentes" aria-busy="true">
+                <RecordList aria-label="Carregando check-ins recentes" aria-busy="true">
                     {[1, 2, 3].map((item) => (
                         <div key={item} className="flex h-[4.5rem] items-center gap-3">
                             <SkeletonBlock className="h-10 w-10 shrink-0 rounded-xl" />
@@ -58,7 +59,7 @@ export default function RecentCheckins({
                             <div className="flex flex-col items-end"><SkeletonBlock className="h-2.5 w-16" /><SkeletonBlock className="mt-2 h-3 w-11" /></div>
                         </div>
                     ))}
-                </div>
+                </RecordList>
             ) : error ? (
                 <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
                     <p>Não foi possível carregar os check-ins.</p>
@@ -75,7 +76,7 @@ export default function RecentCheckins({
                     Nenhum check-in foi registrado até o momento.
                 </div>
             ) : (
-                <div className="divide-y divide-slate-100">
+                <RecordList>
                     {checkins.map((checkin) => (
                         <Link
                             key={checkin.id}
@@ -107,7 +108,7 @@ export default function RecentCheckins({
                             </div>
                         </Link>
                     ))}
-                </div>
+                </RecordList>
             )}
         </div>
     );

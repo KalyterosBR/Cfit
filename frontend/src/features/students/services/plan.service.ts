@@ -21,6 +21,11 @@ export interface Plan {
     recurring: boolean;
     installment_count: number;
     enrollment_fee: string;
+    promotion_price: string | null;
+    promotion_ends_at: string | null;
+    grace_period_days: number;
+    cancellation_penalty_percentage: string;
+    available_units: string[];
     minimum_commitment_months: number;
     auto_renew: boolean;
     available_for_enrollment: boolean;
@@ -55,6 +60,11 @@ export interface SavePlanPayload {
     recurring: boolean;
     installment_count: number;
     enrollment_fee: string;
+    promotion_price: string | null;
+    promotion_ends_at: string | null;
+    grace_period_days: number;
+    cancellation_penalty_percentage: string;
+    available_units: string[];
     minimum_commitment_months: number;
     auto_renew: boolean;
     available_for_enrollment: boolean;

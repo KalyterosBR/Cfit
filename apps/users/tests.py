@@ -2,7 +2,7 @@ from rest_framework.test import APITestCase
 
 from apps.academy.models import Academy, Unit
 from apps.students.models import Student
-from apps.users.models import AcademyUser, AdministrativeAudit, User
+from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, OperationalNotificationState, SavedReportView, User
 from apps.users.permissions import ROLE_CAPABILITIES
 from unittest.mock import patch
 from django.contrib.auth.tokens import default_token_generator
@@ -116,6 +116,36 @@ class RolePermissionTests(APITestCase):
         membership = AcademyUser.objects.get(user__email="nova@cfit.test")
         self.assertEqual(membership.active_unit, unit)
         self.assertTrue(AdministrativeAudit.objects.filter(action="membership.invited").exists())
+
+    def test_dashboard_preferences_are_personal_and_resettable(self):
+        self.client.force_authenticate(self.admin)
+        baseline = self.client.put("/api/users/preferences/dashboard/", {"target_role": AcademyUser.Role.ADMIN, "hidden_sections": ["attention"], "section_order": ["goals", "indicators", "attention"]}, format="json")
+        self.assertEqual(baseline.status_code, 200)
+        saved = self.client.put("/api/users/preferences/dashboard/", {"hidden_sections": ["goals"], "section_order": ["attention", "goals", "indicators"]}, format="json")
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(self.client.get("/api/users/preferences/dashboard/").data["source"], "personal")
+        self.assertEqual(DashboardPreference.objects.get(user=self.admin).section_order[0], "attention")
+        self.assertEqual(self.client.delete("/api/users/preferences/dashboard/").status_code, 204)
+        self.assertEqual(self.client.get("/api/users/preferences/dashboard/").data["source"], "role")
+
+    def test_report_views_respect_personal_unit_and_academy_scopes(self):
+        unit = Unit.objects.create(academy=self.academy, name="Centro", code="centro")
+        self.admin_membership.active_unit = unit
+        self.admin_membership.save(update_fields=["active_unit"])
+        self.client.force_authenticate(self.admin)
+        created = self.client.post("/api/users/report-views/", {"name": "Fechamento", "period": "2026-08", "favorite_questions": ["Receita"], "scope": "unit"}, format="json")
+        self.assertEqual(created.status_code, 201)
+        view = SavedReportView.objects.get()
+        self.assertEqual(view.unit, unit)
+        self.assertTrue(AdministrativeAudit.objects.filter(action="report_view.created").exists())
+
+    def test_notifications_can_be_read_and_archived(self):
+        self.client.force_authenticate(self.admin)
+        marked = self.client.patch("/api/users/notifications/", {"id": "overdue", "action": "read"}, format="json")
+        self.assertEqual(marked.status_code, 200)
+        archived = self.client.patch("/api/users/notifications/", {"id": "overdue", "action": "archive"}, format="json")
+        self.assertEqual(archived.status_code, 200)
+        self.assertIsNotNone(OperationalNotificationState.objects.get(user=self.admin, notification_key="overdue").archived_at)
 
     @patch("apps.users.api.viewsets.validate_turnstile", return_value=True)
     def test_inactive_membership_cannot_start_or_restore_session(self, _validate):

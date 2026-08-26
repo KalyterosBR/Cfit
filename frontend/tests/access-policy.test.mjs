@@ -9,9 +9,9 @@ test("recepção acessa alunos e check-ins", () => {
     assert.equal(hasAccess(capabilities, routeAccess["/students"]), true);
     assert.equal(hasAccess(capabilities, routeAccess["/checkins"]), true);
 });
-test("central operacional exige todas as capacidades", () => {
+test("central operacional exige capacidade operacional", () => {
     assert.equal(hasAccess(["students.manage", "checkins.manage", "units.view"], routeAccess["/operations"]), false);
-    assert.equal(hasAccess(["students.manage", "checkins.manage", "workouts.manage", "units.view"], routeAccess["/operations"]), true);
+    assert.equal(hasAccess(["operations.view"], routeAccess["/operations"]), true);
 });
 test("portal do aluno não concede acesso administrativo", () => {
     const capabilities = ["portal.view"];

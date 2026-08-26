@@ -3,6 +3,8 @@ import {
     ChevronDown,
     LogOut,
     Menu,
+    RotateCcw,
+    X,
 } from "lucide-react";
 
 import { useEffect, useRef, useState } from "react";
@@ -44,11 +46,12 @@ export default function Topbar({
     const [profileOpen, setProfileOpen] = useState(false);
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const profile = useSession();
-    const [notifications, setNotifications] = useState<Array<{ id: string; title: string; detail: string; href: string; severity: string }>>([]);
+    const [notifications, setNotifications] = useState<Array<{ id: string; title: string; detail: string; href: string; severity: string; read: boolean; archived: boolean }>>([]);
+    const [showArchivedNotifications, setShowArchivedNotifications] = useState(false);
 
     useEffect(() => {
-        Api.get<{ results: Array<{ id: string; title: string; detail: string; href: string; severity: string }> }>("/users/notifications/").then(alerts => setNotifications(alerts.data.results.filter(item => hasAccess(profile.capabilities, routeAccess[`/${item.href.split("/")[1]}`])))).catch(() => undefined);
-    }, [location.pathname, profile.capabilities]);
+        Api.get<{ results: Array<{ id: string; title: string; detail: string; href: string; severity: string; read: boolean; archived: boolean }> }>("/users/notifications/", { params: { include_archived: showArchivedNotifications || undefined } }).then(alerts => setNotifications(alerts.data.results.filter(item => hasAccess(profile.capabilities, routeAccess[`/${item.href.split("/")[1]}`])))).catch(() => undefined);
+    }, [location.pathname, profile.capabilities, showArchivedNotifications]);
 
     useEffect(() => {
         function handleOutsideClick(event: MouseEvent) {
@@ -67,6 +70,26 @@ export default function Topbar({
         clearTokens();
         setProfileOpen(false);
         navigate("/", { replace: true });
+    }
+
+    function openNotifications() {
+        const opening = !notificationsOpen;
+        setNotificationsOpen(opening);
+        setProfileOpen(false);
+        if (opening) {
+            notifications.filter((item) => !item.read).forEach((item) => void Api.patch("/users/notifications/", { id: item.id, action: "read" }));
+            setNotifications((current) => current.map((item) => ({ ...item, read: true })));
+        }
+    }
+
+    function archiveNotification(id: string) {
+        void Api.patch("/users/notifications/", { id, action: "archive" });
+        setNotifications((current) => current.filter((item) => item.id !== id));
+    }
+
+    function restoreNotification(id: string) {
+        void Api.patch("/users/notifications/", { id, action: "restore" });
+        setNotifications((current) => current.map((item) => item.id === id ? { ...item, archived: false } : item));
     }
 
     const sectionLabel = location.pathname.startsWith(
@@ -110,19 +133,16 @@ export default function Topbar({
                         title="Notificações"
                         aria-expanded={notificationsOpen}
                         aria-haspopup="dialog"
-                        onClick={() => {
-                            setNotificationsOpen((current) => !current);
-                            setProfileOpen(false);
-                        }}
+                        onClick={openNotifications}
                         className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition hover:bg-blue-50 hover:text-blue-600"
                     >
                         <Bell size={18} />
 
-                        {notifications.length > 0 && <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-cyan-500 ring-2 ring-white" />}
+                        {notifications.some((item) => !item.read) && <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-cyan-500 ring-2 ring-white" />}
                     </button>
 
                     {notificationsOpen && (
-                        <div role="dialog" aria-label="Notificações" className="cfit-floating-panel absolute right-0 top-[calc(100%+0.65rem)] w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-[var(--cfit-shadow-elevated)]"><p className="px-2 py-2 text-xs font-black uppercase tracking-wider text-slate-500">Requer atenção</p>{notifications.length === 0 ? <p className="p-3 text-sm text-slate-500">Nenhuma pendência operacional.</p> : notifications.map(item => <button key={item.id} type="button" onClick={() => { setNotificationsOpen(false); navigate(item.href); }} className="block w-full rounded-xl p-3 text-left hover:bg-slate-50"><span className="block text-sm font-bold text-slate-800">{item.title}</span><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></button>)}</div>
+                        <div role="dialog" aria-label="Notificações" className="cfit-floating-panel absolute right-0 top-[calc(100%+0.65rem)] w-80 rounded-2xl border border-slate-200 bg-white p-3 shadow-[var(--cfit-shadow-elevated)]"><div className="flex items-center justify-between px-2 py-2"><p className="text-xs font-black uppercase tracking-wider text-slate-500">{showArchivedNotifications ? "Histórico arquivado" : "Requer atenção"}</p><button type="button" onClick={() => setShowArchivedNotifications((current) => !current)} className="text-xs font-bold text-blue-600">{showArchivedNotifications ? "Ativas" : "Histórico"}</button></div>{notifications.length === 0 ? <p className="p-3 text-sm text-slate-500">Nenhuma pendência operacional.</p> : notifications.map(item => <div key={item.id} className="group relative rounded-xl hover:bg-slate-50"><button type="button" onClick={() => { setNotificationsOpen(false); navigate(item.href); }} className="block w-full p-3 pr-10 text-left"><span className="block text-sm font-bold text-slate-800">{item.title}</span><span className="mt-1 block text-xs text-slate-500">{item.detail}</span></button><button type="button" onClick={() => item.archived ? restoreNotification(item.id) : archiveNotification(item.id)} aria-label={`${item.archived ? "Restaurar" : "Arquivar"} ${item.title}`} title={item.archived ? "Restaurar" : "Arquivar"} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-red-600">{item.archived ? <RotateCcw size={14} /> : <X size={14} />}</button></div>)}</div>
                     )}
                 </div>
 

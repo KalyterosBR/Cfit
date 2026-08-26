@@ -38,3 +38,17 @@ class EnrollmentLifecycleTests(APITestCase):
         renewed = Enrollment.objects.get(pk=response.data["id"])
         self.assertEqual(renewed.renewed_from, self.enrollment)
         self.assertTrue(EnrollmentHistory.objects.filter(enrollment=self.enrollment, event_type=EnrollmentHistory.EventType.RENEWED).exists())
+
+    def test_active_promotion_defines_contracted_price(self):
+        plan = Plan.objects.create(academy=self.academy, name="Promocional", price="120.00", promotion_price="90.00", promotion_ends_at=timezone.localdate() + timedelta(days=5), duration_months=1, contract_text="Contrato")
+        response = self.client.post(reverse("enrollment-list"), {"student": self.student.pk, "plan": plan.pk, "start_date": timezone.localdate(), "due_date": timezone.localdate() + timedelta(days=30), "billing_method": "monthly", "contract_accepted": True}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Enrollment.objects.get(pk=response.data["id"]).contracted_price, 90)
+
+    def test_plan_availability_respects_active_unit(self):
+        other_unit = Unit.objects.create(academy=self.academy, name="Sul", code="sul")
+        plan = Plan.objects.create(academy=self.academy, name="Exclusivo Sul", price="100.00", duration_months=1, contract_text="Contrato")
+        plan.available_units.add(other_unit)
+        response = self.client.post(reverse("enrollment-list"), {"student": self.student.pk, "plan": plan.pk, "start_date": timezone.localdate(), "due_date": timezone.localdate() + timedelta(days=30), "billing_method": "monthly", "contract_accepted": True}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("unidade ativa", str(response.data["plan"][0]))

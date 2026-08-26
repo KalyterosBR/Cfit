@@ -1051,7 +1051,7 @@ export default function Financial() {
                             <thead className="cfit-table-header bg-slate-50/80 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
                                 <tr>{["", "Aluno", "Cobrança", "Plano", "Vencimento", "Competência", "Valor", "Status", "Pagamento", "Conciliação", "Ações"].map((label, index) => <th key={`${label}-${index}`} className="px-6 py-4">{label}</th>)}</tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="cfit-record-list">
                                 {[1, 2, 3, 4].map((row) => (
                                     <tr key={row}>{Array.from({ length: 11 }, (_, cell) => <td key={cell} className="px-6 py-4"><SkeletonBlock className={`h-3 ${cell === 1 || cell === 2 ? "w-32" : cell === 10 ? "ml-auto w-20" : "w-20"}`} /></td>)}</tr>
                                 ))}
@@ -1165,7 +1165,7 @@ export default function Financial() {
                                         <th className="px-6 py-4 text-right">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="cfit-record-list">
                                     {charges.map((charge) => (
                                         <tr key={charge.id} data-selected={selectedChargeIds.has(charge.id)} className="text-sm text-slate-700 [&>td]:align-top">
                                             <td className="w-12 px-4 py-4 text-center">
@@ -1273,7 +1273,7 @@ export default function Financial() {
                         </div>
                         </>
                         ) : (
-                            <div className="divide-y divide-slate-100">
+                            <div className="cfit-record-list">
                                 {chargeGroups.map((group) => {
                                     const expanded = expandedGroups.has(group.key);
 

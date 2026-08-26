@@ -1,5 +1,6 @@
 const ACCESS_TOKEN_KEY = "cfit_access_token";
 const REFRESH_TOKEN_KEY = "cfit_refresh_token";
+const KEEP_CONNECTED_KEY = "cfit_keep_connected";
 
 
 function clearStorage(storage: Storage) {
@@ -15,13 +16,28 @@ function clearStorage(storage: Storage) {
 
 function getCurrentStorage() {
     if (
-        sessionStorage.getItem(
-            REFRESH_TOKEN_KEY,
-        ) ||
-        sessionStorage.getItem(
-            ACCESS_TOKEN_KEY,
+        localStorage.getItem(KEEP_CONNECTED_KEY) === "true" &&
+        (
+            localStorage.getItem(REFRESH_TOKEN_KEY) ||
+            localStorage.getItem(ACCESS_TOKEN_KEY)
         )
     ) {
+        return localStorage;
+    }
+
+    if (
+        sessionStorage.getItem(
+            REFRESH_TOKEN_KEY,
+        )
+    ) {
+        return sessionStorage;
+    }
+
+    if (localStorage.getItem(REFRESH_TOKEN_KEY)) {
+        return localStorage;
+    }
+
+    if (sessionStorage.getItem(ACCESS_TOKEN_KEY)) {
         return sessionStorage;
     }
 
@@ -48,6 +64,12 @@ export function saveTokens(
 
     clearStorage(otherStorage);
 
+    if (keepConnected === true) {
+        localStorage.setItem(KEEP_CONNECTED_KEY, "true");
+    } else if (keepConnected === false) {
+        localStorage.removeItem(KEEP_CONNECTED_KEY);
+    }
+
     storage.setItem(
         ACCESS_TOKEN_KEY,
         access,
@@ -71,30 +93,21 @@ export function saveAccessToken(
 
 
 export function getAccessToken() {
-    return (
-        sessionStorage.getItem(
-            ACCESS_TOKEN_KEY,
-        ) ??
-        localStorage.getItem(
-            ACCESS_TOKEN_KEY,
-        )
-    );
+    const storage = getCurrentStorage();
+    const fallback = storage === localStorage ? sessionStorage : localStorage;
+    return storage.getItem(ACCESS_TOKEN_KEY) ?? fallback.getItem(ACCESS_TOKEN_KEY);
 }
 
 
 export function getRefreshToken() {
-    return (
-        sessionStorage.getItem(
-            REFRESH_TOKEN_KEY,
-        ) ??
-        localStorage.getItem(
-            REFRESH_TOKEN_KEY,
-        )
-    );
+    const storage = getCurrentStorage();
+    const fallback = storage === localStorage ? sessionStorage : localStorage;
+    return storage.getItem(REFRESH_TOKEN_KEY) ?? fallback.getItem(REFRESH_TOKEN_KEY);
 }
 
 
 export function clearTokens() {
     clearStorage(localStorage);
     clearStorage(sessionStorage);
+    localStorage.removeItem(KEEP_CONNECTED_KEY);
 }

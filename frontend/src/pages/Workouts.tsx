@@ -185,7 +185,7 @@ export default function Workouts() {
         ) : error ? (
           <div className="p-5"><ErrorState onRetry={load} label="Não foi possível carregar os treinos"/></div>
         ) : tab === "plans" ? (
-          <div className="divide-y divide-slate-100">
+          <div className="cfit-record-list">
             {plans.length === 0 ? (
               <p className="p-10 text-center text-slate-500">
                 Nenhum treino encontrado.

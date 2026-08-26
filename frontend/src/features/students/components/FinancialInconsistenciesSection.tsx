@@ -198,7 +198,7 @@ export default function FinancialInconsistenciesSection() {
                     </p>
                 </div>
             ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="cfit-record-list">
                     {issues.map((issue) => {
                         const priorityInfo = priorityDetails(issue.priority);
 

@@ -11,8 +11,9 @@ export const routeAccess: Record<string, AccessRequirement> = {
     "/settings": { anyOf: ["settings.view", "settings.manage", "users.manage"] },
     "/units": { anyOf: ["units.view", "units.manage"] },
     "/automations": { anyOf: ["automations.manage"] },
-    "/operations": { allOf: ["students.manage", "checkins.manage", "workouts.manage", "units.view"] },
+    "/operations": { anyOf: ["operations.view", "operations.manage"] },
     "/growth": { allOf: ["students.manage", "schedule.manage"] },
+    "/relationship": { anyOf: ["students.manage"] },
     "/portal": { anyOf: ["portal.view"] },
     "/documents": { anyOf: ["students.manage"] },
 };

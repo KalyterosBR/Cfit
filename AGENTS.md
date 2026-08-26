@@ -2707,6 +2707,332 @@ Validações desta consolidação:
 
 ---
 
+## 48.8 Roadmap final consolidado — Fase 0 de 26/08/2026
+
+Esta seção consolida a auditoria solicitada para a etapa final de evolução do Cfit. Ela complementa o roadmap oficial da seção 48.3 e prevalece quando houver divergência de estado com retratos históricos. O SCA é somente referência de eficiência operacional; identidade, textos, telas e implementação do Cfit permanecem próprios.
+
+### 48.8.1 Regra de leitura dos estados
+
+- `[ ]`: pendente, sem fluxo vertical suficiente;
+- `[~]`: em andamento ou parcial; interface isolada não significa conclusão;
+- `[x]`: frontend, backend, persistência, permissões, estados e testes confirmados no escopo descrito;
+- `[!]`: bloqueado por integração, homologação, infraestrutura ou decisão externa.
+
+Uma fase ampla pode permanecer `[~]` mesmo quando algumas fatias internas estão `[x]`. Não promover uma fase para `[x]` antes de cumprir sua definição de concluído e validar os dois temas e breakpoints previstos.
+
+### 48.8.2 Mapa técnico atual
+
+| Domínio | Backend e persistência | Frontend e rota | Estado real |
+|---|---|---|---|
+| Agenda | `apps.schedule.ScheduleEvent`, API `/api/schedule/events/`, recorrência diária/semanal, série, conflito por profissional/local, confirmação e cancelamento | `/schedule` possui filtros, criação e lista | `[~]` funcional parcial: Dia/Semana/Mês apenas mudam datas; faltam grade, navegação por período, edição/detalhe, sala estruturada, capacidade, presença e exceções de série |
+| Turmas | `GroupClass` e `ClassBooking` em `apps.operations`, capacidade, espera, presença/falta/cancelamento e duplicação | aba embutida em `/growth` | `[~]` persistida, mas misturada ao Comercial, sem paginação/filtros/histórico e sem vínculo com `ScheduleEvent` |
+| Central operacional | dispositivos, campanhas, avaliações e onboarding em `apps.operations` | `/operations` reúne os quatro fluxos | `[~]` composição atual contradiz a nova responsabilidade; ainda não existe entidade genérica de pendência, atribuição, SLA e resolução por origem |
+| Treinos | `apps.workouts` cobre biblioteca, modelos, prescrição, exercícios, progresso e sessões | `/workouts` e ficha do aluno | `[~]` avançado; falta confirmar filtros/escala, histórico administrativo completo e integração vertical com avaliação/revisão |
+| Avaliações | `PhysicalAssessment` persiste medidas, sinais, foto, responsável e próxima avaliação | Central, ficha e Portal consomem o domínio | `[~]` persistida; precisa sair da Central, consolidar validações/unidades, comparação temporal, gráficos, permissões próprias e vínculo com revisão do treino |
+| Comercial | `Lead`, conversão com prevenção por CPF e auditoria de atualização/conversão | `/growth` usa lista linear e formulário exposto | `[~]` persistido; faltam Kanban/tabela, busca, paginação, histórico de contatos/propostas e associação segura a aluno existente/matrícula |
+| Relacionamento | `CommunicationCampaign` e `MessageDelivery`, preparação e sandbox | misturado à Central | `[~]` persistido e protegido contra envio implícito, mas sem área própria, segmentos reutilizáveis e governança completa de execução real |
+| Documentos | `StudentDocument` possui arquivo, versão numérica, validade, vínculo com matrícula e aceite | `/documents` e Portal | `[~]` persistido; versões ainda são registros soltos, sem entidade de modelo/solicitação de aceite/arquivamento; armazenamento externo e assinatura qualificada estão bloqueados |
+| Automações | regras e execuções com SLA, tentativas, pausa e idempotência | `/automations` | `[~]` backend avançado; faltam paginação/filtros/drawer/histórico escalável e auditoria visual completa; textos internos devem permanecer traduzidos no frontend |
+| Relatórios | API gerencial e comparação por unidades; visões salvas server-side em alteração local atual | `/reports` orientado a perguntas | `[~]` avançado; faltam cache/progresso por seção, relatórios dos novos domínios e QA de compartilhamento/permissões |
+| Configurações e governança | academia, unidades, membros, preferências, sessões e auditoria possuem APIs | `/settings` concentra seções | `[~]` avançado; faltam rotas/seções independentes, proteção de alterações não salvas e filtros de escala em todas as superfícies |
+| Unidades | `Unit`, contexto ativo e relatório comparativo | `/units` | `[~]` fundação funcional; domínios históricos ainda não estão integralmente particionados e as métricas precisam explicitar fotografia, movimento, caixa e competência |
+| UX compartilhada | tokens semânticos, tema síncrono, skeletons, modal, cabeçalho, busca e divisores | área autenticada inteira | `[~]` fundação sólida; falta tabela compartilhada completa, preservação generalizada de filtros, QA visual automatizado e modo compacto avaliado |
+
+### 48.8.3 Checklist rastreável por fase
+
+#### Fase 0 — diagnóstico, documentação e regressão
+
+- [x] Mapear rotas, apps, modelos, APIs e componentes diretamente envolvidos no roadmap.
+- [x] Classificar fundações persistidas, interfaces parciais e dependências externas sem duplicar módulos.
+- [x] Registrar dependências, riscos, migrations previstas e divisão incremental neste arquivo.
+- [x] Revisar a matriz atual de capacidades e identificar capacidades genéricas reutilizadas por domínios novos.
+- [~] Consolidar proteção automatizada: há suítes Django e frontend, mas não existe E2E autenticado nem matriz visual automatizada.
+- [!] Homologar visualmente temas e breakpoints com sessão e dados reais; depende de navegador/sessão de QA disponíveis.
+
+#### Fase 1 — Agenda operacional e Turmas
+
+- [x] Agenda persistida com período, tipos, recorrência simples, confirmação, cancelamento e conflitos de toda a série.
+- [x] Grade real de Dia/Semana/Mês, navegação anterior/próximo, hoje, detalhe e edição contextual.
+- [x] Filtros por tipo, profissional, turma, sala/local e unidade ativa; sala/local ainda é catálogo textual derivado e poderá virar recurso estruturado em evolução posterior.
+- [x] Recorrência com ocorrências independentes, reposição e cancelamento por ocorrência ou série.
+- [x] Turmas persistidas com capacidade, espera, vagas, ocupação e chamada.
+- [x] Consulta de Turmas separada da criação, com busca, filtros, paginação, ocupação e ações operacionais.
+- [x] Turma/aula vinculada à Agenda por `schedule_event`, com criação transacional e sincronização de edição/cancelamento.
+- [x] Auditoria de criação, edição, duplicação, inativação, inscrição, chamada, cancelamento e reposição.
+- [~] Permissões, conflitos, capacidade, estados vazios/erro e fluxo backend possuem cobertura; E2E autenticado e inspeção visual nos temas/breakpoints permanecem pendentes.
+
+#### Fase 2 — Central operacional
+
+- [x] Modelo/API de pendência operacional com prioridade, origem, responsável, SLA, status, próxima ação e histórico.
+- [x] Adaptadores idempotentes para financeiro, retenção, acesso, comercial, documentos, agenda e automações.
+- [x] Pesquisa, filtros, atribuição, resolução, histórico e atualização individual sem recarregar toda a página.
+- [x] Central dedicada à fila diária; dispositivos permanecem em Check-ins/Acesso, campanhas ganharam `/relationship`, avaliações permanecem na ficha/Treinos e onboarding em `/onboarding`.
+- [x] URL `/operations` preservada como Central e APIs antigas mantidas para compatibilidade.
+
+#### Fase 3 — Treinos, avaliações e evolução
+
+- [x] Biblioteca, modelos, prescrição, exercícios, execução, aderência, carga, revisão e histórico básico existem no frontend web.
+- [~] Avaliações possuem persistência, medidas, composição, objetivo, responsável, foto opcional e próxima data.
+- [ ] Consolidar avaliações na ficha e em Treinos, com unidades/formatos validados, comparação e gráficos acessíveis.
+- [ ] Vincular próxima avaliação e revisão de treino e completar auditoria/permissões específicas.
+- [!] Aplicativo dedicado do aluno permanece fora do frontend web atual.
+
+#### Fase 4 — Comercial e Relacionamento
+
+- [~] Lead, etapas, responsável, próxima ação, motivo de perda e conversão básica existem.
+- [ ] Implementar Kanban e tabela paginada, filtros, ação vencida, histórico de contatos, proposta e métricas reconciliáveis.
+- [ ] Permitir associação segura a aluno existente e criação de matrícula, mantendo prevenção de duplicidade por CPF.
+- [~] Campanhas possuem rascunho, canal, segmento e sandbox/preparação.
+- [ ] Criar área própria de Relacionamento, segmentos reutilizáveis, histórico e confirmação reforçada para execução real.
+- [!] Métricas e envio por provedor externo dependem de integração configurada; não simular entrega real.
+
+#### Fase 5 — Documentos e Portal
+
+- [~] Arquivo, versão, validade, aceite, vínculo com aluno/matrícula e isolamento do Portal existem.
+- [ ] Separar documento, versão, solicitação de aceite, aceite imutável, validade e arquivamento em modelo explícito.
+- [ ] Implementar agrupamento, pesquisa, filtros, paginação, modelos, renovação, download autorizado e alertas idempotentes.
+- [!] Armazenamento externo seguro e assinatura qualificada dependem de provedor e decisão externa.
+
+#### Fase 6 — Automações
+
+- [x] Separação entre teste, simulação e execução real, tentativas, SLA, pausa e idempotência existem no backend atual.
+- [ ] Escalar UI com busca, filtros, paginação, indicadores, áreas de regras/execuções e drawer cronológico.
+- [ ] Confirmar ativação, pausa, duplicação e execução real com auditoria amigável e cobertura de concorrência.
+- [ ] Garantir tradução de todos os estados e prioridades na interface.
+
+#### Fase 7 — Relatórios e desempenho percebido
+
+- [x] Perguntas gerenciais, período/escopo, fórmulas/fontes e exportação inicial existem.
+- [~] Favoritos e visões salvas possuem fundação server-side nas alterações locais atuais; compartilhamento requer validação completa.
+- [ ] Adicionar cache por período/escopo, carregamento independente e preservação do último resultado durante atualização.
+- [ ] Criar relatórios reconciliáveis de Agenda, Turmas, Comercial, Retenção e Treinos.
+- [ ] Garantir navegação para origem e exportação idêntica aos filtros.
+
+#### Fase 8 — Configurações, usuários e governança
+
+- [~] Seções pesquisáveis, membros, capacidades, sessões, auditoria e preferências existem.
+- [ ] Dividir a página longa em rotas ou seções independentes sem duplicar módulos operacionais.
+- [ ] Implementar busca com foco no campo, alterações sujas, salvamento por seção e confirmações sensíveis.
+- [ ] Completar permissões por função/unidade e paginação/filtros de auditoria e sessões.
+- [!] Homologação interativa com os seis perfis depende de contas e sessão de QA.
+
+#### Fase 9 — Gestão e comparação entre unidades
+
+- [~] Cadastro, unidade ativa, isolamento de APIs novas e comparação inicial existem.
+- [ ] Completar cartões/tabela, filtros, ranking, alertas, período anterior e semântica explícita das métricas.
+- [ ] Particionar e migrar incrementalmente os domínios históricos antes de declarar consolidado confiável.
+- [!] Dados históricos ambíguos exigem regra de migração aprovada; não inferir unidade silenciosamente.
+
+#### Fase 10 — refinamentos gerais de UX/UI
+
+- [x] Tema semântico, carregamento inicial, busca global, favoritos, grupos recolhíveis, foco visível e `prefers-reduced-motion` possuem fundação.
+- [~] Grupos recolhidos e uso local da navegação possuem persistência; modo compacto continua não validado.
+- [ ] Consolidar tabela reutilizável com paginação, ordenação, densidade, colunas, filtros e preservação de retorno.
+- [ ] Remover formulários longos expostos conforme cada domínio migrar para modal, drawer ou fluxo próprio.
+- [ ] Executar auditoria final de contraste, teclado, gráficos textuais, temas e breakpoints após os fluxos funcionais.
+
+### 48.8.4 Dependências e ordem executável
+
+```text
+Fase 0
+  ↓
+Fase 1: Turma ↔ Agenda ──────────────┐
+  ↓                                  │
+Fase 2: Pendências operacionais      │
+  ↑                                  │
+Fases 3, 4, 5 e 6 produzem origens ──┘
+  ↓
+Fase 7: Relatórios reconciliados
+  ↓
+Fase 8: Governança consolidada
+  ↓
+Fase 9: Comparação confiável por unidade
+  ↓
+Fase 10: acabamento transversal
+```
+
+Fases 3 a 6 podem avançar em fatias independentes depois que o contrato mínimo de origem da Central estiver definido. Fase 9 depende do particionamento real dos dados; Fase 10 acompanha cada entrega em acessibilidade e responsividade, mas seu fechamento global ocorre por último.
+
+### 48.8.5 Migrations previstas
+
+- Fase 1: vínculo explícito entre turma, ocorrência e evento; recorrência/exceções; sala/recurso estruturado; estado e histórico da aula. Preferir evoluir `apps.schedule` e migrar gradualmente `GroupClass`, sem mover tabelas em uma única migration.
+- Fase 2: `OperationalIssue` e histórico de transições/comentários, com chave idempotente de origem.
+- Fase 3: vínculo entre avaliação e revisão de treino; somente adicionar entidade de anexo se o armazenamento atual for mantido com autorização adequada.
+- Fase 4: interações/propostas do lead, etapas configuráveis apenas se houver necessidade comprovada e segmentos de campanha reutilizáveis.
+- Fase 5: documento lógico, versão, solicitação de aceite e aceite imutável; migração das linhas atuais agrupada por aluno/título com regra explícita.
+- Fase 6: evitar migration se os campos atuais bastarem; primeiro auditar índices e contratos da API.
+- Fase 7: cache pode começar sem persistência permanente; não criar tabela antes de medir necessidade.
+- Fase 8: escopo de unidade por membro pode exigir relação própria caso um usuário deva acessar várias unidades simultaneamente.
+- Fase 9: migrations por domínio histórico, com backfill revisável e relatório de registros sem unidade.
+
+### 48.8.6 Riscos e proteções
+
+1. `apps.operations` concentra acesso, campanhas, avaliações, onboarding, leads, turmas, documentos e sessões. Separar responsabilidade primeiro por APIs/rotas e serviços; evitar migração física em lote.
+2. `GroupClass` e `ScheduleEvent` mantêm horários independentes. Criar sincronização bidirecional improvisada causaria divergência; a primeira entrega deve definir uma fonte única e vínculo explícito.
+3. Capacidades de Comercial, Turmas, Documentos e Avaliações reutilizam `students.*`, `schedule.*` ou uma combinação ampla. Consolidar capacidades gradualmente no backend antes de depender apenas da ocultação no frontend.
+4. A unidade ativa é uma unidade única no vínculo atual. Redes com acesso simultâneo a várias unidades exigem decisão de escopo antes da Fase 9.
+5. Arquivos e fotos usam armazenamento Django local. Escala, download autorizado e retenção precisam de política antes de armazenamento externo.
+6. O frontend não possui Playwright/Cypress nem navegador configurado. Não declarar QA visual/E2E completo a partir de lint e build.
+7. O workspace contém alterações funcionais locais anteriores ainda sem commit. Preservá-las, não reverter nem misturar correções alheias; validar o conjunto antes de cada entrega.
+8. APIs paginadas podem ser consumidas como listas completas em páginas iniciais. Toda evolução de escala deve confirmar contrato paginado e preservar filtros durante atualização.
+
+### 48.8.7 Divisão em entregas pequenas
+
+1. **F1-A — contrato Turma–Agenda:** modelo/vínculo, conflito único, criação transacional, leitura na Agenda, auditoria e testes de capacidade/permissão.
+2. **F1-B — Agenda navegável:** grade Dia/Semana responsiva, hoje/anterior/próximo, detalhe e edição; Mês como visão resumida real.
+3. **F1-C — operação de Turmas:** listagem paginada, filtros, drawer de criação/edição, ocupação, espera e chamada.
+4. **F1-D — séries e exceções:** cancelamento/reposição por ocorrência ou série, lembretes idempotentes e histórico.
+5. **F2-A — núcleo de pendências:** entidade, transições, atribuição, SLA, auditoria e API paginada.
+6. **F2-B — adaptadores:** financeiro e acesso primeiro; depois Agenda, Comercial, Documentos, Retenção e Automações.
+7. **F2-C — redistribuição de rotas:** mover interfaces mantendo compatibilidade de URLs.
+8. Fases seguintes devem repetir o padrão: contrato e testes backend, fatia de UI operacional, integração/auditoria e QA.
+
+Primeira entrega implementável recomendada: **F1-A — contrato Turma–Agenda**. Ela resolve a maior inconsistência da prioridade funcional sem redesenhar a Agenda, cria a fundação para grade, chamada, ocupação e relatórios, e pode ser validada verticalmente em uma alteração pequena.
+
+### 48.8.8 Estado desta entrega
+
+- Escopo: Fase 0 documental e diagnóstico técnico; nenhuma nova regra de negócio foi implementada nesta seção.
+- APIs e migrations: nenhuma API alterada e nenhuma migration criada especificamente pela Fase 0.
+- Componentes: nenhum componente criado pela Fase 0; foram identificados para reutilização `PageHeader`, `Modal`, `ConfirmDialog`, `AsyncState`, `RecordList`, `DashboardLayout`, cliente `Api` e política `ScopedCapability`.
+- Permissões: backend continua sendo a fonte; lacunas de granularidade foram registradas, sem ampliar acesso nesta entrega.
+- Auditoria: catálogo existente preservado; eventos ausentes por domínio foram registrados como pendência.
+- Validação visual: bloqueada nesta entrega pela ausência de navegador autenticado configurado; não inferir aprovação dos dois temas apenas pelo código.
+- Validações de baseline em 26/08/2026: `python manage.py check` aprovado; `makemigrations --check --dry-run` sem alterações pendentes; suíte Django completa com `121` testes aprovados; lint do frontend com zero erros e cinco avisos preexistentes de dependências de hooks; `12` testes do frontend aprovados; TypeScript e build Vite de produção aprovados.
+- O baseline inclui as alterações funcionais locais anteriores ainda não commitadas; esta Fase 0 adicionou somente documentação e não autorizou commit, push, deploy ou infraestrutura.
+
+---
+
+## 48.9 Entrega da Fase 1 — Agenda operacional e Turmas — 26/08/2026
+
+Esta entrega executou os dez pontos prioritários da Fase 1 sem alterar as URLs `/schedule` e `/growth` e sem reconstruir os demais domínios.
+
+Implementação confirmada:
+- `GroupClass` possui situação operacional, série, recorrência e vínculo individual protegido com `ScheduleEvent`;
+- a migration `operations.0008_groupclass_schedule_integration` cria os campos e vincula turmas históricas a eventos sem excluir dados;
+- criação de turma simples ou recorrente valida todas as ocorrências antes de persistir e ocorre dentro de transação;
+- conflitos consideram professor e sala/local no contexto da unidade ativa;
+- edição e cancelamento permanecem sincronizados quando iniciados pela Agenda ou por Turmas;
+- cancelamento exige motivo e pode afetar ocorrência ou série; reposição cria nova turma/evento auditável;
+- capacidade, inscritos, vagas, ocupação e lista de espera são calculados no backend;
+- cancelamento de inscrição promove o primeiro aluno da espera;
+- chamada registra presença, falta ou cancelamento;
+- consulta de Turmas possui busca, situação, modalidade, período e paginação server-side;
+- criação e edição usam modal; consulta e formulário deixaram de ficar permanentemente misturados;
+- Agenda possui visões Dia e Semana com grade horária de `06h` a `22h` e visão Mês por data;
+- navegação anterior/próximo, atalho `Hoje`, filtros por tipo, profissional, turma e sala/local foram conectados à API;
+- evento abre detalhe contextual com horário, profissional, local, situação, confirmação, edição, cancelamento e ocupação da turma;
+- telas mantêm loading por skeleton, vazio acionável, erro com nova tentativa e layout com overflow controlado para larguras menores;
+- estilos de botões, filtros, chips e foco usam tokens semânticos compartilhados nos dois temas.
+
+APIs evoluídas, preservando os endpoints existentes:
+```text
+GET/PATCH/POST /api/schedule/events/
+GET            /api/schedule/events/options/
+POST           /api/schedule/events/:id/confirm/
+POST           /api/schedule/events/:id/cancel/
+GET/POST/PATCH /api/operations/classes/
+POST           /api/operations/classes/:id/book/
+PATCH          /api/operations/classes/:id/bookings/:booking_id/
+POST           /api/operations/classes/:id/cancel/
+POST           /api/operations/classes/:id/duplicate/
+POST           /api/operations/classes/:id/replace/
+POST           /api/operations/classes/:id/deactivate/
+```
+
+Permissões e auditoria:
+- Agenda e Turmas continuam protegidas por `ScopedCapability`, com `schedule.view` para leitura e `schedule.manage` para escrita;
+- academia e unidade são obtidas exclusivamente da sessão; professor e aluno são validados contra esse contexto;
+- eventos auditados: `schedule.created`, `schedule.updated`, `schedule.canceled`, `group_class.created`, `group_class.updated`, `group_class.booking_updated`, `group_class.attendance_updated`, `group_class.canceled`, `group_class.duplicated`, `group_class.replacement_created` e `group_class.deactivated`.
+
+Validações desta entrega:
+- `python manage.py check`: aprovado;
+- `makemigrations --check --dry-run`: nenhuma alteração pendente;
+- migration `operations.0008_groupclass_schedule_integration`: aplicada no banco de desenvolvimento;
+- suíte Django completa: `123` testes aprovados;
+- testes de Agenda e Operações: `16` aprovados, incluindo vínculo de série, atomicidade de conflito, capacidade/espera e sincronização de cancelamento;
+- lint do frontend: zero erros e cinco avisos preexistentes de dependências de hooks;
+- testes do frontend: `12` aprovados;
+- TypeScript e build Vite de produção: aprovados após a grade horária final;
+- `git diff --check`: deve permanecer como verificação obrigatória antes de encerramento ou commit.
+
+Limitações deliberadas:
+- sala/local continua sendo texto normalizado por consulta, não uma entidade de recurso com capacidade própria;
+- recorrência atual suporta diária e semanal, com até `52` ocorrências; regras mensais/configuráveis permanecem futuras;
+- a UI permite exceções por edição individual e reposição, mas ainda não possui editor em lote de uma série existente;
+- o intervalo visual padrão da grade é `06h–22h`; eventos fora desse horário permanecem nos dados e na visão Mês, mas uma configuração de horário por unidade ainda é futura;
+- QA visual autenticado nos temas claro/noturno e breakpoints reais continua pendente por ausência de navegador/sessão automatizada no ambiente;
+- não houve commit, push, deploy, publicação ou integração externa.
+
+Próxima entrega recomendada: **F2-A — núcleo de pendências da Central operacional**, começando por modelo, transições, responsável, SLA, origem idempotente, auditoria e API paginada antes da reorganização visual dos módulos atuais.
+
+---
+
+## 48.10 Entrega da Fase 2 — Central operacional — 26/08/2026
+
+- `OperationalIssue` e `OperationalIssueHistory` persistem origem idempotente, prioridade, responsável, SLA, situação, próxima ação, resolução e linha do tempo;
+- a listagem sincroniza fontes reais de cobranças/recorrências, retenção, dispositivos, turmas canceladas, leads vencidos, documentos e automações com falha;
+- uma causa eliminada na origem resolve automaticamente a pendência correspondente, preservando histórico;
+- `/api/operations/issues/` é paginada e aceita pesquisa, origem, prioridade, situação, responsável e SLA vencido;
+- atualização de uma pendência ocorre por `PATCH`, valida responsável da academia, exige resolução ao concluir e registra auditoria administrativa;
+- `/operations` tornou-se a fila diária com indicadores, filtros, responsável, ação de origem e drawer de resolução;
+- campanhas foram movidas para `/relationship`, com rascunho e preparação explícita em sandbox; nenhuma execução externa é inferida;
+- dispositivos continuam no domínio de Check-ins/Acesso, avaliações na ficha do aluno/Treinos e onboarding em `/onboarding`; APIs anteriores foram preservadas;
+- capacidades `operations.view` e `operations.manage` foram adicionadas aos perfis operacionais adequados, mantendo backend como fonte de autorização;
+- migration aplicada: `operations.0009_operationalissue_operationalissuehistory`;
+- validações: Django check e migrations aprovados, `124` testes Django, `12` testes frontend, lint sem erros (cinco avisos preexistentes), TypeScript e build aprovados;
+- QA visual autenticado nos dois temas permanece pendente; nenhum commit, push, deploy ou envio externo foi realizado.
+
+Próxima entrega recomendada: Fase 3, consolidando Avaliações na ficha do aluno e no ciclo de revisão de Treinos.
+
+---
+
+## 48.11 Entrega da Fase 3-A — Equipamentos e avaliações físicas — 26/08/2026
+
+- [x] Equipamentos foram consolidados em `/checkins`, no bloco “Acesso e equipamentos”, com cadastro, edição, ativação/inativação, saúde, último contato, latência, firmware e diagnóstico;
+- [x] eventos, diagnósticos, comandos, tentativas, falhas e resultados ficam disponíveis em histórico contextual, sem retornar à Central operacional;
+- [x] falhas reais de comunicação continuam produzindo pendências na Central por adaptador idempotente; o diagnóstico força nova sincronização da origem;
+- [x] troca de unidade do equipamento é validada contra academia e unidade ativas no backend;
+- [x] criação e alteração de equipamentos alimentam `AdministrativeAudit`;
+- [x] avaliações físicas são cadastradas diretamente na aba Avaliações da ficha do aluno, com data, peso, altura, gordura corporal, pressão, frequência em repouso, objetivo, observações e medidas estruturadas;
+- [x] histórico, variações de peso/gordura e gráfico de evolução com alternativa textual usam somente avaliações persistidas;
+- [x] uma avaliação pode ser vinculada a um treino do mesmo aluno; a próxima avaliação atualiza a data persistida de revisão desse treino;
+- [x] criação e alteração de avaliações alimentam a auditoria administrativa;
+- [x] leitura preserva `students.view`; escrita de avaliações preserva `workouts.manage`; equipamentos preservam `checkins.view` e `checkins.manage`, evitando criar capacidades redundantes;
+- [x] migration aplicada: `operations.0010_physicalassessment_workout_plan`;
+- [x] validações aprovadas: Django check, migrations sem divergência, `126` testes backend, `12` testes frontend, lint sem erros (cinco avisos preexistentes), TypeScript, build Vite e `git diff --check`;
+- [~] os campos disponíveis cobrem a avaliação operacional atual; anexos permanecem condicionados à política de armazenamento e autorização já registrada no roadmap;
+- [!] QA visual autenticado nos temas claro/noturno e breakpoints reais continua dependente de navegador e sessões por perfil no ambiente.
+
+APIs preservadas e evoluídas:
+```text
+GET/POST/PATCH /api/operations/devices/
+POST           /api/operations/devices/:id/diagnose/
+GET            /api/operations/devices/:id/events/
+GET/POST       /api/operations/devices/:id/commands/
+GET/POST/PATCH /api/operations/assessments/
+GET            /api/operations/assessments/comparison/?student=:id
+```
+
+Próxima entrega recomendada: continuar a Fase 3 pelos refinamentos de Treinos que ainda não atendam integralmente criação de biblioteca/modelos, execução, aderência, evolução de carga e alertas de revisão, sem duplicar o módulo já funcional.
+
+---
+
+## 48.12 Preparação de deploy Vercel + Neon — 26/08/2026
+
+- o monorepo deve ser importado em dois projetos Vercel: Django na raiz e Vite em `frontend`;
+- `vercel.json` da raiz usa o preset Django e região `iad1`; selecionar Neon em AWS US East (N. Virginia) mantém aplicação e banco próximos;
+- `frontend/vercel.json` usa o preset Vite, fallback SPA para `index.html` e cache imutável dos assets versionados;
+- frontend lê a API de `VITE_API_URL`, mantendo `localhost` somente como fallback de desenvolvimento;
+- backend aceita `DATABASE_URL` Neon pooled com SSL, mantém as variáveis PostgreSQL separadas para Docker local e desativa conexões persistentes na Vercel;
+- builds de produção executam migrations com `DATABASE_URL_UNPOOLED` quando disponível e coletam estáticos; previews não executam migrations;
+- o comando idempotente `bootstrap_superuser` cria o primeiro administrador somente quando as duas variáveis `DJANGO_BOOTSTRAP_SUPERUSER_*` estiverem presentes; nunca atualiza a senha de uma conta existente e não imprime a senha;
+- hosts, CORS e CSRF são configurados por ambiente; HTTPS, cookies seguros, HSTS e proteção de conteúdo ficam ativos quando `DEBUG=False`;
+- deploy Vercel falha explicitamente sem `DJANGO_SECRET_KEY` ou `DATABASE_URL`;
+- arquivos enviados usam `/tmp` na Vercel apenas para compatibilidade transitória e não possuem persistência durável; antes de liberar logos, fotos ou documentos em produção é obrigatório integrar armazenamento de objetos privado. Não tratar Vercel Functions como armazenamento de mídia;
+- nenhum segredo foi adicionado ao repositório; `.env`, ambientes Vercel e artefatos locais permanecem ignorados.
+
+---
+
 ## 49. Protocolo de encerramento da sessão
 Frase-gatilho exata:
 ```text

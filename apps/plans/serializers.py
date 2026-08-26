@@ -80,6 +80,14 @@ class PlanSerializer(serializers.ModelSerializer):
             "contract_text",
             getattr(instance, "contract_text", ""),
         )
+        promotion_price = attrs.get("promotion_price", getattr(instance, "promotion_price", None))
+        price = attrs.get("price", getattr(instance, "price", None))
+        penalty = attrs.get("cancellation_penalty_percentage", getattr(instance, "cancellation_penalty_percentage", 0))
+
+        if promotion_price is not None and (promotion_price <= 0 or (price is not None and promotion_price >= price)):
+            raise serializers.ValidationError({"promotion_price": "O valor promocional deve ser positivo e menor que o valor total."})
+        if penalty < 0 or penalty > 100:
+            raise serializers.ValidationError({"cancellation_penalty_percentage": "A multa deve estar entre 0% e 100%."})
 
         if (instance is None or "contract_text" in attrs) and not contract_text.strip():
             raise serializers.ValidationError(
