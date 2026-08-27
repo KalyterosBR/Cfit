@@ -783,6 +783,8 @@ Visual atual:
 
 O painel operacional de prioridade usa exclusivamente dados reais disponíveis. Quando não existem pendências, apresenta um estado resolvido compacto, sem inventar métricas ou ações.
 
+A Dashboard deve respeitar capacidades também na camada de carregamento, não apenas na ocultação visual. Perfis sem `finance.view`/`finance.manage` não podem disparar consultas financeiras; perfis sem `checkins.view`/`checkins.manage` não podem disparar consultas ou metas de check-in. A visão do Professor usa dados autorizados de alunos, treinos, avaliações e agenda, e não deve exibir erros de permissão como conteúdo operacional. O componente de prioridades deve consultar somente as fontes necessárias para a visão selecionada.
+
 Componentes principais:
 ```text
 DashboardLayout
@@ -2802,54 +2804,54 @@ Uma fase ampla pode permanecer `[~]` mesmo quando algumas fatias internas estão
 #### Fase 3 — Treinos, avaliações e evolução
 
 - [x] Biblioteca, modelos, prescrição, exercícios, execução, aderência, carga, revisão e histórico básico existem no frontend web.
-- [~] Avaliações possuem persistência, medidas, composição, objetivo, responsável, foto opcional e próxima data.
-- [ ] Consolidar avaliações na ficha e em Treinos, com unidades/formatos validados, comparação e gráficos acessíveis.
-- [ ] Vincular próxima avaliação e revisão de treino e completar auditoria/permissões específicas.
+- [x] Avaliações possuem persistência, medidas, composição, objetivo, responsável, foto opcional e próxima data.
+- [x] Avaliações estão consolidadas na ficha, com formatos validados, comparação e gráficos com alternativa textual.
+- [x] Próxima avaliação pode atualizar a revisão do treino; evolução de carga e ações de treino são auditadas.
 - [!] Aplicativo dedicado do aluno permanece fora do frontend web atual.
 
 #### Fase 4 — Comercial e Relacionamento
 
-- [~] Lead, etapas, responsável, próxima ação, motivo de perda e conversão básica existem.
-- [ ] Implementar Kanban e tabela paginada, filtros, ação vencida, histórico de contatos, proposta e métricas reconciliáveis.
-- [ ] Permitir associação segura a aluno existente e criação de matrícula, mantendo prevenção de duplicidade por CPF.
-- [~] Campanhas possuem rascunho, canal, segmento e sandbox/preparação.
-- [ ] Criar área própria de Relacionamento, segmentos reutilizáveis, histórico e confirmação reforçada para execução real.
+- [x] Lead, etapas, responsável, próxima ação, motivo de perda e conversão auditada existem.
+- [x] Kanban e lista paginada, busca, filtros, ação vencida, contatos e propostas estão disponíveis.
+- [~] A API permite associação explícita e segura a aluno existente e impede duplicidade por CPF; a matrícula continua no fluxo contratual próprio após a conversão.
+- [x] Campanhas possuem rascunho, canal, segmento, sandbox/preparação e segmentos reutilizáveis.
+- [x] Relacionamento possui área própria; execução externa continua condicionada a provedor configurado.
 - [!] Métricas e envio por provedor externo dependem de integração configurada; não simular entrega real.
 
 #### Fase 5 — Documentos e Portal
 
-- [~] Arquivo, versão, validade, aceite, vínculo com aluno/matrícula e isolamento do Portal existem.
-- [ ] Separar documento, versão, solicitação de aceite, aceite imutável, validade e arquivamento em modelo explícito.
-- [ ] Implementar agrupamento, pesquisa, filtros, paginação, modelos, renovação, download autorizado e alertas idempotentes.
+- [x] Arquivo, versão, validade, aceite, vínculo com aluno/matrícula e isolamento do Portal existem.
+- [~] Versões são registros imutáveis e aceites consumados não podem ser regravados; solicitação de aceite ainda usa o estado do próprio documento.
+- [~] Pesquisa, filtros, paginação, renovação, arquivamento, download autorizado e alertas de validade existem; modelos reutilizáveis permanecem pendentes.
 - [!] Armazenamento externo seguro e assinatura qualificada dependem de provedor e decisão externa.
 
 #### Fase 6 — Automações
 
 - [x] Separação entre teste, simulação e execução real, tentativas, SLA, pausa e idempotência existem no backend atual.
-- [ ] Escalar UI com busca, filtros, paginação, indicadores, áreas de regras/execuções e drawer cronológico.
-- [ ] Confirmar ativação, pausa, duplicação e execução real com auditoria amigável e cobertura de concorrência.
-- [ ] Garantir tradução de todos os estados e prioridades na interface.
+- [~] UI possui busca, filtros, paginação e áreas separadas de regras/execuções; drawer cronológico permanece pendente.
+- [x] Pausa, retomada, duplicação inativa, resolução e execução real são auditadas; idempotência protege o processamento de eventos.
+- [~] Modos principais estão traduzidos; revisar rótulos residuais durante a auditoria visual autenticada.
 
 #### Fase 7 — Relatórios e desempenho percebido
 
 - [x] Perguntas gerenciais, período/escopo, fórmulas/fontes e exportação inicial existem.
-- [~] Favoritos e visões salvas possuem fundação server-side nas alterações locais atuais; compartilhamento requer validação completa.
-- [ ] Adicionar cache por período/escopo, carregamento independente e preservação do último resultado durante atualização.
-- [ ] Criar relatórios reconciliáveis de Agenda, Turmas, Comercial, Retenção e Treinos.
+- [x] Favoritos e visões salvas possuem persistência server-side e escopos pessoal, unidade e academia.
+- [~] Relatório gerencial usa cache curto por academia, unidade e período; carregamento independente por bloco permanece como refinamento.
+- [x] Relatórios gerenciais incluem Agenda, Turmas, Comercial, Retenção e Treinos com fontes persistidas.
 - [ ] Garantir navegação para origem e exportação idêntica aos filtros.
 
 #### Fase 8 — Configurações, usuários e governança
 
 - [~] Seções pesquisáveis, membros, capacidades, sessões, auditoria e preferências existem.
 - [ ] Dividir a página longa em rotas ou seções independentes sem duplicar módulos operacionais.
-- [ ] Implementar busca com foco no campo, alterações sujas, salvamento por seção e confirmações sensíveis.
-- [ ] Completar permissões por função/unidade e paginação/filtros de auditoria e sessões.
+- [~] Busca aceita foco pelo atalho `/`; salvamentos são por seção e ações sensíveis exigem confirmação, mas aviso global de alterações sujas permanece pendente.
+- [~] Membros e auditoria possuem filtros server-side; acesso simultâneo a várias unidades ainda exige decisão de escopo.
 - [!] Homologação interativa com os seis perfis depende de contas e sessão de QA.
 
 #### Fase 9 — Gestão e comparação entre unidades
 
 - [~] Cadastro, unidade ativa, isolamento de APIs novas e comparação inicial existem.
-- [ ] Completar cartões/tabela, filtros, ranking, alertas, período anterior e semântica explícita das métricas.
+- [~] Cartões possuem período, ranking, alertas e comparação com o mês anterior; tabela consolidada e filtros avançados permanecem como refinamento.
 - [ ] Particionar e migrar incrementalmente os domínios históricos antes de declarar consolidado confiável.
 - [!] Dados históricos ambíguos exigem regra de migração aprovada; não inferir unidade silenciosamente.
 
@@ -2857,9 +2859,22 @@ Uma fase ampla pode permanecer `[~]` mesmo quando algumas fatias internas estão
 
 - [x] Tema semântico, carregamento inicial, busca global, favoritos, grupos recolhíveis, foco visível e `prefers-reduced-motion` possuem fundação.
 - [~] Grupos recolhidos e uso local da navegação possuem persistência; modo compacto continua não validado.
-- [ ] Consolidar tabela reutilizável com paginação, ordenação, densidade, colunas, filtros e preservação de retorno.
+- [~] Paginação reutilizável começou a ser consolidada; ordenação, densidade, colunas e preservação global de retorno ainda não formam um componente único.
 - [ ] Remover formulários longos expostos conforme cada domínio migrar para modal, drawer ou fluxo próprio.
 - [ ] Executar auditoria final de contraste, teclado, gráficos textuais, temas e breakpoints após os fluxos funcionais.
+
+### 48.8.3.1 Decisões duráveis das evoluções internas
+
+- alterações de carga, séries ou repetições de um exercício prescrito devem criar histórico de evolução e auditoria; não sobrescrever a única evidência anterior;
+- conversão comercial pode criar um aluno novo somente após validar CPF único, ou associar explicitamente um aluno existente da mesma academia e unidade; associação implícita por semelhança de nome, telefone ou e-mail é proibida;
+- criação de matrícula após conversão continua no fluxo próprio, pois preço, cobrança e aceite contratual não podem ser inferidos pelo funil;
+- segmentos de relacionamento são reutilizáveis e validados por critérios permitidos; sandbox, preparação e envio externo precisam permanecer visual e tecnicamente distintos;
+- aceite documental consumado é imutável; renovação cria nova versão e arquivamento preserva versões e evidências anteriores;
+- download de documento passa pela API autenticada e pelo mesmo escopo de academia/unidade da listagem;
+- automação duplicada nasce inativa para revisão; teste, simulação e execução real continuam estados inequívocos e ações operacionais geram auditoria;
+- cache de relatório deve incluir academia, unidade e período na chave e ter duração curta; nunca compartilhar resultado entre escopos;
+- comparação de unidades deve declarar período e base de cálculo, apresentar período anterior quando houver e nunca atribuir registros históricos sem unidade por inferência silenciosa;
+- paginação reutilizável deve manter área de toque, estado desabilitado e anúncio da quantidade; tabelas mais avançadas só devem consolidar ordenação e colunas depois de preservar filtros e retorno por rota.
 
 ### 48.8.4 Dependências e ordem executável
 

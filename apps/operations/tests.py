@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 
 from apps.academy.models import Academy, Unit
 from apps.checkins.models import CheckIn
-from apps.operations.models import ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, MessageDelivery, OnboardingProgress, OperationalIssue, PhysicalAssessment
+from apps.operations.models import CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, PhysicalAssessment
 from apps.schedule.models import ScheduleEvent
 from apps.students.models import Student
 from apps.users.models import AcademyUser, AdministrativeAudit
@@ -102,6 +102,52 @@ class OperationsApiTests(APITestCase):
         lead = Lead.objects.get(pk=created.data["id"])
         self.assertEqual(lead.stage, "won")
         self.assertEqual(lead.converted_student.academy, self.academy)
+
+    def test_lead_can_be_safely_associated_to_existing_student(self):
+        created = self.client.post(reverse("lead-list"), {"name": "Aluno conhecido", "source": "Recepção"}, format="json")
+        associated = self.client.post(reverse("lead-convert", args=[created.data["id"]]), {"student": self.student.id}, format="json")
+
+        self.assertEqual(associated.status_code, status.HTTP_200_OK)
+        self.assertFalse(associated.data["created"])
+        self.assertEqual(Lead.objects.get(pk=created.data["id"]).converted_student, self.student)
+        self.assertTrue(AdministrativeAudit.objects.filter(action="lead.associated", entity_id=str(created.data["id"])).exists())
+
+    def test_lead_interactions_and_proposals_are_scoped_nested_and_audited(self):
+        lead = Lead.objects.create(academy=self.academy, unit=self.unit, name="Oportunidade", source="Indicação", responsible=self.user)
+        interaction = self.client.post(reverse("lead-interaction-list"), {
+            "lead": lead.id,
+            "interaction_type": "contact",
+            "occurred_at": "2026-08-27T10:00:00-03:00",
+            "notes": "Contato realizado por telefone.",
+        }, format="json")
+        proposal = self.client.post(reverse("lead-proposal-list"), {
+            "lead": lead.id,
+            "title": "Plano anual",
+            "amount": "1290.00",
+            "status": "presented",
+        }, format="json")
+
+        self.assertEqual(interaction.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(proposal.status_code, status.HTTP_201_CREATED)
+        detail = self.client.get(reverse("lead-detail", args=[lead.id]))
+        self.assertEqual(detail.data["interactions"][0]["notes"], "Contato realizado por telefone.")
+        self.assertEqual(detail.data["proposals"][0]["title"], "Plano anual")
+        self.assertTrue(AdministrativeAudit.objects.filter(action="lead.interaction_created", entity_id=str(interaction.data["id"])).exists())
+        self.assertTrue(AdministrativeAudit.objects.filter(action="lead.proposal_created", entity_id=str(proposal.data["id"])).exists())
+
+    def test_campaign_segment_rejects_unknown_criteria(self):
+        rejected = self.client.post(reverse("campaign-segment-list"), {
+            "name": "Segmento inseguro",
+            "criteria": {"raw_sql": "SELECT *"},
+        }, format="json")
+        accepted = self.client.post(reverse("campaign-segment-list"), {
+            "name": "Inativos recentes",
+            "criteria": {"status": "inactive", "inactive_days": 30},
+        }, format="json")
+
+        self.assertEqual(rejected.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(accepted.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(CampaignSegment.objects.filter(pk=accepted.data["id"]).exists())
 
     def test_group_class_uses_waitlist_after_capacity(self):
         other = Student.objects.create(name="Aluno Espera", cpf="222.333.444-55", academy=self.academy, unit=self.unit)
@@ -235,3 +281,20 @@ class OperationsApiTests(APITestCase):
         accepted = self.client.post("/api/users/portal/me/", {"operation": "accept_document", "document_id": document.data["id"]}, format="json")
         self.assertEqual(booking.status_code, status.HTTP_201_CREATED)
         self.assertEqual(accepted.status_code, status.HTTP_200_OK)
+
+    def test_document_acceptance_is_immutable_and_renewal_creates_version(self):
+        created = self.client.post(reverse("student-document-list"), {
+            "student": self.student.id,
+            "document_type": "contract",
+            "title": "Contrato anual",
+            "content_snapshot": "Termos da versão inicial",
+        }, format="json")
+        accepted = self.client.post(reverse("student-document-accept", args=[created.data["id"]]), {"name": "Aluno Monitor"}, format="json")
+        repeated = self.client.post(reverse("student-document-accept", args=[created.data["id"]]), {"name": "Outro nome"}, format="json")
+        renewed = self.client.post(reverse("student-document-renew", args=[created.data["id"]]), {"content_snapshot": "Termos revisados"}, format="json")
+
+        self.assertEqual(accepted.status_code, status.HTTP_200_OK)
+        self.assertEqual(repeated.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(renewed.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(renewed.data["version"], 2)
+        self.assertIsNone(renewed.data["accepted_at"])

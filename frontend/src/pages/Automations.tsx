@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Pause, Play, Zap } from "lucide-react";
+import { Copy, Pause, Play, Search, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/AsyncState";
 import PageHeader from "@/components/PageHeader";
+import PaginationFooter from "@/components/PaginationFooter";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Api } from "@/services/http";
 
@@ -31,7 +32,7 @@ type Execution = {
   last_error: string;
   created_at: string;
 };
-type Page<T> = { results: T[] };
+type Page<T> = { count:number; next:string|null; previous:string|null; results: T[] };
 const events = [
   ["overdue_charge", "Cobrança vencida"],
   ["recurring_rejected", "Recorrência rejeitada"],
@@ -53,26 +54,31 @@ export default function Automations() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [rulePage, setRulePage] = useState<Page<Rule>>({count:0,next:null,previous:null,results:[]});
+  const [executionPage, setExecutionPage] = useState<Page<Execution>>({count:0,next:null,previous:null,results:[]});
+  const [rulePageNumber,setRulePageNumber]=useState(1),[executionPageNumber,setExecutionPageNumber]=useState(1),[search,setSearch]=useState(""),[ruleState,setRuleState]=useState(""),[executionMode,setExecutionMode]=useState("");
 
-  async function load() {
+  const load=useCallback(async()=> {
     try {
       setLoading(true);
       setError(false);
       const [rulesResponse, executionsResponse] = await Promise.all([
-        Api.get<Page<Rule>>("/automations/rules/"),
-        Api.get<Page<Execution>>("/automations/executions/"),
+        Api.get<Page<Rule>>("/automations/rules/",{params:{page:rulePageNumber,search:search||undefined,state:ruleState||undefined}}),
+        Api.get<Page<Execution>>("/automations/executions/",{params:{page:executionPageNumber,mode:executionMode||undefined}}),
       ]);
       setRules(rulesResponse.data.results);
       setExecutions(executionsResponse.data.results);
+      setRulePage(rulesResponse.data);
+      setExecutionPage(executionsResponse.data);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }
+  },[executionMode,executionPageNumber,rulePageNumber,ruleState,search]);
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
   async function create(event: FormEvent) {
     event.preventDefault();
     try {
@@ -117,6 +123,7 @@ export default function Automations() {
     });
     await load();
   }
+  async function duplicate(rule:Rule){await Api.post(`/automations/rules/${rule.id}/duplicate/`);toast.success("Cópia inativa criada para revisão.");await load()}
   async function updateExecution(item: Execution, operationalStatus: string) {
     const notes =
       operationalStatus === "completed"
@@ -210,6 +217,11 @@ export default function Automations() {
           Criar automação
         </button>
       </form>
+      <div className="mt-5 grid gap-3 rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)] p-4 sm:grid-cols-3">
+        <label className="relative"><Search className="absolute left-3 top-3 text-[var(--cfit-text-tertiary)]" size={17}/><input value={search} onChange={event=>{setSearch(event.target.value);setRulePageNumber(1)}} placeholder="Buscar regra ou ação" className="h-11 w-full rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] pl-10 pr-3"/></label>
+        <select value={ruleState} onChange={event=>{setRuleState(event.target.value);setRulePageNumber(1)}} className="h-11 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3"><option value="">Todas as regras</option><option value="active">Ativas</option><option value="paused">Pausadas</option></select>
+        <select value={executionMode} onChange={event=>{setExecutionMode(event.target.value);setExecutionPageNumber(1)}} className="h-11 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3"><option value="">Todas as execuções</option><option value="real">Reais</option><option value="simulation">Simulações</option><option value="test">Testes</option></select>
+      </div>
       {loading ? (
         <div className="mt-5">
           <SkeletonState />
@@ -262,6 +274,7 @@ export default function Automations() {
                       <Pause size={14} />
                       {rule.paused_at ? "Retomar" : "Pausar"}
                     </button>
+                    <button onClick={()=>void duplicate(rule)} className="flex items-center gap-1 text-sm font-bold text-slate-500"><Copy size={14}/>Duplicar</button>
                   </div>
                 </article>
               ))}
@@ -271,6 +284,7 @@ export default function Automations() {
                   detail="Crie a primeira automação para iniciar."
                 />
               )}
+              <PaginationFooter count={rulePage.count} label="regra(s)" hasPrevious={Boolean(rulePage.previous)} hasNext={Boolean(rulePage.next)} onPrevious={()=>setRulePageNumber(value=>Math.max(1,value-1))} onNext={()=>setRulePageNumber(value=>value+1)}/>
             </div>
           </section>
           <section className="rounded-2xl border bg-white p-5">
@@ -337,6 +351,7 @@ export default function Automations() {
                   detail="Nenhuma execução foi registrada."
                 />
               )}
+              <PaginationFooter count={executionPage.count} label="execução(ões)" hasPrevious={Boolean(executionPage.previous)} hasNext={Boolean(executionPage.next)} onPrevious={()=>setExecutionPageNumber(value=>Math.max(1,value-1))} onNext={()=>setExecutionPageNumber(value=>value+1)}/>
             </div>
           </section>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Building2,
   CreditCard,
@@ -115,6 +115,7 @@ const categories = [
 
 export default function Settings() {
   const [search, setSearch] = useState("");
+  const searchRef=useRef<HTMLInputElement>(null);
   const [academies, setAcademies] = useState<Academy[]>([]);
   const [me, setMe] = useState<Me | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -149,6 +150,7 @@ export default function Settings() {
       })
       .catch(() => toast.error("Não foi possível carregar as configurações."));
   }, []);
+  useEffect(()=>{function focusSearch(event:KeyboardEvent){if(event.key==="/"&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&document.activeElement?.tagName!=="INPUT"&&document.activeElement?.tagName!=="TEXTAREA"){event.preventDefault();searchRef.current?.focus()}if(event.key==="Escape"&&document.activeElement===searchRef.current){setSearch("");searchRef.current?.blur()}}window.addEventListener("keydown",focusSearch);return()=>window.removeEventListener("keydown",focusSearch)},[]);
   useEffect(() => {
     if (!canAdmin) return;
     Promise.all([
@@ -311,9 +313,10 @@ export default function Settings() {
           className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
         />
         <input
+          ref={searchRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar configuração..."
+          placeholder="Buscar configuração... (pressione /)"
           className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 shadow-sm"
         />
       </div>

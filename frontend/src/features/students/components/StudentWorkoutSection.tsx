@@ -385,7 +385,7 @@ export default function StudentWorkoutSection({
                             </td>
                             <td>{item.sets}</td>
                             <td>{item.repetitions}</td>
-                            <td>{item.load ? `${item.load} kg` : "Livre"}</td>
+                            <td>{item.load ? `${item.load} kg` : "Livre"}{(item.load_history?.length ?? 0) > 1 && <span className="mt-1 block text-[10px] font-semibold text-emerald-700">{item.load_history?.length} evoluções registradas</span>}</td>
                             <td>{item.rest_seconds}s</td>
                             <td className="print:hidden">
                               <div className="flex gap-2">

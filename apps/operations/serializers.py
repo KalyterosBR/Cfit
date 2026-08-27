@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 
-from apps.operations.models import AccessDevice, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, MessageDelivery, OnboardingProgress, OperationalIssue, OperationalIssueHistory, PhysicalAssessment, StudentDocument
+from apps.operations.models import AccessDevice, CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, OperationalIssueHistory, PhysicalAssessment, StudentDocument
 
 
 class AccessDeviceSerializer(serializers.ModelSerializer):
@@ -35,8 +35,17 @@ class CommunicationCampaignSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CommunicationCampaign
-        fields = ["id", "name", "channel", "segment", "message", "template_name", "scheduled_at", "status", "audience_count", "created_at"]
+        fields = ["id", "name", "channel", "segment", "segment_definition", "message", "template_name", "scheduled_at", "status", "audience_count", "created_at"]
         read_only_fields = ["status"]
+
+    def validate_segment_definition(self, segment_definition):
+        request = self.context.get("request")
+        if request and segment_definition:
+            from apps.users.permissions import get_request_scope
+            academy, unit = get_request_scope(request.user)
+            if segment_definition.academy_id != getattr(academy, "id", None) or (segment_definition.unit_id and unit and segment_definition.unit_id != unit.id):
+                raise serializers.ValidationError("O segmento não pertence ao contexto da sessão.")
+        return segment_definition
 
 
 class PhysicalAssessmentSerializer(serializers.ModelSerializer):
@@ -84,12 +93,56 @@ class OnboardingProgressSerializer(serializers.ModelSerializer):
         fields = ["step", "completed"]
 
 
+class LeadInteractionSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source="created_by.email", read_only=True)
+    interaction_type_label = serializers.CharField(source="get_interaction_type_display", read_only=True)
+    class Meta:
+        model = LeadInteraction
+        fields = ["id", "lead", "interaction_type", "interaction_type_label", "occurred_at", "notes", "created_by_name", "created_at"]
+        read_only_fields = ["created_by_name"]
+
+
+class LeadProposalSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source="created_by.email", read_only=True)
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
+    class Meta:
+        model = LeadProposal
+        fields = ["id", "lead", "title", "amount", "status", "status_label", "valid_until", "notes", "created_by_name", "created_at"]
+
+
+class CampaignSegmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CampaignSegment
+        fields = ["id", "name", "criteria", "unit", "created_at"]
+        read_only_fields = ["unit"]
+
+    def validate_criteria(self, value):
+        allowed = {"status", "plan", "inactive_days", "has_overdue_charges", "unit"}
+        unknown = set(value) - allowed
+        if unknown:
+            raise serializers.ValidationError(f"Critérios não suportados: {', '.join(sorted(unknown))}.")
+        return value
+
+
 class LeadSerializer(serializers.ModelSerializer):
     responsible_name = serializers.CharField(source="responsible.email", read_only=True)
+    stage_label = serializers.CharField(source="get_stage_display", read_only=True)
+    interactions = LeadInteractionSerializer(many=True, read_only=True)
+    proposals = LeadProposalSerializer(many=True, read_only=True)
     class Meta:
         model = Lead
-        fields = ["id", "name", "phone", "email", "source", "stage", "responsible", "responsible_name", "next_action_at", "loss_reason", "converted_student", "notes", "created_at"]
-        read_only_fields = ["responsible", "converted_student"]
+        fields = ["id", "name", "phone", "email", "source", "stage", "stage_label", "responsible", "responsible_name", "next_action_at", "loss_reason", "converted_student", "notes", "interactions", "proposals", "created_at"]
+        read_only_fields = ["converted_student"]
+        extra_kwargs = {"responsible": {"required": False}}
+
+    def validate_responsible(self, responsible):
+        request = self.context.get("request")
+        if request:
+            from apps.users.permissions import get_request_scope
+            academy, _ = get_request_scope(request.user)
+            if academy and not responsible.academy_users.filter(academy=academy, active=True).exists():
+                raise serializers.ValidationError("O responsável não pertence à academia.")
+        return responsible
 
 
 class ClassBookingSerializer(serializers.ModelSerializer):
@@ -129,8 +182,8 @@ class StudentDocumentSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.name", read_only=True)
     class Meta:
         model = StudentDocument
-        fields = ["id", "student", "student_name", "enrollment", "document_type", "title", "version", "content_snapshot", "file", "expires_at", "accepted_at", "accepted_by_name", "created_at"]
-        read_only_fields = ["accepted_at", "accepted_by_name"]
+        fields = ["id", "student", "student_name", "enrollment", "document_type", "title", "version", "content_snapshot", "file", "expires_at", "requires_acceptance", "accepted_at", "accepted_by_name", "archived_at", "created_at"]
+        read_only_fields = ["accepted_at", "accepted_by_name", "archived_at"]
 
     def validate(self, attrs):
         request = self.context.get("request")

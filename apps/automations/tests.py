@@ -35,6 +35,11 @@ class AutomationAndUnitTests(APITestCase):
         )
         self.assertEqual(resolved.status_code, 200)
         self.assertEqual(resolved.data["operational_status"], "completed")
+        self.assertTrue(AdministrativeAudit.objects.filter(action="automation.execution_updated", entity_id=str(execution.pk)).exists())
+        duplicated = self.client.post(f"/api/automations/rules/{response.data['id']}/duplicate/", {}, format="json")
+        self.assertEqual(duplicated.status_code, 201)
+        self.assertFalse(duplicated.data["active"])
+        self.assertTrue(AdministrativeAudit.objects.filter(action="automation.duplicated", entity_id=str(duplicated.data["id"])).exists())
 
     def test_unit_is_scoped_and_can_be_selected(self):
         response = self.client.post("/api/academies/units/", {"name": "Unidade Norte", "code": "norte"}, format="json")
@@ -47,6 +52,8 @@ class AutomationAndUnitTests(APITestCase):
         comparison = self.client.get("/api/academies/units/comparison/")
         self.assertEqual(comparison.status_code, 200)
         self.assertEqual(comparison.data[0]["name"], "Unidade Norte")
+        self.assertEqual(comparison.data[0]["rank"], 1)
+        self.assertIn("previous_revenue", comparison.data[0])
 
         duplicate = self.client.post(
             "/api/academies/units/",

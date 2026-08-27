@@ -20,6 +20,17 @@ export interface WorkoutExercise {
     rest_seconds: number;
     order: number;
     notes: string;
+    load_history?: WorkoutLoadRecord[];
+}
+
+export interface WorkoutLoadRecord {
+    id: string;
+    load: string | null;
+    sets: number;
+    repetitions: string;
+    recorded_at: string;
+    recorded_by_name: string;
+    notes: string;
 }
 
 export interface WorkoutProgress {
@@ -71,7 +82,7 @@ export interface WorkoutPlan {
 
 type Page<T> = { count: number; next: string | null; previous: string | null; results: T[] };
 
-export async function getWorkoutPlans(params: { student?: string; status?: WorkoutStatus; search?: string } = {}): Promise<Page<WorkoutPlan>> {
+export async function getWorkoutPlans(params: { student?: string; status?: WorkoutStatus; review?: "overdue" | "upcoming"; instructor?: string; search?: string; page?: number } = {}): Promise<Page<WorkoutPlan>> {
     const response = await Api.get<Page<WorkoutPlan>>("/workouts/plans/", { params });
     return response.data;
 }
@@ -86,8 +97,8 @@ export async function updateWorkoutPlan(id: string, payload: Partial<WorkoutPlan
     return response.data;
 }
 
-export async function getExercises(search = ""): Promise<Page<Exercise>> {
-    const response = await Api.get<Page<Exercise>>("/workouts/exercises/", { params: { search: search || undefined } });
+export async function getExercises(search = "", page = 1): Promise<Page<Exercise>> {
+    const response = await Api.get<Page<Exercise>>("/workouts/exercises/", { params: { search: search || undefined, page } });
     return response.data;
 }
 
@@ -114,8 +125,8 @@ export async function deleteWorkoutExercise(id: string): Promise<void> {
     await Api.delete(`/workouts/plan-exercises/${id}/`);
 }
 
-export async function getWorkoutTemplates(search = ""): Promise<Page<WorkoutTemplate>> {
-    return (await Api.get<Page<WorkoutTemplate>>("/workouts/templates/", { params: { search: search || undefined } })).data;
+export async function getWorkoutTemplates(search = "", page = 1): Promise<Page<WorkoutTemplate>> {
+    return (await Api.get<Page<WorkoutTemplate>>("/workouts/templates/", { params: { search: search || undefined, page } })).data;
 }
 
 export async function createWorkoutTemplate(payload: { name: string; objective: string; description: string }): Promise<WorkoutTemplate> {

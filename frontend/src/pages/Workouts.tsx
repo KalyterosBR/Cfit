@@ -26,6 +26,9 @@ export default function Workouts() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
   const [search, setSearch] = useState("");
+  const [review, setReview] = useState<"" | "overdue" | "upcoming">("");
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState({ count: 0, next: false, previous: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -46,23 +49,31 @@ export default function Workouts() {
     try {
       setLoading(true);
       setError(false);
-      if (tab === "plans")
-        setPlans((await getWorkoutPlans({ search })).results);
+      if (tab === "plans") {
+        const data = await getWorkoutPlans({ search, review: review || undefined, page });
+        setPlans(data.results);
+        setPageInfo({ count: data.count, next: Boolean(data.next), previous: Boolean(data.previous) });
+      }
       else if (tab === "templates") {
         const [templateData, exerciseData] = await Promise.all([
-          getWorkoutTemplates(search),
+          getWorkoutTemplates(search, page),
           getExercises(),
         ]);
         setTemplates(templateData.results);
+        setPageInfo({ count: templateData.count, next: Boolean(templateData.next), previous: Boolean(templateData.previous) });
         setExercises(exerciseData.results);
-      } else setExercises((await getExercises(search)).results);
+      } else {
+        const data = await getExercises(search, page);
+        setExercises(data.results);
+        setPageInfo({ count: data.count, next: Boolean(data.next), previous: Boolean(data.previous) });
+      }
     } catch (requestError) {
       console.error(requestError);
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [search, tab]);
+  }, [page, review, search, tab]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -155,7 +166,7 @@ export default function Workouts() {
           <button
             key={value}
             type="button"
-            onClick={() => setTab(value)}
+            onClick={() => { setTab(value); setPage(1); setReview(""); }}
             className={`flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-bold ${tab === value ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
           >
             <Icon size={16} />
@@ -164,21 +175,23 @@ export default function Workouts() {
         ))}
       </div>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="relative border-b border-slate-200 p-5">
+        <div className="grid gap-3 border-b border-slate-200 p-5 sm:grid-cols-[1fr_auto]">
+          <div className="relative">
           <Search
             size={17}
-            className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
             placeholder={
               tab === "plans"
                 ? "Aluno, objetivo ou professor..."
                 : "Exercício ou grupo muscular..."
             }
             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4"
-          />
+          /></div>
+          {tab === "plans" && <select aria-label="Filtrar revisão" value={review} onChange={(event) => { setReview(event.target.value as typeof review); setPage(1); }} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold"><option value="">Todas as revisões</option><option value="overdue">Revisão vencida</option><option value="upcoming">Próximos 14 dias</option></select>}
         </div>
         {loading ? (
           <div className="p-5"><SkeletonState rows={3}/></div>
@@ -211,7 +224,7 @@ export default function Workouts() {
                     </p>
                   </div>
                   <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                    {plan.status_label}
+                      {plan.review_date && plan.status === "active" && plan.review_date < new Date().toISOString().slice(0, 10) ? "Revisão vencida" : plan.status_label}
                   </span>
                 </article>
               ))
@@ -297,6 +310,7 @@ export default function Workouts() {
             )}
           </div>
         )}
+        <div className="flex items-center justify-between border-t border-slate-200 p-4 text-sm"><span>{pageInfo.count} registro(s)</span><div className="flex gap-2"><button type="button" disabled={!pageInfo.previous} onClick={() => setPage((value) => Math.max(1, value - 1))} className="cfit-secondary-button">Anterior</button><button type="button" disabled={!pageInfo.next} onClick={() => setPage((value) => value + 1)} className="cfit-secondary-button">Próxima</button></div></div>
       </section>
       <Modal
         open={modalOpen}

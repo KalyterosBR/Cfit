@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hasAccess, routeAccess } from "../src/features/auth/access-policy.ts";
+import { getDashboardDataAccess, hasAccess, routeAccess } from "../src/features/auth/access-policy.ts";
 
 test("proprietário acessa qualquer rota", () => assert.equal(hasAccess(["*"], routeAccess["/automations"]), true));
 test("recepção não acessa automações", () => assert.equal(hasAccess(["students.manage", "checkins.manage", "schedule.manage"], routeAccess["/automations"]), false));
@@ -23,4 +23,13 @@ test("documentos e crescimento respeitam capacidades operacionais", () => {
     assert.equal(hasAccess(["students.manage"], routeAccess["/documents"]), true);
     assert.equal(hasAccess(["students.manage"], routeAccess["/growth"]), false);
     assert.equal(hasAccess(["students.manage", "schedule.manage"], routeAccess["/growth"]), true);
+});
+test("dashboard do professor não consulta financeiro nem check-ins", () => {
+    assert.deepEqual(
+        getDashboardDataAccess(["students.view", "workouts.manage", "schedule.manage", "units.view", "operations.view"]),
+        { students: true, finance: false, checkins: false },
+    );
+});
+test("dashboard administrativo preserva todas as fontes", () => {
+    assert.deepEqual(getDashboardDataAccess(["*"]), { students: true, finance: true, checkins: true });
 });

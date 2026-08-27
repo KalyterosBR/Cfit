@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -43,7 +44,13 @@ class AutomationRuleViewSet(viewsets.ModelViewSet):
         academy = self.academy()
         queryset = AutomationRule.objects.filter(academy=academy) if academy else AutomationRule.objects.none()
         membership = get_active_membership(self.request.user)
-        return queryset.filter(unit=membership.active_unit) if membership and membership.active_unit else queryset
+        if membership and membership.active_unit: queryset = queryset.filter(unit=membership.active_unit)
+        search = self.request.query_params.get("search", "").strip()
+        if search: queryset = queryset.filter(Q(name__icontains=search) | Q(action_description__icontains=search))
+        if self.request.query_params.get("event_type"): queryset = queryset.filter(event_type=self.request.query_params["event_type"])
+        if self.request.query_params.get("state") == "active": queryset = queryset.filter(active=True, paused_at__isnull=True)
+        if self.request.query_params.get("state") == "paused": queryset = queryset.filter(paused_at__isnull=False)
+        return queryset
 
     def perform_create(self, serializer):
         membership = get_active_membership(self.request.user)
@@ -157,6 +164,13 @@ class AutomationRuleViewSet(viewsets.ModelViewSet):
         AdministrativeAudit.objects.create(academy=rule.academy, actor=request.user, action="automation.resumed" if rule.paused_at is None else "automation.paused", entity_type="automation_rule", entity_id=str(rule.id), reason=str(request.data.get("reason", "Pausa operacional"))[:255])
         return Response(self.get_serializer(rule).data)
 
+    @action(detail=True, methods=["post"])
+    def duplicate(self, request, pk=None):
+        source = self.get_object()
+        duplicate = AutomationRule.objects.create(academy=source.academy, unit=source.unit, name=f"{source.name} (cópia)", event_type=source.event_type, action_description=source.action_description, priority=source.priority, responsible=source.responsible, sla_hours=source.sla_hours, active=False)
+        AdministrativeAudit.objects.create(academy=source.academy, actor=request.user, action="automation.duplicated", entity_type="automation_rule", entity_id=str(duplicate.pk), previous_state={"source": str(source.pk)}, new_state=json.loads(json.dumps(self.get_serializer(duplicate).data, default=str)))
+        return Response(self.get_serializer(duplicate).data, status=201)
+
     @action(detail=True, methods=["post"], url_path="resolve-execution")
     def resolve_execution(self, request, pk=None):
         rule = self.get_object()
@@ -171,6 +185,7 @@ class AutomationRuleViewSet(viewsets.ModelViewSet):
         execution.assigned_to = request.user
         execution.resolved_at = timezone.now() if operational_status == "completed" else None
         execution.save(update_fields=["operational_status", "resolution_notes", "assigned_to", "resolved_at", "updated_at"])
+        AdministrativeAudit.objects.create(academy=rule.academy, actor=request.user, action="automation.execution_updated", entity_type="automation_execution", entity_id=str(execution.pk), new_state={"operational_status": execution.operational_status, "resolution_notes": execution.resolution_notes})
         return Response(ExecutionSerializer(execution).data)
 
 
@@ -182,4 +197,9 @@ class AutomationExecutionViewSet(viewsets.ReadOnlyModelViewSet):
         membership = get_active_membership(self.request.user)
         academy = membership.academy if membership else None
         queryset = AutomationExecution.objects.select_related("rule")
-        return queryset.filter(rule__academy=academy) if academy else queryset
+        queryset = queryset.filter(rule__academy=academy) if academy else queryset
+        if membership and membership.active_unit: queryset = queryset.filter(rule__unit=membership.active_unit)
+        if self.request.query_params.get("mode"): queryset = queryset.filter(mode=self.request.query_params["mode"])
+        if self.request.query_params.get("operational_status"): queryset = queryset.filter(operational_status=self.request.query_params["operational_status"])
+        if self.request.query_params.get("priority"): queryset = queryset.filter(priority=self.request.query_params["priority"])
+        return queryset

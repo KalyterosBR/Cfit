@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, timedelta
 
 from django.db.models import Count, Q, Sum
 from rest_framework import viewsets
@@ -60,6 +60,8 @@ class UnitViewSet(viewsets.ModelViewSet):
         except ValueError:
             return Response({"period": ["Informe o período no formato AAAA-MM."]}, status=400)
         end = start.replace(year=start.year + 1, month=1) if start.month == 12 else start.replace(month=start.month + 1)
+        previous_end = start
+        previous_start = (start - timedelta(days=1)).replace(day=1)
         units = self.get_queryset().annotate(
             active_students=Count("students", filter=Q(students__active=True), distinct=True),
             checkin_count=Count(
@@ -71,13 +73,29 @@ class UnitViewSet(viewsets.ModelViewSet):
                 "charges__amount",
                 filter=Q(charges__status="paid", charges__paid_at__date__gte=start, charges__paid_at__date__lt=end),
             ),
+            previous_checkins=Count(
+                "checkins",
+                filter=Q(checkins__checked_in_at__date__gte=previous_start, checkins__checked_in_at__date__lt=previous_end),
+                distinct=True,
+            ),
+            previous_revenue=Sum(
+                "charges__amount",
+                filter=Q(charges__status="paid", charges__paid_at__date__gte=previous_start, charges__paid_at__date__lt=previous_end),
+            ),
         )
-        return Response([
+        rows = [
             {
                 "id": str(unit.pk), "name": unit.name,
                 "active_students": unit.active_students,
                 "checkins": unit.checkin_count,
                 "revenue": str(unit.revenue or 0),
+                "previous_checkins": unit.previous_checkins,
+                "previous_revenue": str(unit.previous_revenue or 0),
             }
             for unit in units
-        ])
+        ]
+        ranking = {row["id"]: position for position, row in enumerate(sorted(rows, key=lambda item: (float(item["revenue"]), item["checkins"]), reverse=True), start=1)}
+        for row in rows:
+            row["rank"] = ranking[row["id"]]
+            row["alerts"] = (["Receita abaixo do período anterior"] if float(row["revenue"]) < float(row["previous_revenue"]) else []) + (["Check-ins abaixo do período anterior"] if row["checkins"] < row["previous_checkins"] else [])
+        return Response(rows)

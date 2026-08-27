@@ -52,6 +52,7 @@ class CommunicationCampaign(BaseModel):
     name = models.CharField(max_length=120)
     channel = models.CharField(max_length=20, choices=Channel.choices)
     segment = models.CharField(max_length=30, choices=[("at_risk", "Em risco"), ("defaulting", "Inadimplentes"), ("inactive", "Inativos"), ("all_active", "Todos ativos")])
+    segment_definition = models.ForeignKey("CampaignSegment", on_delete=models.PROTECT, null=True, blank=True, related_name="campaigns")
     message = models.TextField()
     template_name = models.CharField(max_length=100, blank=True)
     scheduled_at = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -166,6 +167,42 @@ class Lead(BaseModel):
         ordering = ["stage", "-created_at"]
 
 
+class LeadInteraction(BaseModel):
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name="interactions")
+    interaction_type = models.CharField(max_length=20, choices=[("contact", "Contato"), ("visit", "Visita"), ("note", "Observação"), ("follow_up", "Retorno")])
+    occurred_at = models.DateTimeField(db_index=True)
+    notes = models.TextField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="lead_interactions")
+
+    class Meta:
+        ordering = ["-occurred_at", "-created_at"]
+
+
+class LeadProposal(BaseModel):
+    lead = models.ForeignKey(Lead, on_delete=models.PROTECT, related_name="proposals")
+    title = models.CharField(max_length=140)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=[("draft", "Rascunho"), ("presented", "Apresentada"), ("accepted", "Aceita"), ("rejected", "Recusada")], default="draft")
+    valid_until = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="lead_proposals")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class CampaignSegment(BaseModel):
+    academy = models.ForeignKey("academy.Academy", on_delete=models.PROTECT, related_name="campaign_segments")
+    unit = models.ForeignKey("academy.Unit", on_delete=models.PROTECT, null=True, blank=True, related_name="campaign_segments")
+    name = models.CharField(max_length=120)
+    criteria = models.JSONField(default=dict)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="campaign_segments")
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [models.UniqueConstraint(fields=["academy", "unit", "name"], name="unique_campaign_segment_scope_name")]
+
+
 class GroupClass(BaseModel):
     class Status(models.TextChoices):
         SCHEDULED = "scheduled", "Agendada"
@@ -225,10 +262,13 @@ class StudentDocument(BaseModel):
     accepted_at = models.DateTimeField(null=True, blank=True)
     accepted_by_name = models.CharField(max_length=120, blank=True)
     acceptance_ip = models.GenericIPAddressField(null=True, blank=True)
+    requires_acceptance = models.BooleanField(default=True)
+    archived_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_student_documents")
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [models.UniqueConstraint(fields=["student", "title", "version"], name="unique_student_document_title_version")]
 
 
 class LoginSession(BaseModel):

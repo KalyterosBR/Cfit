@@ -53,6 +53,9 @@ type ManagementData = {
   cancellation_reasons: Array<{ cancellation_reason: string; total: number }>;
   lead_conversion_rate: number;
   class_occupancy_rate: number;
+  schedule_completion_rate:number;
+  workout_adherence:number;
+  workout_sessions_completed:number;
 };
 type RetentionItem = {
   student: string;
@@ -474,6 +477,9 @@ export default function Reports() {
                   <div><dt className="text-xs text-slate-500">Permanência média</dt><dd className="text-2xl font-black">{management.average_stay_days} dias</dd></div>
                   <div><dt className="text-xs text-slate-500">Ocupação de turmas</dt><dd className="text-2xl font-black">{management.class_occupancy_rate}%</dd></div>
                   <div><dt className="text-xs text-slate-500">Conversão comercial</dt><dd className="text-2xl font-black">{management.lead_conversion_rate}%</dd></div>
+                  <div><dt className="text-xs text-slate-500">Agenda concluída</dt><dd className="text-2xl font-black">{management.schedule_completion_rate}%</dd></div>
+                  <div><dt className="text-xs text-slate-500">Aderência aos treinos</dt><dd className="text-2xl font-black">{management.workout_adherence}%</dd></div>
+                  <div><dt className="text-xs text-slate-500">Treinos concluídos</dt><dd className="text-2xl font-black">{management.workout_sessions_completed}</dd></div>
                 </dl>
               </section>
             </div>

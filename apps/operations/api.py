@@ -15,8 +15,8 @@ from rest_framework.response import Response
 
 from apps.checkins.api.serializers import CheckInSerializer
 from apps.checkins.models import CheckIn
-from apps.operations.models import AccessDevice, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, MessageDelivery, OnboardingProgress, OperationalIssue, OperationalIssueHistory, PhysicalAssessment, StudentDocument
-from apps.operations.serializers import AccessDeviceSerializer, ClassBookingSerializer, CommunicationCampaignSerializer, DeviceCommandSerializer, DeviceEventSerializer, GroupClassSerializer, LeadSerializer, MessageDeliverySerializer, OnboardingProgressSerializer, OperationalIssueSerializer, PhysicalAssessmentSerializer, StudentDocumentSerializer
+from apps.operations.models import AccessDevice, CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, OperationalIssueHistory, PhysicalAssessment, StudentDocument
+from apps.operations.serializers import AccessDeviceSerializer, CampaignSegmentSerializer, ClassBookingSerializer, CommunicationCampaignSerializer, DeviceCommandSerializer, DeviceEventSerializer, GroupClassSerializer, LeadInteractionSerializer, LeadProposalSerializer, LeadSerializer, MessageDeliverySerializer, OnboardingProgressSerializer, OperationalIssueSerializer, PhysicalAssessmentSerializer, StudentDocumentSerializer
 from apps.operations.services.issues import sync_operational_issues
 from apps.operations.providers import CommunicationAdapter, DeviceAdapter
 from apps.schedule.models import ScheduleEvent
@@ -240,12 +240,24 @@ class CommunicationCampaignViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         academy, unit = get_request_scope(self.request.user)
-        return CommunicationCampaign.objects.filter(academy=academy).filter(Q(unit=unit) | Q(unit__isnull=True))
+        queryset = CommunicationCampaign.objects.select_related("segment_definition").filter(academy=academy).filter(Q(unit=unit) | Q(unit__isnull=True))
+        search = self.request.query_params.get("search", "").strip()
+        return queryset.filter(Q(name__icontains=search) | Q(message__icontains=search)) if search else queryset
 
-    def audience(self, segment):
+    def audience(self, campaign):
         academy, unit = get_request_scope(self.request.user)
         students = Student.objects.filter(academy=academy)
         if unit: students = students.filter(unit=unit)
+        if campaign.segment_definition_id:
+            criteria = campaign.segment_definition.criteria
+            status_value = criteria.get("status")
+            if status_value == "inactive": students = students.filter(active=False)
+            elif status_value == "active": students = students.filter(active=True)
+            if criteria.get("has_overdue_charges") is True: students = students.filter(enrollments__charges__status="overdue").distinct()
+            if criteria.get("plan"): students = students.filter(enrollments__plan_id=criteria["plan"]).distinct()
+            if criteria.get("unit"): students = students.filter(unit_id=criteria["unit"])
+            return students
+        segment = campaign.segment
         if segment == "inactive": return students.filter(active=False)
         if segment == "defaulting": return students.filter(enrollments__charges__status="overdue").distinct()
         if segment == "at_risk": return [student for student in students.filter(active=True) if get_student_health_score(student)["status"] == "risk"]
@@ -260,7 +272,7 @@ class CommunicationCampaignViewSet(viewsets.ModelViewSet):
         campaign = self.get_object()
         campaign.status = CommunicationCampaign.Status.READY
         campaign.save(update_fields=["status", "updated_at"])
-        audience = self.audience(campaign.segment)
+        audience = self.audience(campaign)
         audience = list(audience)
         for student in audience:
             recipient = student.email if campaign.channel == "email" else student.phone
@@ -402,13 +414,19 @@ class LeadViewSet(viewsets.ModelViewSet):
     write_capability = "students.manage"
     def get_queryset(self):
         academy, unit = get_request_scope(self.request.user)
-        queryset = Lead.objects.select_related("responsible", "converted_student").filter(academy=academy)
+        queryset = Lead.objects.select_related("responsible", "converted_student").prefetch_related("interactions__created_by", "proposals__created_by").filter(academy=academy)
         if unit: queryset = queryset.filter(unit=unit)
         if self.request.query_params.get("stage"): queryset = queryset.filter(stage=self.request.query_params["stage"])
+        search = self.request.query_params.get("search", "").strip()
+        if search: queryset = queryset.filter(Q(name__icontains=search) | Q(phone__icontains=search) | Q(email__icontains=search) | Q(source__icontains=search))
+        if self.request.query_params.get("overdue") == "true": queryset = queryset.filter(next_action_at__lt=timezone.now()).exclude(stage__in=["won", "lost"])
+        responsible = self.request.query_params.get("responsible")
+        if responsible: queryset = queryset.filter(responsible_id=responsible)
         return queryset
     def perform_create(self, serializer):
         academy, unit = get_request_scope(self.request.user)
-        serializer.save(academy=academy, unit=unit, responsible=serializer.validated_data.get("responsible", self.request.user))
+        lead = serializer.save(academy=academy, unit=unit, responsible=serializer.validated_data.get("responsible", self.request.user))
+        AdministrativeAudit.objects.create(academy=academy, actor=self.request.user, action="lead.created", entity_type="lead", entity_id=str(lead.id), new_state={"name": lead.name, "stage": lead.stage, "source": lead.source})
     def perform_update(self, serializer):
         lead = self.get_object(); previous = {"stage": lead.stage, "responsible": str(lead.responsible_id), "next_action_at": lead.next_action_at.isoformat() if lead.next_action_at else None}
         updated = serializer.save()
@@ -417,6 +435,18 @@ class LeadViewSet(viewsets.ModelViewSet):
     def convert(self, request, pk=None):
         lead = self.get_object()
         if lead.converted_student: return Response({"detail": "Lead já convertido."}, status=400)
+        existing_student_id = request.data.get("student")
+        if existing_student_id:
+            existing_student = Student.objects.filter(
+                pk=existing_student_id,
+                academy=lead.academy,
+                unit=lead.unit,
+            ).first()
+            if not existing_student:
+                return Response({"student": ["O aluno não pertence ao contexto deste lead."]}, status=400)
+            lead.stage = "won"; lead.converted_student = existing_student; lead.save(update_fields=["stage", "converted_student", "updated_at"])
+            AdministrativeAudit.objects.create(academy=lead.academy, actor=request.user, action="lead.associated", entity_type="lead", entity_id=str(lead.id), new_state={"student": str(existing_student.id), "source": lead.source})
+            return Response({"lead": self.get_serializer(lead).data, "student": str(existing_student.pk), "created": False})
         cpf = str(request.data.get("cpf", "")).strip()
         if not cpf:
             return Response({"cpf": ["Informe o CPF para converter o lead."]}, status=400)
@@ -425,7 +455,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         student = Student.objects.create(academy=lead.academy, unit=lead.unit, name=lead.name, cpf=cpf, phone=lead.phone, email=lead.email, birth_date=request.data.get("birth_date"))
         lead.stage = "won"; lead.converted_student = student; lead.save(update_fields=["stage", "converted_student", "updated_at"])
         AdministrativeAudit.objects.create(academy=lead.academy, actor=request.user, action="lead.converted", entity_type="lead", entity_id=str(lead.id), new_state={"student": str(student.id), "source": lead.source})
-        return Response({"lead": self.get_serializer(lead).data, "student": str(student.pk)})
+        return Response({"lead": self.get_serializer(lead).data, "student": str(student.pk), "created": True})
 
     @action(detail=False, methods=["get"])
     def summary(self, request):
@@ -433,6 +463,73 @@ class LeadViewSet(viewsets.ModelViewSet):
         stages = {item["stage"]: item["count"] for item in queryset.values("stage").annotate(count=Count("id"))}
         total = queryset.count(); won = stages.get("won", 0)
         return Response({"total": total, "stages": stages, "conversion_rate": round((won / total * 100), 1) if total else 0})
+
+
+class LeadInteractionViewSet(viewsets.ModelViewSet):
+    serializer_class = LeadInteractionSerializer
+    permission_classes = [ScopedCapability]
+    read_capability = "students.view"
+    write_capability = "students.manage"
+
+    def get_queryset(self):
+        academy, unit = get_request_scope(self.request.user)
+        queryset = LeadInteraction.objects.select_related("lead", "created_by").filter(lead__academy=academy)
+        if unit: queryset = queryset.filter(lead__unit=unit)
+        lead = self.request.query_params.get("lead")
+        return queryset.filter(lead_id=lead) if lead else queryset
+
+    def perform_create(self, serializer):
+        lead = serializer.validated_data["lead"]
+        academy, unit = get_request_scope(self.request.user)
+        allowed = Lead.objects.filter(pk=lead.pk, academy=academy)
+        if unit: allowed = allowed.filter(unit=unit)
+        if not allowed.exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"lead": "O lead não pertence ao contexto da sessão."})
+        interaction = serializer.save(created_by=self.request.user)
+        AdministrativeAudit.objects.create(academy=lead.academy, actor=self.request.user, action="lead.interaction_created", entity_type="lead_interaction", entity_id=str(interaction.pk), new_state={"lead": str(lead.pk), "type": interaction.interaction_type, "occurred_at": interaction.occurred_at.isoformat()})
+
+
+class LeadProposalViewSet(viewsets.ModelViewSet):
+    serializer_class = LeadProposalSerializer
+    permission_classes = [ScopedCapability]
+    read_capability = "students.view"
+    write_capability = "students.manage"
+
+    def get_queryset(self):
+        academy, unit = get_request_scope(self.request.user)
+        queryset = LeadProposal.objects.select_related("lead", "created_by").filter(lead__academy=academy)
+        if unit: queryset = queryset.filter(lead__unit=unit)
+        lead = self.request.query_params.get("lead")
+        return queryset.filter(lead_id=lead) if lead else queryset
+
+    def perform_create(self, serializer):
+        lead = serializer.validated_data["lead"]
+        academy, unit = get_request_scope(self.request.user)
+        allowed = Lead.objects.filter(pk=lead.pk, academy=academy)
+        if unit: allowed = allowed.filter(unit=unit)
+        if not allowed.exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"lead": "O lead não pertence ao contexto da sessão."})
+        proposal = serializer.save(created_by=self.request.user)
+        AdministrativeAudit.objects.create(academy=lead.academy, actor=self.request.user, action="lead.proposal_created", entity_type="lead_proposal", entity_id=str(proposal.pk), new_state={"lead": str(lead.pk), "amount": str(proposal.amount), "status": proposal.status})
+
+
+class CampaignSegmentViewSet(viewsets.ModelViewSet):
+    serializer_class = CampaignSegmentSerializer
+    permission_classes = [ScopedCapability]
+    read_capability = "students.view"
+    write_capability = "students.manage"
+
+    def get_queryset(self):
+        academy, unit = get_request_scope(self.request.user)
+        queryset = CampaignSegment.objects.filter(academy=academy)
+        return queryset.filter(Q(unit=unit) | Q(unit__isnull=True)) if unit else queryset
+
+    def perform_create(self, serializer):
+        academy, unit = get_request_scope(self.request.user)
+        segment = serializer.save(academy=academy, unit=unit, created_by=self.request.user)
+        AdministrativeAudit.objects.create(academy=academy, actor=self.request.user, action="campaign.segment_created", entity_type="campaign_segment", entity_id=str(segment.pk), new_state={"name": segment.name, "criteria": segment.criteria})
 
 
 class GroupClassViewSet(viewsets.ModelViewSet):
@@ -707,6 +804,12 @@ class StudentDocumentViewSet(viewsets.ModelViewSet):
         academy, unit = get_request_scope(self.request.user); queryset = StudentDocument.objects.select_related("student").filter(student__academy=academy)
         if unit: queryset = queryset.filter(student__unit=unit)
         if self.request.query_params.get("student"): queryset = queryset.filter(student_id=self.request.query_params["student"])
+        if self.request.query_params.get("document_type"): queryset = queryset.filter(document_type=self.request.query_params["document_type"])
+        if self.request.query_params.get("status") == "pending": queryset = queryset.filter(requires_acceptance=True, accepted_at__isnull=True, archived_at__isnull=True)
+        if self.request.query_params.get("status") == "accepted": queryset = queryset.filter(accepted_at__isnull=False, archived_at__isnull=True)
+        if self.request.query_params.get("status") == "archived": queryset = queryset.filter(archived_at__isnull=False)
+        search = self.request.query_params.get("search", "").strip()
+        if search: queryset = queryset.filter(Q(title__icontains=search) | Q(student__name__icontains=search))
         return queryset
     def perform_create(self, serializer):
         student = serializer.validated_data["student"]; title = serializer.validated_data["title"]
@@ -715,9 +818,35 @@ class StudentDocumentViewSet(viewsets.ModelViewSet):
         AdministrativeAudit.objects.create(academy=student.academy, actor=self.request.user, action="document.created", entity_type="student_document", entity_id=str(document.id), new_state={"student": str(student.id), "title": title, "version": document.version})
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):
-        document = self.get_object(); document.accepted_at = timezone.now(); document.accepted_by_name = str(request.data.get("name", "")).strip(); document.acceptance_ip = request.META.get("REMOTE_ADDR");
+        document = self.get_object()
+        if document.accepted_at:
+            return Response({"detail": "Este aceite já foi registrado e é imutável."}, status=409)
+        document.accepted_at = timezone.now(); document.accepted_by_name = str(request.data.get("name", "")).strip(); document.acceptance_ip = request.META.get("REMOTE_ADDR");
         if not document.accepted_by_name: return Response({"name": ["Informe o nome de quem aceitou."]}, status=400)
         document.save(update_fields=["accepted_at", "accepted_by_name", "acceptance_ip", "updated_at"]); return Response(self.get_serializer(document).data)
+
+    @action(detail=True, methods=["post"])
+    def renew(self, request, pk=None):
+        document = self.get_object()
+        with transaction.atomic():
+            latest = StudentDocument.objects.select_for_update().filter(student=document.student, title=document.title).order_by("-version").first()
+            renewed = StudentDocument.objects.create(student=document.student, enrollment=document.enrollment, document_type=document.document_type, title=document.title, version=(latest.version if latest else document.version) + 1, content_snapshot=request.data.get("content_snapshot", document.content_snapshot), expires_at=request.data.get("expires_at") or document.expires_at, requires_acceptance=document.requires_acceptance, created_by=request.user)
+        AdministrativeAudit.objects.create(academy=document.student.academy, actor=request.user, action="document.renewed", entity_type="student_document", entity_id=str(renewed.pk), previous_state={"version": document.version}, new_state={"version": renewed.version})
+        return Response(self.get_serializer(renewed).data, status=201)
+
+    @action(detail=True, methods=["post"])
+    def archive(self, request, pk=None):
+        document = self.get_object(); document.archived_at = timezone.now(); document.save(update_fields=["archived_at", "updated_at"])
+        AdministrativeAudit.objects.create(academy=document.student.academy, actor=request.user, action="document.archived", entity_type="student_document", entity_id=str(document.pk), reason=str(request.data.get("reason", ""))[:255])
+        return Response(self.get_serializer(document).data)
+
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        from django.http import FileResponse, Http404
+        document = self.get_object()
+        if not document.file:
+            raise Http404("Este documento não possui arquivo.")
+        return FileResponse(document.file.open("rb"), as_attachment=True, filename=document.file.name.rsplit("/", 1)[-1])
 
     @action(detail=False, methods=["get"], url_path="expiry-summary")
     def expiry_summary(self, request):

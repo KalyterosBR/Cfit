@@ -3,6 +3,7 @@ from rest_framework import serializers
 from apps.workouts.models import (
     Exercise,
     WorkoutExercise,
+    WorkoutLoadRecord,
     WorkoutPlan,
     WorkoutProgress,
     WorkoutTemplate,
@@ -27,8 +28,18 @@ class WorkoutTemplateSerializer(serializers.ModelSerializer):
         return WorkoutTemplateExerciseSerializer(obj.template_exercises.all(), many=True).data
 
 
+class WorkoutLoadRecordSerializer(serializers.ModelSerializer):
+    recorded_by_name = serializers.CharField(source="recorded_by.email", read_only=True)
+
+    class Meta:
+        model = WorkoutLoadRecord
+        fields = "__all__"
+        read_only_fields = ["recorded_by"]
+
+
 class WorkoutExerciseSerializer(serializers.ModelSerializer):
     exercise_name = serializers.CharField(source="exercise.name", read_only=True)
+    load_history = WorkoutLoadRecordSerializer(many=True, read_only=True)
 
     class Meta:
         model = WorkoutExercise

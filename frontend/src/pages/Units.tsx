@@ -1,6 +1,6 @@
 import axios from "axios";
 import { Building2, CheckCircle2, Pencil, Power } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import toast from "react-hot-toast";
 
@@ -24,6 +24,10 @@ type UnitMetric = {
   active_students: number;
   checkins: number;
   revenue: string;
+  previous_checkins:number;
+  previous_revenue:string;
+  rank:number;
+  alerts:string[];
 };
 type UnitForm = Pick<Unit, "name" | "code" | "address" | "phone">;
 const emptyForm: UnitForm = { name: "", code: "", address: "", phone: "" };
@@ -39,7 +43,7 @@ export default function Units() {
     new Date().toISOString().slice(0, 7),
   );
 
-  async function load() {
+  const load=useCallback(async()=> {
     const [unitsResponse, meResponse] = await Promise.all([
       Api.get<Page<Unit>>("/academies/units/"),
       Api.get<Me>("/users/me/"),
@@ -64,7 +68,7 @@ export default function Units() {
         "As unidades foram carregadas, mas a comparação não está disponível.",
       );
     }
-  }
+  },[period]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void load().catch((error) => {
@@ -78,7 +82,7 @@ export default function Units() {
       });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [period]);
+  }, [load]);
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -284,7 +288,7 @@ export default function Units() {
                 {unit.phone || "Telefone não informado"}
               </p>
               {metric && (
-                <dl className="mt-4 grid grid-cols-3 gap-2 border-y py-3 text-center">
+                <><div className="mt-3 flex items-center justify-between text-xs"><strong className="text-blue-600">#{metric.rank} no período</strong><span className="text-slate-500">comparado ao mês anterior</span></div><dl className="mt-3 grid grid-cols-3 gap-2 border-y py-3 text-center">
                   <div>
                     <dt className="text-[10px] uppercase text-slate-400">
                       Alunos
@@ -296,6 +300,7 @@ export default function Units() {
                       Check-ins
                     </dt>
                     <dd className="font-black">{metric.checkins}</dd>
+                    <small className="text-[9px] text-slate-400">antes {metric.previous_checkins}</small>
                   </div>
                   <div>
                     <dt className="text-[10px] uppercase text-slate-400">
@@ -307,8 +312,9 @@ export default function Units() {
                         currency: "BRL",
                       })}
                     </dd>
+                    <small className="text-[9px] text-slate-400">antes {Number(metric.previous_revenue).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0})}</small>
                   </div>
-                </dl>
+                </dl>{metric.alerts.length>0&&<ul className="mt-3 space-y-1 text-xs font-semibold text-amber-700">{metric.alerts.map(alert=><li key={alert}>{alert}</li>)}</ul>}</>
               )}
               {unit.active && (
                 <button

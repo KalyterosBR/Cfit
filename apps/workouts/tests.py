@@ -7,7 +7,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.students.models import Student
-from apps.workouts.models import Exercise, WorkoutPlan, WorkoutSession, WorkoutTemplate
+from apps.users.models import AdministrativeAudit
+from apps.workouts.models import Exercise, WorkoutExercise, WorkoutLoadRecord, WorkoutPlan, WorkoutSession, WorkoutTemplate
 
 
 class WorkoutApiTests(APITestCase):
@@ -121,3 +122,42 @@ class WorkoutApiTests(APITestCase):
         detail = self.client.get(reverse("workout-plan-detail", args=[workout.pk]))
         self.assertEqual(detail.data["adherence_percentage"], 50)
         self.assertEqual(WorkoutSession.objects.count(), 2)
+
+    def test_tracks_load_history_and_administrative_audit(self):
+        self.client.force_authenticate(self.user)
+        exercise = Exercise.objects.create(name="Supino")
+        workout = WorkoutPlan.objects.create(
+            student=self.student, name="Treino A", objective="Força",
+            instructor=self.user, start_date=timezone.localdate(),
+        )
+        created = self.client.post(
+            reverse("workout-exercise-list"),
+            {"workout": workout.pk, "exercise": exercise.pk, "sets": 3, "repetitions": "10", "load": "20.00", "order": 1},
+            format="json",
+        )
+        updated = self.client.patch(
+            reverse("workout-exercise-detail", args=[created.data["id"]]),
+            {"load": "25.00"},
+            format="json",
+        )
+
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(updated.status_code, status.HTTP_200_OK)
+        item = WorkoutExercise.objects.get(pk=created.data["id"])
+        self.assertEqual(item.load_history.count(), 2)
+        self.assertEqual(WorkoutLoadRecord.objects.first().notes, "Atualização da prescrição")
+        self.assertTrue(AdministrativeAudit.objects.filter(action="workout.exercise_updated", entity_id=str(item.pk)).exists())
+
+    def test_filters_workouts_by_review_window(self):
+        self.client.force_authenticate(self.user)
+        WorkoutPlan.objects.create(
+            student=self.student, name="Treino vencido", objective="Força",
+            instructor=self.user, start_date=timezone.localdate() - timedelta(days=40),
+            review_date=timezone.localdate() - timedelta(days=1),
+        )
+
+        response = self.client.get(reverse("workout-plan-list"), {"review": "overdue"})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["name"], "Treino vencido")

@@ -107,6 +107,27 @@ class WorkoutExercise(BaseModel):
         ]
 
 
+class WorkoutLoadRecord(BaseModel):
+    workout_exercise = models.ForeignKey(
+        WorkoutExercise,
+        on_delete=models.CASCADE,
+        related_name="load_history",
+    )
+    load = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    sets = models.PositiveSmallIntegerField()
+    repetitions = models.CharField(max_length=40)
+    recorded_at = models.DateField(db_index=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="workout_load_records",
+    )
+    notes = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-recorded_at", "-created_at"]
+
+
 class WorkoutProgress(BaseModel):
     workout = models.ForeignKey(
         WorkoutPlan,

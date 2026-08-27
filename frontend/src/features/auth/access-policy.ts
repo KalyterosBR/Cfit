@@ -23,3 +23,15 @@ export function hasAccess(capabilities: string[], requirement?: AccessRequiremen
     return (!requirement.anyOf?.length || requirement.anyOf.some(item => capabilities.includes(item)))
         && (!requirement.allOf?.length || requirement.allOf.every(item => capabilities.includes(item)));
 }
+
+export function hasCapability(capabilities: string[], ...required: string[]) {
+    return capabilities.includes("*") || required.some((capability) => capabilities.includes(capability));
+}
+
+export function getDashboardDataAccess(capabilities: string[]) {
+    return {
+        students: hasCapability(capabilities, "students.view", "students.manage"),
+        finance: hasCapability(capabilities, "finance.view", "finance.manage"),
+        checkins: hasCapability(capabilities, "checkins.view", "checkins.manage"),
+    };
+}

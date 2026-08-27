@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { Link } from "react-router-dom";
 import { useSession } from "@/features/auth/access-control";
+import { getDashboardDataAccess } from "@/features/auth/access-policy";
 import { Api } from "@/services/http";
 
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -353,6 +354,10 @@ function OperationalPriorityPanel({
 
 export default function Dashboard() {
     const session = useSession();
+    const dashboardAccess = getDashboardDataAccess(session.capabilities);
+    const canViewStudents = dashboardAccess.students;
+    const canViewFinance = dashboardAccess.finance;
+    const canViewCheckIns = dashboardAccess.checkins;
     const roleMap: Record<string, DashboardRole> = { MANAGER: "manager", RECEPTION: "reception", FINANCIAL: "finance", TRAINER: "instructor", OWNER: "manager", ADMIN: "manager" };
     const canChooseRole = session.role === "OWNER" || session.role === "ADMIN";
     const [dashboardRole, setDashboardRole] = useState<DashboardRole>(() => canChooseRole ? ((localStorage.getItem("cfit_dashboard_role") as DashboardRole | null) ?? "manager") : (roleMap[session.role] ?? "manager"));
@@ -418,6 +423,12 @@ export default function Dashboard() {
     }, []);
 
     useEffect(() => {
+        if (!canViewStudents) {
+            setActiveStudentsCount(null);
+            setStudentSummary(null);
+            setActiveStudentsError(false);
+            return;
+        }
         let current = true;
 
         getDashboardStudentSummary(selectedPeriod)
@@ -441,9 +452,15 @@ export default function Dashboard() {
         return () => {
             current = false;
         };
-    }, [selectedPeriod]);
+    }, [canViewStudents, selectedPeriod]);
 
-    async function loadOverdueCharges() {
+    const loadOverdueCharges = useCallback(async () => {
+        if (!canViewFinance) {
+            setOverdueCharges([]);
+            setOverdueChargesError(false);
+            setOverdueChargesLoading(false);
+            return;
+        }
         try {
             setOverdueChargesLoading(true);
             setOverdueChargesError(false);
@@ -455,13 +472,21 @@ export default function Dashboard() {
         } finally {
             setOverdueChargesLoading(false);
         }
-    }
+    }, [canViewFinance]);
 
     useEffect(() => {
         loadOverdueCharges();
-    }, []);
+    }, [loadOverdueCharges]);
 
     const loadCheckIns = useCallback(async () => {
+        if (!canViewCheckIns) {
+            setTodayCheckIns(null);
+            setPeriodCheckIns(null);
+            setRecentCheckIns([]);
+            setCheckInsError(false);
+            setCheckInsLoading(false);
+            return;
+        }
         try {
             setCheckInsLoading(true);
             setCheckInsError(false);
@@ -479,13 +504,24 @@ export default function Dashboard() {
         } finally {
             setCheckInsLoading(false);
         }
-    }, [selectedPeriod]);
+    }, [canViewCheckIns, selectedPeriod]);
 
     useEffect(() => {
         loadCheckIns();
     }, [loadCheckIns]);
 
     const loadFinancialSummary = useCallback(async () => {
+        if (!canViewFinance) {
+            setMonthlyRevenue(null);
+            setRecentPayments([]);
+            setRevenueGrowth(null);
+            setPreviousRevenue(null);
+            setRevenueHistory([]);
+            setRevenueInsight(null);
+            setMonthlyRevenueError(false);
+            setFinancialLoading(false);
+            return;
+        }
         try {
             setFinancialLoading(true);
             setMonthlyRevenueError(false);
@@ -509,7 +545,7 @@ export default function Dashboard() {
         } finally {
             setFinancialLoading(false);
         }
-    }, [selectedPeriod]);
+    }, [canViewFinance, selectedPeriod]);
 
     useEffect(() => {
         loadFinancialSummary();
@@ -537,9 +573,10 @@ export default function Dashboard() {
     )?.label ?? selectedPeriod;
     const isCurrentPeriod = selectedPeriod === getCurrentPeriod();
     const financialPeriodLink = getFinancialPeriodLink(selectedPeriod);
-    const showFinancial = dashboardRole === "manager" || dashboardRole === "finance";
-    const showStudents = dashboardRole === "manager" || dashboardRole === "reception" || dashboardRole === "commercial";
-    const showCheckIns = dashboardRole === "manager" || dashboardRole === "reception" || dashboardRole === "instructor";
+    const showFinancial = canViewFinance && (dashboardRole === "manager" || dashboardRole === "finance");
+    const showStudents = canViewStudents && (dashboardRole === "manager" || dashboardRole === "reception" || dashboardRole === "commercial" || dashboardRole === "instructor");
+    const showCheckIns = canViewCheckIns && (dashboardRole === "manager" || dashboardRole === "reception" || dashboardRole === "instructor");
+    const showIndicators = showFinancial || showCheckIns;
     const dashboardRoleLabel: Record<DashboardRole, string> = {
         manager: "Visão do gestor",
         reception: "Visão da recepção",
@@ -581,7 +618,7 @@ export default function Dashboard() {
                 subtitle="O ritmo da sua operação, traduzido em próximas ações."
             >
                 <DashboardPillSelect value={dashboardRole} options={dashboardRoleOptions} disabled={!canChooseRole} ariaLabel="Visão do Dashboard" icon={<LayoutDashboard size={17} />} className="min-w-48" onChange={(role) => { setDashboardRole(role); localStorage.setItem("cfit_dashboard_role", role); }} />
-                <DashboardPillSelect value={selectedPeriod} options={periodOptions} ariaLabel="Período financeiro do Dashboard" icon={<CalendarRange size={17} />} className="min-w-48" capitalize onChange={setSelectedPeriod} />
+                <DashboardPillSelect value={selectedPeriod} options={periodOptions} ariaLabel="Período do Dashboard" icon={<CalendarRange size={17} />} className="min-w-48" capitalize onChange={setSelectedPeriod} />
                 <button type="button" aria-expanded={customizing} onClick={() => setCustomizing((value) => !value)} className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white/60 text-slate-600 transition hover:border-blue-300 hover:text-blue-700" aria-label="Personalizar seções do Dashboard">
                     <Settings2 size={17} />
                 </button>
@@ -610,7 +647,7 @@ export default function Dashboard() {
             <section id="overview" className="relative scroll-mt-6 py-4 lg:py-8">
                 <div className="pointer-events-none absolute -left-[10%] top-[5%] h-[28rem] w-[28rem] rounded-full bg-blue-200/30 blur-[110px]" />
                 <div className="pointer-events-none absolute right-[5%] top-[4%] h-[24rem] w-[24rem] rounded-full bg-cyan-200/25 blur-[110px]" />
-                <div className="cfit-dashboard-hero relative overflow-hidden border-y border-blue-200/70 bg-[linear-gradient(115deg,rgba(255,255,255,.68),rgba(239,246,255,.72)_52%,rgba(236,254,255,.58))] lg:grid lg:grid-cols-[1.08fr_.92fr]">
+                <div className={`cfit-dashboard-hero relative overflow-hidden border-y border-blue-200/70 bg-[linear-gradient(115deg,rgba(255,255,255,.68),rgba(239,246,255,.72)_52%,rgba(236,254,255,.58))] ${canViewFinance ? "lg:grid lg:grid-cols-[1.08fr_.92fr]" : ""}`}>
                     <div className="relative px-6 py-8 sm:px-8 lg:py-9 xl:px-10">
                         <div className="pointer-events-none absolute -left-20 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-blue-200/25 blur-[80px]" />
                         <div className="relative">
@@ -627,7 +664,7 @@ export default function Dashboard() {
                             Uma leitura contínua da unidade ativa. O Cfit conecta resultado, ritmo e desvio para mostrar onde agir agora.
                         </p>
                         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-                            {overdueCharges.length > 0 ? (
+                            {canViewFinance && overdueCharges.length > 0 ? (
                             <Link to="/finance?category=overdue#charges" className="group inline-flex items-center gap-3 text-sm font-black text-slate-950">
                                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-white transition group-hover:bg-blue-700">
                                     <ArrowUpRight size={17} />
@@ -638,7 +675,7 @@ export default function Dashboard() {
                             <button
                                 type="button"
                                 disabled={overdueChargesLoading}
-                                onClick={() => overdueChargesError
+                                onClick={() => canViewFinance && overdueChargesError
                                     ? loadOverdueCharges()
                                     : document.getElementById("attention")?.scrollIntoView({ behavior: "smooth", block: "start" })}
                                 className="group inline-flex items-center gap-3 text-sm font-black text-slate-950 disabled:cursor-wait"
@@ -646,7 +683,7 @@ export default function Dashboard() {
                                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-white transition group-hover:bg-blue-700">
                                     <ArrowUpRight size={17} />
                                 </span>
-                                {overdueChargesError ? "Tentar novamente" : "Explorar saúde operacional"}
+                                {canViewFinance && overdueChargesError ? "Tentar novamente" : dashboardRole === "instructor" ? "Ver alunos que pedem atenção" : "Explorar saúde operacional"}
                             </button>
                             )}
                             <span className="text-xs font-semibold text-slate-400">
@@ -655,12 +692,12 @@ export default function Dashboard() {
                         </div>
                         </div>
                     </div>
-                    <OperationalPriorityPanel
+                    {canViewFinance && <OperationalPriorityPanel
                         attentionCount={overdueCharges.length}
                         loading={overdueChargesLoading}
                         error={overdueChargesError}
                         onRetry={loadOverdueCharges}
-                    />
+                    />}
                 </div>
 
                 <div className="relative mt-4 grid border-y border-slate-200/80 md:grid-cols-2 xl:grid-cols-4">
@@ -717,7 +754,7 @@ export default function Dashboard() {
                     ["overview", "Pulso"],
                     ...(!hiddenSections.includes("goals") ? [["goals", "Metas"]] : []),
                     ...(!hiddenSections.includes("attention") ? [["attention", "Atenção"]] : []),
-                    ...(!hiddenSections.includes("indicators") ? [["indicators", "Análise"]] : []),
+                    ...(!hiddenSections.includes("indicators") && showIndicators ? [["indicators", "Análise"]] : []),
                 ].map(([id, label]) => (
                     <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="relative h-10 shrink-0 px-4 text-xs font-bold text-slate-500 transition after:absolute after:inset-x-4 after:bottom-[-1px] after:h-0.5 after:origin-left after:scale-x-0 after:bg-blue-600 after:transition-transform hover:text-slate-950 hover:after:scale-x-100 focus:outline-none focus:text-blue-700">
                         {label}
@@ -864,7 +901,7 @@ export default function Dashboard() {
                 <DashboardAttention role={dashboardRole} variant="canvas" />
             </div>}
 
-            {!hiddenSections.includes("indicators") && <div id="indicators" style={{ order: sectionOrder.indexOf("indicators") }} className="mt-12 scroll-mt-6 border-t border-slate-200 pt-8">
+            {!hiddenSections.includes("indicators") && showIndicators && <div id="indicators" style={{ order: sectionOrder.indexOf("indicators") }} className="mt-12 scroll-mt-6 border-t border-slate-200 pt-8">
             <div className="mb-2">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-700">Camada analítica</p>
                 <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">Entenda o que moveu os números</h2>

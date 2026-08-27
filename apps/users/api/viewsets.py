@@ -586,7 +586,13 @@ class MembershipListView(AcademyScopedMixin, ListCreateAPIView):
 
     def get_queryset(self):
         academy = self.get_academy()
-        return AcademyUser.objects.filter(academy=academy).select_related("user") if academy else AcademyUser.objects.none()
+        queryset = AcademyUser.objects.filter(academy=academy).select_related("user", "active_unit") if academy else AcademyUser.objects.none()
+        search = self.request.query_params.get("search", "").strip()
+        if search: queryset = queryset.filter(models.Q(user__email__icontains=search) | models.Q(user__first_name__icontains=search) | models.Q(user__last_name__icontains=search))
+        if self.request.query_params.get("role"): queryset = queryset.filter(role=self.request.query_params["role"])
+        if self.request.query_params.get("active") in {"true", "false"}: queryset = queryset.filter(active=self.request.query_params["active"] == "true")
+        if self.request.query_params.get("unit"): queryset = queryset.filter(active_unit_id=self.request.query_params["unit"])
+        return queryset
 
     def get_serializer_class(self):
         return MembershipInviteSerializer if self.request.method == "POST" else AcademyUserSerializer

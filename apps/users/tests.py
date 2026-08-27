@@ -198,6 +198,9 @@ class RolePermissionTests(APITestCase):
         self.assertEqual(notifications.status_code, 200)
         self.assertEqual(reports.status_code, 200)
         self.assertIn("revenue_by_plan", reports.data)
+        self.assertEqual(reports.data["cache"], "miss")
+        cached_reports = self.client.get("/api/reports/management/", {"period": "2026-08"})
+        self.assertEqual(cached_reports.data["cache"], "hit")
 
     @patch("apps.users.api.viewsets.validate_turnstile", return_value=True)
     def test_email_two_factor_challenges_before_issuing_jwt(self, _validate):

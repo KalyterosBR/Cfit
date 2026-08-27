@@ -61,7 +61,9 @@ function formatMoney(value: string) {
 }
 
 
-async function getAttentionSummary(): Promise<AttentionSummary> {
+async function getAttentionSummary(role: DashboardRole): Promise<AttentionSummary> {
+    const includesFinancial = role === "manager" || role === "finance";
+    const includesStudents = role === "manager" || role === "reception" || role === "instructor" || role === "commercial";
     const [
         overdue,
         recurring,
@@ -70,12 +72,12 @@ async function getAttentionSummary(): Promise<AttentionSummary> {
         studentsWithoutRecentCheckInCount,
         healthSummary,
     ] = await Promise.all([
-        getDashboardOverdueSummary(),
-        getRecurringAttemptSummary("all", ""),
-        getFinancialInconsistencies("all", "", 1),
-        getActiveStudentSegmentCount("without_plan"),
-        getActiveStudentSegmentCount("without_recent_checkin"),
-        getStudentHealthSummary(),
+        includesFinancial ? getDashboardOverdueSummary() : Promise.resolve({ overdue_count: 0, overdue_total: "0" }),
+        includesFinancial ? getRecurringAttemptSummary("all", "") : Promise.resolve({ unresolved_charge_count: 0, rejected_count: 0 }),
+        includesFinancial ? getFinancialInconsistencies("all", "", 1) : Promise.resolve({ summary: { total_count: 0, critical_count: 0, high_count: 0 } }),
+        includesStudents ? getActiveStudentSegmentCount("without_plan") : Promise.resolve(0),
+        includesStudents ? getActiveStudentSegmentCount("without_recent_checkin") : Promise.resolve(0),
+        includesStudents ? getStudentHealthSummary() : Promise.resolve({ risk_count: 0 }),
     ]);
 
     return {
@@ -105,7 +107,7 @@ export default function DashboardAttention({ role = "manager", variant = "card" 
             setError(false);
             setPermissionDenied(false);
 
-            setSummary(await getAttentionSummary());
+            setSummary(await getAttentionSummary(role));
         } catch (requestError) {
             console.error(requestError);
             setSummary(emptySummary);
@@ -116,12 +118,12 @@ export default function DashboardAttention({ role = "manager", variant = "card" 
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [role]);
 
     useEffect(() => {
         let current = true;
 
-        getAttentionSummary()
+        getAttentionSummary(role)
             .then((data) => {
                 if (!current) return;
 
@@ -147,14 +149,15 @@ export default function DashboardAttention({ role = "manager", variant = "card" 
         return () => {
             current = false;
         };
-    }, []);
+    }, [role]);
 
-    const totalAttention = summary.overdueCount
-        + summary.unresolvedRecurringCount
-        + summary.inconsistencyCount
-        + summary.studentsWithoutPlanCount
-        + summary.studentsWithoutRecentCheckInCount
-        + summary.studentsAtRiskCount;
+    const totalAttention = (role === "manager" || role === "finance"
+        ? summary.overdueCount + summary.unresolvedRecurringCount + summary.inconsistencyCount
+        : 0)
+        + (role === "manager" || role === "reception" || role === "commercial" ? summary.studentsWithoutPlanCount : 0)
+        + (role === "manager" || role === "reception" || role === "instructor" || role === "commercial"
+            ? summary.studentsWithoutRecentCheckInCount + summary.studentsAtRiskCount
+            : 0);
 
     const items = [
         {
@@ -286,7 +289,7 @@ export default function DashboardAttention({ role = "manager", variant = "card" 
                     {totalAttention === 0 && (
                         <div className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 text-sm font-semibold text-emerald-800">
                             <ShieldCheck size={20} />
-                            Nenhuma prioridade financeira ou operacional requer ação agora.
+                            Nenhuma prioridade disponível para esta visão requer ação agora.
                         </div>
                     )}
 
