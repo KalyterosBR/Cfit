@@ -3,7 +3,7 @@ import {
     useState,
 } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 import {
@@ -26,6 +26,7 @@ import { saveTokens } from "../services/token.service";
 
 export default function LoginForm() {
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [email, setEmail] =
         useState("");
@@ -126,18 +127,21 @@ export default function LoginForm() {
             );
 
 
+            const requestedPath = (location.state as { from?: unknown } | null)?.from;
+            const safeDestination = typeof requestedPath === "string" &&
+                requestedPath.startsWith("/") &&
+                !requestedPath.startsWith("//") &&
+                !["/", "/login", "/forgot-password", "/reset-password"].includes(requestedPath)
+                ? requestedPath
+                : "/dashboard";
+
             navigate(
-                "/dashboard",
+                safeDestination,
                 {
                     replace: true,
                 },
             );
         } catch (error) {
-            console.error(
-                error,
-            );
-
-
             setTurnstileToken("");
             setTurnstileResetKey(
                 (current) =>
@@ -173,7 +177,7 @@ export default function LoginForm() {
         <form onSubmit={handleSubmit}>
             {/* E-MAIL */}
             <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">
+                <label htmlFor="login-email" className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">
                     E-mail
                 </label>
 
@@ -185,6 +189,7 @@ export default function LoginForm() {
                     />
 
                     <Input
+                        id="login-email"
                         type="email"
                         placeholder="seu@email.com"
                         value={email}
@@ -195,6 +200,8 @@ export default function LoginForm() {
                         }
                         autoComplete="email"
                         disabled={loading}
+                        aria-invalid={Boolean(error)}
+                        aria-describedby={error ? "login-error" : undefined}
                         className="
                             h-[46px]
                             rounded-xl
@@ -222,12 +229,12 @@ export default function LoginForm() {
                 </div>
             </div>
 
-            {twoFactorRequired && <div className="mt-3.5"><label className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">Código de verificação</label><Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, ""))} placeholder="000000" className="mt-1.5 h-[46px] rounded-xl border-white/[0.16] bg-white/[0.085] px-4 text-center font-bold tracking-[.4em] text-white" /></div>}
+            {twoFactorRequired && <div className="mt-3.5"><label htmlFor="login-two-factor" className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">Código de verificação</label><Input id="login-two-factor" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, ""))} placeholder="000000" disabled={loading} aria-invalid={Boolean(error)} aria-describedby={error ? "login-error" : undefined} className="mt-1.5 h-[46px] rounded-xl border-white/[0.16] bg-white/[0.085] px-4 text-center font-bold tracking-[.4em] text-white" /></div>}
 
 
             {/* SENHA */}
-            <div className="mt-3.5">
-                <label className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">
+            <div className="mt-3">
+                <label htmlFor="login-password" className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">
                     Senha
                 </label>
 
@@ -239,6 +246,7 @@ export default function LoginForm() {
                     />
 
                     <Input
+                        id="login-password"
                         type={
                             showPassword
                                 ? "text"
@@ -253,6 +261,8 @@ export default function LoginForm() {
                         }
                         autoComplete="current-password"
                         disabled={loading}
+                        aria-invalid={Boolean(error)}
+                        aria-describedby={error ? "login-error" : undefined}
                         className="
                             h-[46px]
                             rounded-xl
@@ -290,7 +300,7 @@ export default function LoginForm() {
                                 ? "Ocultar senha"
                                 : "Mostrar senha"
                         }
-                        className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/[0.06] hover:text-cyan-300"
+                        className="absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/[0.06] hover:text-cyan-300"
                     >
                         {showPassword ? (
                             <EyeOff size={16} />
@@ -303,8 +313,8 @@ export default function LoginForm() {
 
 
             {/* OPÇÕES */}
-            <div className="mt-3.5 flex items-center justify-between gap-4">
-                <label className="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-slate-300">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 max-[339px]:mt-2">
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 text-[11px] font-medium text-slate-300">
                     <input
                         type="checkbox"
                         checked={keepConnected}
@@ -323,7 +333,7 @@ export default function LoginForm() {
                 <button
                     type="button"
                     onClick={() => navigate("/forgot-password")}
-                    className="text-[11px] font-semibold text-blue-300 transition hover:text-cyan-300"
+                    className="inline-flex min-h-11 items-center rounded-lg text-[11px] font-semibold text-blue-300 transition hover:text-cyan-300 focus-visible:outline-2 focus-visible:outline-cyan-300"
                 >
                     Esqueci minha senha
                 </button>
@@ -333,7 +343,7 @@ export default function LoginForm() {
             {/* TURNSTILE */}
             <div
                 className="
-                    mt-4
+                    mt-2
                     overflow-hidden
                     rounded-xl
                     border
@@ -372,7 +382,7 @@ export default function LoginForm() {
 
             {/* ERRO */}
             {error && (
-                <div className="mt-3 rounded-xl border border-red-400/25 bg-red-400/[0.12] px-4 py-2.5 text-xs font-medium text-red-200">
+                <div id="login-error" role="alert" aria-live="polite" className="mt-3 rounded-xl border border-red-400/25 bg-red-400/[0.12] px-4 py-2.5 text-xs font-medium text-red-200">
                     {error}
                 </div>
             )}
@@ -381,13 +391,14 @@ export default function LoginForm() {
             {/* BOTÃO */}
             <Button
                 type="submit"
+                aria-busy={loading}
                 disabled={
                     loading ||
                     !turnstileToken
                 }
                 className="
                     group
-                    mt-4
+                    mt-3
                     h-[46px]
                     w-full
                     rounded-xl
@@ -424,7 +435,7 @@ export default function LoginForm() {
 
 
             {/* RODAPÉ */}
-            <p className="mt-3 text-center text-[9px] font-medium leading-4 text-slate-500">
+            <p className="mt-2 text-center text-[9px] font-medium leading-4 text-slate-400">
                 Gestão, performance e controle em um único ambiente.
             </p>
         </form>

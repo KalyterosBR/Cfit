@@ -213,8 +213,40 @@ html {
   color-scheme: light;
 }
 
+#recursos, #sistema, #solucoes { scroll-margin-top: 78px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
 html.dark { color-scheme: dark; }
 body, #root { min-height: 100%; background-color: var(--cfit-canvas); }
+
+@keyframes cfit-slide-out-left {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-2rem); }
+}
+
+@keyframes cfit-slide-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(2rem); }
+}
+
+@keyframes cfit-slide-in-right {
+  from { opacity: 0; transform: translateX(2rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes cfit-slide-in-left {
+  from { opacity: 0; transform: translateX(-2rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="cfit-slide-"] {
+    animation-duration: 1ms !important;
+  }
+}
 
 .cfit-theme-changing,
 .cfit-theme-changing *,

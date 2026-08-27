@@ -132,7 +132,10 @@ TURNSTILE_SECRET_KEY=
 Frontend usa:
 ```env
 VITE_TURNSTILE_SITE_KEY=
+VITE_PUBLIC_SITE_URL=
 ```
+
+`VITE_PUBLIC_SITE_URL` recebe a origem pública absoluta do frontend somente em produção. Ausência da variável ou uma origem local mantém o site sem indexação.
 
 Nunca:
 - colocar `TURNSTILE_SECRET_KEY` no frontend;
@@ -466,18 +469,19 @@ frontend/src/features/auth/components/ProtectedRoute.tsx
 ```
 
 Comportamento:
-- sem access token → redirect `/`
+- sem access token → redirect `/login`, preservando a rota solicitada para retorno seguro após autenticação;
 - com token → `Outlet`
 
 Fluxo já testado. Logout remove token e retorna ao login. Não alterar sem necessidade.
 
-O interceptor HTTP adiciona o access token às requisições privadas. Em resposta `401`, tenta renovar a sessão com o refresh token e repete a requisição original. Se não houver refresh token ou a renovação falhar, limpa os dois storages e redireciona para `/`.
+O interceptor HTTP adiciona o access token às requisições privadas. Em resposta `401`, tenta renovar a sessão com o refresh token e repete a requisição original. Se não houver refresh token ou a renovação falhar, limpa os dois storages e redireciona para `/login`.
 
 ---
 
 ## 21. Rotas frontend
 ```text
-/                  Homepage + Login
+/                  Homepage institucional
+/login             Autenticação de clientes
 /dashboard         Dashboard
 /students          Lista de alunos
 /students/:id      Detalhes do aluno
@@ -498,7 +502,7 @@ O interceptor HTTP adiciona o access token às requisições privadas. Em respos
 /portal            Portal do aluno
 ```
 
-A rota `/` é homepage institucional + login, não só login.
+A rota `/` é a homepage institucional. A autenticação fica exclusivamente em `/login`.
 
 Todas essas rotas estão registradas em `frontend/src/routes/index.tsx`. Relatórios e Configurações possuem primeiras etapas funcionais conectadas aos domínios já disponíveis.
 
@@ -518,23 +522,44 @@ frontend/src/theme                   tokens visuais
 
 ---
 
-## 22. Homepage
-Estrutura atual:
+## 22. Homepage pública e login
+A rota `/` tem papel exclusivamente institucional: apresenta o produto e não incorpora o formulário de autenticação. A rota `/login` concentra o acesso do cliente, reutiliza o card escuro premium e preserva Turnstile, JWT, segundo fator, recuperação de senha e persistência da sessão.
+
+Estrutura atual da homepage:
 ```text
 HomeHeader
 ↓
-Hero + Login
+Hero + demonstração do produto
 ↓
 HomeFeatures
 ↓
-HomeBenefits
-↓
 HomeSystem
+↓
+HomeBenefits
 ↓
 HomeAccess
 ↓
 HomeFooter
 ```
+
+Hierarquia de ações:
+- CTA principal e CTA secundário exploram seções reais da própria homepage;
+- `Entrar` e `Acessar o Cfit` levam sempre a `/login`;
+- não criar CTA comercial, teste, preço, formulário ou promessa sem fluxo real que o sustente.
+
+As demonstrações usam exclusivamente dados fictícios e devem exibir `Representação demonstrativa` de forma inequívoca. Funcionalidade parcial, planejada ou conceitual não pode ser descrita como disponível. Provas de confiança, números, depoimentos, integrações e certificações só podem aparecer quando forem verificáveis e autorizados.
+
+Cada afirmação demonstrativa deve corresponder a comportamento comprovável no produto. Quando representar roadmap, título e descrição precisam declarar `visão de evolução`, `experiência planejada` ou equivalente; o aviso genérico de demonstração não transforma uma promessa futura em funcionalidade disponível.
+
+A homepage mantém densidade editorial compacta: Hero, mapa da operação, produto, confiança, acesso, CTA e footer, sem altura artificial. A redução de altura não pode ocultar conteúdo, diminuir a legibilidade dos mockups nem comprometer alvos de toque e ausência de overflow entre `360px` e telas largas.
+
+Navegação para seções usa links com fragmentos reais (`#recursos`, `#sistema`, `#solucoes`); botões ficam reservados a ações. Troca manual de aba ou setas pausa o carousel, assim como foco, hover e `prefers-reduced-motion`.
+
+SEO é condicionado a `VITE_PUBLIC_SITE_URL`: somente `/` em build de produção com origem pública não local recebe `index,follow`. Login, recuperação, páginas internas, desenvolvimento e homologação permanecem `noindex,nofollow`. Canonical, `og:url`, imagem social, `robots.txt` e sitemap usam a mesma origem; nunca publicar canonical localhost.
+
+O header mantém indicação da seção ativa, acesso imediato ao login e menu mobile que fecha por seleção ou `Escape`, bloqueando o scroll de fundo enquanto aberto. A homepage deve preservar um único `h1`, landmarks, foco visível, semântica de abas e ausência de overflow horizontal.
+
+Animações devem respeitar `prefers-reduced-motion`. O carousel pausa em foco ou hover, possui controle de reprodução e mantém o timer de transição como proteção contra animações incompletas. Alterações precisam ser verificadas em desktop, tablet e mobile, incluindo 1920×1080, 1440×900, 1366×768, 1024×768, 768×1024, 390×844 e 360×800.
 
 Arquivos relevantes em:
 ```text
@@ -549,6 +574,7 @@ HomeFeatures.tsx
 HomeFooter.tsx
 HomeHeader.tsx
 HomeHero.tsx
+HomeProductPreview.tsx
 HomeSystem.tsx
 LoginForm.tsx
 LoginHeader.tsx
@@ -630,7 +656,7 @@ Explore o Cfit
 ---
 
 ## 26. Login visual
-Card escuro premium integrado ao Hero.
+Card escuro premium dedicado à rota `/login`, separado do Hero institucional.
 
 Características:
 - azul quase preto;
@@ -3024,7 +3050,8 @@ Próxima entrega recomendada: continuar a Fase 3 pelos refinamentos de Treinos q
 - `frontend/vercel.json` usa o preset Vite, fallback SPA para `index.html` e cache imutável dos assets versionados;
 - frontend lê a API de `VITE_API_URL`, mantendo `localhost` somente como fallback de desenvolvimento;
 - backend aceita `DATABASE_URL` Neon pooled com SSL, mantém as variáveis PostgreSQL separadas para Docker local e desativa conexões persistentes na Vercel;
-- builds de produção executam migrations com `DATABASE_URL_UNPOOLED` quando disponível e coletam estáticos; previews não executam migrations;
+- o script `scripts/vercel-build.sh` permanece preparado para executar migrations em produção, preferindo `DATABASE_URL_UNPOOLED`, criar o superusuário inicial de forma idempotente e coletar estáticos;
+- após o commit `d5610f2`, o `vercel.json` da raiz não declara mais `buildCommand`; portanto, esse script não é chamado explicitamente pela configuração versionada e migrations, bootstrap e `collectstatic` não devem ser considerados automáticos até que o comando seja configurado no projeto da Vercel ou executado por um fluxo operacional equivalente;
 - o comando idempotente `bootstrap_superuser` cria o primeiro administrador somente quando as duas variáveis `DJANGO_BOOTSTRAP_SUPERUSER_*` estiverem presentes; nunca atualiza a senha de uma conta existente e não imprime a senha;
 - hosts, CORS e CSRF são configurados por ambiente; HTTPS, cookies seguros, HSTS e proteção de conteúdo ficam ativos quando `DEBUG=False`;
 - deploy Vercel falha explicitamente sem `DJANGO_SECRET_KEY` ou `DATABASE_URL`;

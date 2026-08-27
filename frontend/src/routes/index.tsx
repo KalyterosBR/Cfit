@@ -12,7 +12,9 @@ import CapabilityRoute from "@/features/auth/components/CapabilityRoute";
 import { routeAccess } from "@/features/auth/access-control";
 import { ChangePassword, ForgotPassword, ResetPassword } from "../pages/PasswordAccess";
 import { AppBootSkeleton } from "@/components/AsyncState";
+import { applySeo } from "@/services/seo";
 
+const Home = lazy(() => import("@/pages/Home"));
 const Login = lazy(() => import("@/pages/Login"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const Financial = lazy(() => import("../pages/Financial"));
@@ -36,6 +38,9 @@ const StudentDetailsPage = lazy(() => import("../features/students/pages/Student
 
 const routeTitles: Record<string, string> = {
     "/": "Início",
+    "/login": "Entrar",
+    "/forgot-password": "Recuperar senha",
+    "/reset-password": "Redefinir senha",
     "/dashboard": "Dashboard",
     "/students": "Alunos",
     "/plans": "Planos",
@@ -65,8 +70,8 @@ function DocumentTitle() {
         : routeTitles[location.pathname] ?? "Cfit";
 
     useEffect(() => {
-        document.title = title;
-    }, [title]);
+        applySeo(location.pathname, title);
+    }, [location.pathname, title]);
 
     return null;
 }
@@ -81,8 +86,9 @@ export default function AppRoutes() {
                 {/* ROTA PÚBLICA */}
                 <Route
                     path="/"
-                    element={<Login />}
+                    element={<Home />}
                 />
+                <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 

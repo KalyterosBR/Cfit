@@ -85,7 +85,7 @@ api.interceptors.response.use(
         if (originalRequest._retry) {
             clearTokens();
 
-            window.location.href = "/";
+            window.location.href = "/login";
 
             return Promise.reject(error);
         }
@@ -101,7 +101,7 @@ api.interceptors.response.use(
         if (!refreshToken) {
             clearTokens();
 
-            window.location.href = "/";
+            window.location.href = "/login";
 
             return Promise.reject(error);
         }
@@ -160,7 +160,7 @@ api.interceptors.response.use(
 
             clearTokens();
 
-            window.location.href = "/";
+            window.location.href = "/login";
 
             return Promise.reject(
                 refreshError,

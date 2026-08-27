@@ -28,7 +28,7 @@ export default function LoginHeader() {
 
 
             {/* IDENTIDADE */}
-            <div className="mt-9 flex items-center gap-3">
+            <div className="mt-5 flex items-center gap-3 max-[339px]:mt-3 sm:mt-6">
                 <span className="h-px w-8 bg-gradient-to-r from-blue-500 to-cyan-400" />
 
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
@@ -38,19 +38,19 @@ export default function LoginHeader() {
 
 
             {/* TÍTULO */}
-            <h2 className="mt-4 text-3xl font-black tracking-[-0.035em] text-white">
+            <h2 className="mt-3 text-[1.7rem] font-black tracking-[-0.035em] text-white max-[339px]:mt-2 max-[339px]:text-2xl sm:text-3xl">
                 Bem-vindo de volta.
             </h2>
 
 
-            <p className="mt-3 max-w-sm text-[15px] leading-7 text-slate-300">
+            <p className="mt-2 max-w-sm text-sm leading-6 text-slate-300 max-[339px]:leading-5 sm:text-[15px]">
                 Acesse sua operação e continue acompanhando a
                 performance da sua academia.
             </p>
 
 
             {/* SEGURANÇA */}
-            <div className="mt-6 flex items-center gap-2.5">
+            <div className="mt-4 flex items-center gap-2.5 max-[339px]:mt-3">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500/[0.10] text-blue-300">
                     <ShieldCheck className="h-4 w-4" />
                 </div>

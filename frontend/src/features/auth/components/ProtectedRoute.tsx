@@ -24,8 +24,9 @@ export default function ProtectedRoute() {
     if (!accessToken || failed) {
         return (
             <Navigate
-                to="/"
+                to="/login"
                 replace
+                state={{ from: `${location.pathname}${location.search}` }}
             />
         );
     }

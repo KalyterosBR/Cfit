@@ -10,6 +10,7 @@ frontend/.vercel/
 .vercel/
 staticfiles/
 media/
+backups/
 
 # Inventários locais gerados durante análises da estrutura
 estrutura*.txt

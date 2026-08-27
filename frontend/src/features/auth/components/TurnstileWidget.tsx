@@ -108,6 +108,10 @@ export default function TurnstileWidget({
                             theme:
                                 "dark",
 
+                            size: window.matchMedia("(max-width: 339px)").matches
+                                ? "compact"
+                                : "normal",
+
                             callback: (
                                 token,
                             ) => {
@@ -165,6 +169,7 @@ export default function TurnstileWidget({
                 className="
                     origin-center
                     scale-[0.82]
+                    max-[339px]:scale-100
                     sm:scale-[0.86]
                 "
             >

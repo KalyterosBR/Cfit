@@ -9,6 +9,15 @@
   ],
   "headers": [
     {
+      "source": "/(login|forgot-password|reset-password|dashboard|students|plans|finance|checkins|workouts|schedule|reports|settings|automations|units|operations|growth|relationship|portal|documents|change-password|onboarding)(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {
