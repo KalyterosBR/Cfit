@@ -13,12 +13,22 @@ const footer = read("../src/features/auth/components/HomeFooter.tsx");
 const seo = read("../src/services/seo.ts");
 const vite = read("../vite.config.ts");
 const vercel = read("../vercel.json");
+const asyncState = read("../src/components/AsyncState.tsx");
 
 test("homepage e autenticação usam rotas separadas", () => {
-    assert.match(routes, /path="\/"[\s\S]*element={<Home \/>}/);
-    assert.match(routes, /path="\/login" element={<Login \/>}/);
+    assert.match(routes, /path="\/"[\s\S]*element={<Suspense[\s\S]*<Home \/>/);
+    assert.match(routes, /path="\/login"[\s\S]*<Login \/>/);
     assert.doesNotMatch(home, /LoginForm/);
     assert.match(header, /to="\/login"/);
+});
+
+test("rotas públicas e autenticadas usam fallbacks próprios", () => {
+    assert.match(routes, /fallback={<PublicRouteFallback \/>}/);
+    assert.match(routes, /fallback={<LoginRouteFallback \/>}/);
+    assert.doesNotMatch(routes, /<Suspense fallback={<AppBootSkeleton \/>}>/);
+    assert.match(asyncState, /data-route-fallback="public"/);
+    assert.match(asyncState, /data-route-fallback="login"/);
+    assert.doesNotMatch(asyncState.match(/function PublicRouteFallback[\s\S]*?\n}/)?.[0] ?? "", /sidebar|topbar|TableSkeleton/);
 });
 
 test("demonstração identifica conteúdo fictício e oferece navegação acessível", () => {
@@ -27,6 +37,13 @@ test("demonstração identifica conteúdo fictício e oferece navegação acess�
     assert.match(system, /role="tabpanel"/);
     assert.match(system, /prefers-reduced-motion: reduce/);
     assert.match(system, /Pausar reprodução automática/);
+    assert.match(system, /onMouseEnter=\{\(\) => setInteractionPaused\(true\)\}/);
+    assert.match(system, /onFocusCapture=\{\(\) => setInteractionPaused\(true\)\}/);
+    assert.match(system, /setUserPaused\(true\)/);
+    assert.match(system, /ArrowLeft/);
+    assert.match(system, /ArrowRight/);
+    assert.match(system, /Financeiro, acesso, retenção, agenda e automações chegam a uma fila única/);
+    assert.match(system, /Aulas e eventos compartilham contexto, conflitos, ocupação, lista de espera e histórico/);
 });
 
 test("login associa campos e anuncia erros", () => {
@@ -42,6 +59,8 @@ test("documento público possui metadados essenciais", () => {
     assert.match(html, /property="og:title"/);
     assert.match(html, /name="twitter:card"/);
     assert.match(html, /name="robots"/);
+    assert.match(html, /isPublicRoute/);
+    assert.match(html, /publicPaths/);
 });
 
 test("footer e CTAs usam destinos semânticos", () => {

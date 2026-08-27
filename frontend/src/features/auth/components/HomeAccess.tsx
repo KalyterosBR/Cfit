@@ -8,7 +8,7 @@ const steps = [
 
 export default function HomeAccess() {
     return (
-        <section id="solucoes" className="relative scroll-mt-[78px] overflow-hidden bg-white py-12 md:py-14">
+        <section id="solucoes" className="relative scroll-mt-[78px] overflow-hidden bg-white py-12 md:py-14 lg:py-10">
             <div className="mx-auto max-w-[1600px] px-6 lg:px-10">
                 <div data-scroll-focus className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
                     <div><div className="flex items-center gap-3"><span className="h-px w-8 bg-gradient-to-r from-blue-600 to-cyan-400" /><span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-700">Acesso conectado</span></div><h2 className="mt-4 max-w-xl text-[2.5rem] font-black leading-[1] tracking-[-0.052em] text-slate-950 sm:text-5xl">A experiência começa na entrada.</h2></div>

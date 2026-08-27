@@ -9,7 +9,7 @@ const benefits = [
 
 export default function HomeBenefits() {
     return (
-        <section className="relative bg-[#f4f7fb] py-11 md:py-12">
+        <section className="relative bg-[#f4f7fb] py-11 md:py-12 lg:py-9">
             <div className="mx-auto max-w-[1600px] px-6 lg:px-10">
                 <div id="confianca" className="grid gap-7 lg:grid-cols-[0.34fr_0.66fr] lg:items-start">
                     <div className="lg:self-start">

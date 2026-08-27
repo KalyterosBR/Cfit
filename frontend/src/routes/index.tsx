@@ -11,7 +11,7 @@ import ProtectedRoute from "@/features/auth/components/ProtectedRoute";
 import CapabilityRoute from "@/features/auth/components/CapabilityRoute";
 import { routeAccess } from "@/features/auth/access-control";
 import { ChangePassword, ForgotPassword, ResetPassword } from "../pages/PasswordAccess";
-import { AppBootSkeleton } from "@/components/AsyncState";
+import { LoginRouteFallback, PublicRouteFallback } from "@/components/AsyncState";
 import { applySeo } from "@/services/seo";
 
 const Home = lazy(() => import("@/pages/Home"));
@@ -82,15 +82,15 @@ export default function AppRoutes() {
         <BrowserRouter>
             <DocumentTitle />
 
-            <Suspense fallback={<AppBootSkeleton />}><Routes>
+            <Routes>
                 {/* ROTA PÚBLICA */}
                 <Route
                     path="/"
-                    element={<Home />}
+                    element={<Suspense fallback={<PublicRouteFallback />}><Home /></Suspense>}
                 />
-                <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/login" element={<Suspense fallback={<LoginRouteFallback />}><Login /></Suspense>} />
+                <Route path="/forgot-password" element={<Suspense fallback={<LoginRouteFallback />}><ForgotPassword /></Suspense>} />
+                <Route path="/reset-password" element={<Suspense fallback={<LoginRouteFallback />}><ResetPassword /></Suspense>} />
 
                 {/* ROTAS PROTEGIDAS */}
                 <Route element={<ProtectedRoute />}>
@@ -153,7 +153,7 @@ export default function AppRoutes() {
                     <Route path="/portal" element={<CapabilityRoute requirement={routeAccess["/portal"]}><Portal /></CapabilityRoute>} />
                     <Route path="/documents" element={<CapabilityRoute requirement={routeAccess["/documents"]}><Documents /></CapabilityRoute>} />
                 </Route>
-            </Routes></Suspense>
+            </Routes>
         </BrowserRouter>
     );
 }

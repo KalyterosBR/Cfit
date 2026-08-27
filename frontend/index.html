@@ -14,11 +14,15 @@
         // O tema do sistema continua disponível quando o storage é bloqueado.
       }
 
-      const theme = savedTheme === "light" || savedTheme === "dark"
-        ? savedTheme
-        : window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
+      const publicPaths = ["/", "/login", "/forgot-password", "/reset-password"];
+      const isPublicRoute = publicPaths.includes(window.location.pathname);
+      const theme = isPublicRoute
+        ? "light"
+        : savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
       const root = document.documentElement;
 
       root.dataset.cfitTheme = theme;

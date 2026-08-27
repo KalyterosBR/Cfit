@@ -7,7 +7,7 @@ export default function LoginHeader() {
             {/* TOPO CLEAN */}
             <div className="flex items-center justify-between gap-4">
                 <div>
-                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                    <p className="text-[9px] font-bold uppercase leading-4 tracking-[0.2em] text-slate-400">
                         Ambiente Cfit
                     </p>
 
@@ -17,7 +17,7 @@ export default function LoginHeader() {
                 </div>
 
 
-                <div className="flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/[0.08] px-3 py-1.5">
+                <div className="mr-px flex shrink-0 items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/[0.08] px-3 py-1.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.65)]" />
 
                     <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-emerald-300">

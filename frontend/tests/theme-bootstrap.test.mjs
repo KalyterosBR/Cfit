@@ -8,7 +8,7 @@ const bootstrap = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/)?.[1];
 
 assert.ok(bootstrap, "O bootstrap síncrono do tema deve existir no documento.");
 
-function runBootstrap({ savedTheme = null, systemDark = false } = {}) {
+function runBootstrap({ savedTheme = null, systemDark = false, pathname = "/dashboard" } = {}) {
     const classes = new Set(["cfit-theme-booting"]);
     const documentElement = {
         classList: {
@@ -24,7 +24,7 @@ function runBootstrap({ savedTheme = null, systemDark = false } = {}) {
     vm.runInNewContext(bootstrap, {
         document: { documentElement },
         localStorage: { getItem: () => savedTheme },
-        window: { matchMedia: () => ({ matches: systemDark }) },
+        window: { matchMedia: () => ({ matches: systemDark }), location: { pathname } },
     });
 
     return { classes, documentElement };
@@ -36,6 +36,16 @@ test("aplica o modo escuro salvo antes da renderização", () => {
     assert.equal(classes.has("dark"), true);
     assert.equal(documentElement.dataset.cfitTheme, "dark");
     assert.equal(documentElement.style.colorScheme, "dark");
+});
+
+test("força superfície clara nas rotas públicas antes do React", () => {
+    for (const pathname of ["/", "/login", "/forgot-password", "/reset-password"]) {
+        const { classes, documentElement } = runBootstrap({ savedTheme: "dark", systemDark: true, pathname });
+
+        assert.equal(classes.has("dark"), false);
+        assert.equal(documentElement.dataset.cfitTheme, "light");
+        assert.equal(documentElement.style.colorScheme, "light");
+    }
 });
 
 test("aplica o modo claro salvo mesmo quando o sistema prefere escuro", () => {

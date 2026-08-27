@@ -561,6 +561,10 @@ O header mantém indicação da seção ativa, acesso imediato ao login e menu m
 
 Animações devem respeitar `prefers-reduced-motion`. O carousel pausa em foco ou hover, possui controle de reprodução e mantém o timer de transição como proteção contra animações incompletas. Alterações precisam ser verificadas em desktop, tablet e mobile, incluindo 1920×1080, 1440×900, 1366×768, 1024×768, 768×1024, 390×844 e 360×800.
 
+O carregamento inicial é separado por grupo de rota. `/` usa fallback público claro e `/login`, recuperação e redefinição de senha usam fallback compatível com o acesso; nenhum deles pode renderizar Sidebar, Topbar, tabela ou outro skeleton da aplicação interna. O `AppBootSkeleton` é exclusivo das rotas protegidas enquanto a sessão e o perfil são validados. A restauração assíncrona da sessão não deve bloquear a homepage, expor conteúdo protegido ou ser simulada com atrasos artificiais. Em carregamento frio, inclusive com cache limpo, conexão lenta, sessão ausente ou expirada, o primeiro frame precisa manter a superfície correta da rota e não pode produzir clarão de tema, loop de redirecionamento ou vazamento visual.
+
+O tema inicial das rotas públicas é sempre claro, independentemente da preferência salva para a área autenticada. Rotas internas preservam o tema escolhido antes do React carregar. As classificações de marketing são verificáveis no código: representações baseadas em recursos entregues continuam identificadas como demonstrativas e usam apenas dados fictícios; capacidades parciais ou planejadas recebem `Visão de evolução do módulo` junto ao título e não podem usar linguagem de disponibilidade. Central operacional e Agenda só podem manter afirmações sobre fila, SLA, responsáveis, conflitos, ocupação, lista de espera, chamada e histórico enquanto esses comportamentos permanecerem implementados e persistidos no produto.
+
 Arquivos relevantes em:
 ```text
 frontend/src/features/auth/components/
