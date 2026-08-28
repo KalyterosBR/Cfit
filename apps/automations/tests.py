@@ -54,6 +54,10 @@ class AutomationAndUnitTests(APITestCase):
         self.assertEqual(comparison.data[0]["name"], "Unidade Norte")
         self.assertEqual(comparison.data[0]["rank"], 1)
         self.assertIn("previous_revenue", comparison.data[0])
+        self.assertIn("revenue_per_student", comparison.data[0])
+        coverage = self.client.get("/api/academies/units/unit-coverage/")
+        self.assertEqual(coverage.status_code, 200)
+        self.assertEqual(coverage.data["migration_policy"], "manual_review_required")
 
         duplicate = self.client.post(
             "/api/academies/units/",

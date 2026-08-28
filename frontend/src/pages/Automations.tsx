@@ -284,7 +284,7 @@ export default function Automations() {
                   detail="Crie a primeira automação para iniciar."
                 />
               )}
-              <PaginationFooter count={rulePage.count} label="regra(s)" hasPrevious={Boolean(rulePage.previous)} hasNext={Boolean(rulePage.next)} onPrevious={()=>setRulePageNumber(value=>Math.max(1,value-1))} onNext={()=>setRulePageNumber(value=>value+1)}/>
+              <PaginationFooter count={rulePage.count} label="regra(s)" page={rulePageNumber} hasPrevious={Boolean(rulePage.previous)} hasNext={Boolean(rulePage.next)} onPrevious={()=>setRulePageNumber(value=>Math.max(1,value-1))} onNext={()=>setRulePageNumber(value=>value+1)}/>
             </div>
           </section>
           <section className="rounded-2xl border bg-white p-5">
@@ -351,7 +351,7 @@ export default function Automations() {
                   detail="Nenhuma execução foi registrada."
                 />
               )}
-              <PaginationFooter count={executionPage.count} label="execução(ões)" hasPrevious={Boolean(executionPage.previous)} hasNext={Boolean(executionPage.next)} onPrevious={()=>setExecutionPageNumber(value=>Math.max(1,value-1))} onNext={()=>setExecutionPageNumber(value=>value+1)}/>
+              <PaginationFooter count={executionPage.count} label="execução(ões)" page={executionPageNumber} hasPrevious={Boolean(executionPage.previous)} hasNext={Boolean(executionPage.next)} onPrevious={()=>setExecutionPageNumber(value=>Math.max(1,value-1))} onNext={()=>setExecutionPageNumber(value=>value+1)}/>
             </div>
           </section>
         </div>

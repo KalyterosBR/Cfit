@@ -21,7 +21,7 @@ import secrets
 from apps.users.api.turnstile import validate_turnstile
 from apps.users.api.serializers import AcademyUserSerializer, AdministrativeAuditSerializer, DashboardPreferenceSerializer, MembershipInviteSerializer, PasswordChangeSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, SavedReportViewSerializer
 from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, OperationalNotificationState, SavedReportView, User
-from apps.users.permissions import ROLE_CAPABILITIES, HasCapability, get_active_membership
+from apps.users.permissions import ROLE_CAPABILITIES, HasCapability, get_active_membership, user_has_capability
 from apps.academy.models import Academy
 from apps.academy.models import Unit
 
@@ -409,28 +409,28 @@ class OperationalNotificationView(APIView):
         overdue = Charge.objects.filter(
             **({"unit": unit} if unit else {"enrollment__student__academy": membership.academy}),
             status=Charge.Status.OVERDUE,
-        ).count()
+        ).count() if user_has_capability(request.user, "finance.view") or user_has_capability(request.user, "finance.manage") else 0
         if overdue:
             items.append({"id": "overdue", "title": f"{overdue} cobrança(s) vencida(s)", "detail": "Acesse a fila financeira.", "href": "/finance?category=overdue#charges", "severity": "high"})
         rejected = RecurringPaymentAttempt.objects.filter(
             **({"charge__unit": unit} if unit else {"charge__enrollment__student__academy": membership.academy}),
             status=RecurringPaymentAttempt.Status.REJECTED,
-        ).count()
+        ).count() if user_has_capability(request.user, "finance.view") or user_has_capability(request.user, "finance.manage") else 0
         if rejected:
             items.append({"id": "recurring", "title": f"{rejected} recorrência(s) rejeitada(s)", "detail": "Revise as tentativas de cobrança.", "href": "/finance#recurring", "severity": "high"})
-        blocked = CheckIn.objects.filter(**unit_filter, access_result=CheckIn.AccessResult.BLOCKED).count()
+        blocked = CheckIn.objects.filter(**unit_filter, access_result=CheckIn.AccessResult.BLOCKED).count() if user_has_capability(request.user, "checkins.view") or user_has_capability(request.user, "checkins.manage") else 0
         if blocked:
             items.append({"id": "blocked", "title": f"{blocked} acesso(s) bloqueado(s)", "detail": "Consulte causas e equipamentos.", "href": "/checkins?access_result=blocked", "severity": "medium"})
         pending = AutomationExecution.objects.filter(
             rule__academy=membership.academy,
             operational_status__in=["pending", "in_progress"],
-        )
+        ) if user_has_capability(request.user, "automations.manage") else AutomationExecution.objects.none()
         if unit:
             pending = pending.filter(rule__unit=unit)
         if pending.exists():
             items.append({"id": "automations", "title": f"{pending.count()} automação(ões) pendente(s)", "detail": "Abra a fila operacional.", "href": "/automations", "severity": "medium"})
-        assessment_due = PhysicalAssessment.objects.filter(student__academy=membership.academy, next_assessment_at__lte=timezone.localdate())
-        expiring_documents = StudentDocument.objects.filter(student__academy=membership.academy, expires_at__lte=timezone.localdate() + timedelta(days=30))
+        assessment_due = PhysicalAssessment.objects.filter(student__academy=membership.academy, next_assessment_at__lte=timezone.localdate()) if user_has_capability(request.user, "students.view") or user_has_capability(request.user, "students.manage") else PhysicalAssessment.objects.none()
+        expiring_documents = StudentDocument.objects.filter(student__academy=membership.academy, expires_at__lte=timezone.localdate() + timedelta(days=30)) if user_has_capability(request.user, "students.manage") else StudentDocument.objects.none()
         if unit:
             assessment_due = assessment_due.filter(student__unit=unit); expiring_documents = expiring_documents.filter(student__unit=unit)
         if assessment_due.exists():

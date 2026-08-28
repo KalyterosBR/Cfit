@@ -2167,7 +2167,7 @@ Dependências: identificação confiável da sessão atual, auditoria e polític
 
 ### 48.3.5 Prioridade alta — P1
 
-#### P1.9 Consolidar permissões por perfil e unidade — avançado, matriz automatizada; homologação interativa por perfil pendente
+#### P1.9 Consolidar permissões por perfil e unidade — avançado, matriz automatizada e homologação interativa concluída
 
 Perfis: Proprietário, Administrador, Gerente, Recepção, Professor e Financeiro. Consolidar capacidades, unidade operacional, escopo de visualização, estado do vínculo, motivo e auditoria.
 
@@ -2709,7 +2709,7 @@ Limitação de QA:
 Esta rodada auditou em conjunto P1.9, P1.11, P2.19, P2.21 a P2.24, P3.25, P3.26 e P3.28. Ela não substituiu módulos funcionais: consolidou as fundações existentes, corrigiu integrações desconectadas e completou preferências pessoais que não exigem novo domínio server-side.
 
 Estado confirmado por ponto:
-- permissões: a matriz backend continua como fonte de autorização e a política de rotas do frontend foi validada para perfis administrativos, operacionais e portal; homologação humana com seis contas reais ainda é necessária;
+- permissões: a matriz backend continua como fonte de autorização e a política de rotas do frontend foi validada para perfis administrativos, operacionais e portal; a homologação humana com contas reais dos seis perfis foi confirmada pelo usuário em 28/08/2026;
 - check-ins e dispositivos: monitor, diagnóstico, latência, estados `never_connected`, `online`, `offline` e `error`, webhook autenticado, idempotência e comandos de conectores possuem cobertura automatizada; homologação física Topdata/Control iD permanece externa;
 - relatórios: período e escopo estão explícitos, a exportação reflete o período ativo, contatos alimentam o histórico do aluno e visões pessoais reproduzíveis foram adicionadas;
 - planos e matrículas: prévia comercial, histórico, unidade, contrato e cobranças permanecem usando as fontes existentes; nenhuma regra comercial foi duplicada no frontend;
@@ -2846,7 +2846,7 @@ Uma fase ampla pode permanecer `[~]` mesmo quando algumas fatias internas estão
 - [ ] Dividir a página longa em rotas ou seções independentes sem duplicar módulos operacionais.
 - [~] Busca aceita foco pelo atalho `/`; salvamentos são por seção e ações sensíveis exigem confirmação, mas aviso global de alterações sujas permanece pendente.
 - [~] Membros e auditoria possuem filtros server-side; acesso simultâneo a várias unidades ainda exige decisão de escopo.
-- [!] Homologação interativa com os seis perfis depende de contas e sessão de QA.
+- [x] Homologação interativa concluída com contas reais dos seis perfis: Proprietário, Administrador, Gerente, Recepção, Professor e Financeiro; confirmação registrada pelo usuário em 28/08/2026.
 
 #### Fase 9 — Gestão e comparação entre unidades
 

@@ -51,7 +51,7 @@ function priorityDetails(priority: FinancialInconsistencyPriority) {
 }
 
 
-export default function FinancialInconsistenciesSection() {
+export default function FinancialInconsistenciesSection({ canManage }: { canManage: boolean }) {
     const navigate = useNavigate();
     const [issues, setIssues] = useState<FinancialInconsistency[]>([]);
     const [summary, setSummary] = useState(emptySummary);
@@ -230,7 +230,7 @@ export default function FinancialInconsistenciesSection() {
                                     <p className="mt-1 font-bold text-slate-600">Tratativa: {issue.workflow.status === "resolved" ? "Resolvida" : issue.workflow.status === "in_progress" ? "Em andamento" : "Aberta"}</p>
                                     {issue.workflow.due_at && <p className="mt-1">Prazo: {dateTime(issue.workflow.due_at)}</p>}
                                     {issue.workflow.resolution && <p className="mt-1 text-emerald-700">{issue.workflow.resolution}</p>}
-                                    <div className="mt-3 flex justify-end gap-2">{issue.workflow.status === "open" && <button type="button" onClick={() => updateWorkflow(issue, "in_progress")} className="font-bold text-blue-600">Assumir</button>}{issue.workflow.status !== "resolved" && <button type="button" onClick={() => updateWorkflow(issue, "resolved")} className="font-bold text-emerald-700">Resolver</button>}</div>
+                                    {canManage && <div className="mt-3 flex justify-end gap-2">{issue.workflow.status === "open" && <button type="button" onClick={() => updateWorkflow(issue, "in_progress")} className="font-bold text-blue-600">Assumir</button>}{issue.workflow.status !== "resolved" && <button type="button" onClick={() => updateWorkflow(issue, "resolved")} className="font-bold text-emerald-700">Resolver</button>}</div>}
                                     {issue.student && (
                                         <button
                                             type="button"

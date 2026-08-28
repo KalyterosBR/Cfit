@@ -29,7 +29,7 @@ from apps.students.services.student_service import (
 )
 from apps.workouts.models import WorkoutPlan
 from apps.users.models import AdministrativeAudit
-from apps.users.permissions import ScopedCapability, get_request_scope
+from apps.users.permissions import ScopedCapability, get_request_scope, user_has_capability
 
 
 class StudentViewSet(viewsets.ModelViewSet):
@@ -372,6 +372,11 @@ class StudentViewSet(viewsets.ModelViewSet):
         student = self.get_object()
         from apps.students.selectors import get_student_financial_status, get_student_health_score
 
+        can_enrollments = user_has_capability(request.user, "enrollments.view") or user_has_capability(request.user, "enrollments.manage")
+        can_finance = user_has_capability(request.user, "finance.view") or user_has_capability(request.user, "finance.manage")
+        can_checkins = user_has_capability(request.user, "checkins.view") or user_has_capability(request.user, "checkins.manage")
+        can_workouts = user_has_capability(request.user, "workouts.manage")
+
         active_enrollments = (
             Enrollment.objects.filter(
                 student=student,
@@ -379,20 +384,20 @@ class StudentViewSet(viewsets.ModelViewSet):
             )
             .select_related("plan")
             .order_by("due_date", "plan__name")
-        )
+        ) if can_enrollments else Enrollment.objects.none()
 
-        financial = get_student_financial_status(student)
+        financial = get_student_financial_status(student) if can_finance else None
         health = get_student_health_score(student)
-        next_charge = financial["next_charge"]
+        next_charge = financial["next_charge"] if financial else None
 
         latest_checkin = student.checkins.order_by(
             "-checked_in_at",
-        ).first()
+        ).first() if can_checkins else None
         frequency_since = timezone.now() - timedelta(days=30)
         current_workout = WorkoutPlan.objects.filter(
             student=student,
             status=WorkoutPlan.Status.ACTIVE,
-        ).select_related("instructor").first()
+        ).select_related("instructor").first() if can_workouts else None
 
         return Response(
             {
@@ -421,8 +426,8 @@ class StudentViewSet(viewsets.ModelViewSet):
                 ),
                 "checkins_last_30_days": student.checkins.filter(
                     checked_in_at__gte=frequency_since,
-                ).count(),
-                "financial": {"status": financial["status"], "reason": financial["reason"]},
+                ).count() if can_checkins else None,
+                "financial": {"status": financial["status"], "reason": financial["reason"]} if financial else None,
                 "health": health,
                 "current_workout": (
                     {

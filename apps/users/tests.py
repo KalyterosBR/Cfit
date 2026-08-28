@@ -47,6 +47,17 @@ class RolePermissionTests(APITestCase):
         response = self.client.get("/api/financial/charges/")
         self.assertEqual(response.status_code, 403)
 
+    @patch("apps.checkins.models.CheckIn.objects.filter")
+    @patch("apps.financial.models.RecurringPaymentAttempt.objects.filter")
+    @patch("apps.financial.models.Charge.objects.filter")
+    def test_trainer_notifications_do_not_query_forbidden_domains(self, charge_filter, recurring_filter, checkin_filter):
+        self.client.force_authenticate(self.trainer)
+        response = self.client.get("/api/users/notifications/")
+        self.assertEqual(response.status_code, 200)
+        charge_filter.assert_not_called()
+        recurring_filter.assert_not_called()
+        checkin_filter.assert_not_called()
+
     def test_admin_role_change_creates_explainable_audit(self):
         target = User.objects.create_user(email="reception@cfit.test", password="test")
         membership = AcademyUser.objects.create(

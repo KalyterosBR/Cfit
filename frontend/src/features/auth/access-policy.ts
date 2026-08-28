@@ -35,3 +35,23 @@ export function getDashboardDataAccess(capabilities: string[]) {
         checkins: hasCapability(capabilities, "checkins.view", "checkins.manage"),
     };
 }
+
+export function getReportsDataAccess(capabilities: string[]) {
+    return {
+        finance: hasCapability(capabilities, "finance.view", "finance.manage"),
+        students: hasCapability(capabilities, "students.view", "students.manage"),
+        checkins: hasCapability(capabilities, "checkins.view", "checkins.manage"),
+        retentionManage: hasCapability(capabilities, "students.manage"),
+    };
+}
+
+export function getStudentDetailsDataAccess(capabilities: string[]) {
+    return {
+        studentsManage: hasCapability(capabilities, "students.manage"),
+        enrollments: hasCapability(capabilities, "enrollments.view", "enrollments.manage"),
+        finance: hasCapability(capabilities, "finance.view", "finance.manage"),
+        checkins: hasCapability(capabilities, "checkins.view", "checkins.manage"),
+        checkinsManage: hasCapability(capabilities, "checkins.manage"),
+        workouts: hasCapability(capabilities, "workouts.manage"),
+    };
+}

@@ -18,17 +18,20 @@ import {
   getStudentHealthSummary,
 } from "@/features/students/services/student.service";
 import { Api } from "@/services/http";
+import { Link, useSearchParams } from "react-router-dom";
+import { useSession } from "@/features/auth/access-control";
+import { getReportsDataAccess } from "@/features/auth/access-policy";
 
 function period() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 type ReportData = {
-  revenue: string;
-  checkins: number;
-  active: number;
-  risk: number;
-  attention: number;
+  revenue: string | null;
+  checkins: number | null;
+  active: number | null;
+  risk: number | null;
+  attention: number | null;
   growth: string | null;
 };
 type ManagementData = {
@@ -78,7 +81,10 @@ type SavedReportView = {
 };
 
 export default function Reports() {
-  const [selectedPeriod, setSelectedPeriod] = useState(period);
+  const session = useSession();
+  const reportAccess = getReportsDataAccess(session.capabilities);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedPeriod, setSelectedPeriod] = useState(() => searchParams.get("period") || period());
   const [favorites, setFavorites] = useState<string[]>([]);
   const [savedViews, setSavedViews] = useState<SavedReportView[]>([]);
   const [selectedView, setSelectedView] = useState("");
@@ -86,8 +92,16 @@ export default function Reports() {
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [managementLoading, setManagementLoading] = useState(true);
+  const [managementError, setManagementError] = useState(false);
+  const [retentionLoading, setRetentionLoading] = useState(true);
+  const [retentionError, setRetentionError] = useState(false);
   const [management, setManagement] = useState<ManagementData | null>(null);
   const [retention, setRetention] = useState<RetentionItem[]>([]);
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams); next.set("period", selectedPeriod);
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+  }, [searchParams, selectedPeriod, setSearchParams]);
   useEffect(() => {
     Api.get<SavedReportView[]>("/users/report-views/").then(({ data: views }) => {
       setSavedViews(views);
@@ -100,44 +114,44 @@ export default function Reports() {
       }
     }).catch(() => undefined);
   }, []);
-  const load = useCallback(async () => {
+  const loadSummary = useCallback(async () => {
     try {
       setLoading(true);
       setError(false);
-      const [
-        financial,
-        checkins,
-        students,
-        health,
-        managementResponse,
-        retentionResponse,
-      ] = await Promise.all([
-        getDashboardFinancialSummary(selectedPeriod),
-        getDashboardCheckInSummary(selectedPeriod),
-        getDashboardStudentSummary(selectedPeriod),
-        getStudentHealthSummary(),
-        Api.get<ManagementData>("/reports/management/", {
-          params: { period: selectedPeriod },
-        }),
-        Api.get<RetentionItem[]>("/students/retention-queue/"),
+      const [financial, checkins, students, health] = await Promise.all([
+        reportAccess.finance ? getDashboardFinancialSummary(selectedPeriod) : Promise.resolve(null),
+        reportAccess.checkins ? getDashboardCheckInSummary(selectedPeriod) : Promise.resolve(null),
+        reportAccess.students ? getDashboardStudentSummary(selectedPeriod) : Promise.resolve(null),
+        reportAccess.students ? getStudentHealthSummary() : Promise.resolve(null),
       ]);
       setData({
-        revenue: financial.monthly_revenue,
-        growth: financial.growth_percentage,
-        checkins: checkins.period_count,
-        active: students.active_count,
-        risk: health.risk_count,
-        attention: health.attention_count,
+        revenue: financial?.monthly_revenue ?? null,
+        growth: financial?.growth_percentage ?? null,
+        checkins: checkins?.period_count ?? null,
+        active: students?.active_count ?? null,
+        risk: health?.risk_count ?? null,
+        attention: health?.attention_count ?? null,
       });
-      setManagement(managementResponse.data);
-      setRetention(retentionResponse.data);
     } catch (requestError) {
       console.error(requestError);
       setError(true);
     } finally {
       setLoading(false);
     }
+  }, [reportAccess.checkins, reportAccess.finance, reportAccess.students, selectedPeriod]);
+  const loadManagement = useCallback(async () => {
+    try {
+      setManagementLoading(true); setManagementError(false);
+      setManagement((await Api.get<ManagementData>("/reports/management/", { params: { period: selectedPeriod } })).data);
+    } catch { setManagementError(true); } finally { setManagementLoading(false); }
   }, [selectedPeriod]);
+  const loadRetention = useCallback(async () => {
+    try {
+      setRetentionLoading(true); setRetentionError(false);
+      setRetention((await Api.get<RetentionItem[]>("/students/retention-queue/")).data);
+    } catch { setRetentionError(true); } finally { setRetentionLoading(false); }
+  }, []);
+  const load = useCallback(async () => { await Promise.allSettled([loadSummary(), loadManagement(), loadRetention()]); }, [loadManagement, loadRetention, loadSummary]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void load();
@@ -146,7 +160,7 @@ export default function Reports() {
   }, [load]);
   const reports = data
     ? [
-        {
+        ...(data.revenue !== null ? [{
           question: "Qual é a receita do mês?",
           value: Number(data.revenue).toLocaleString("pt-BR", {
             style: "currency",
@@ -161,8 +175,8 @@ export default function Reports() {
         scope: `Período ${selectedPeriod}`,
           icon: DollarSign,
           color: "text-emerald-600 bg-emerald-50",
-        },
-        {
+        }] : []),
+        ...(data.active !== null ? [{
           question: "Quantos alunos estão ativos?",
           value: data.active.toLocaleString("pt-BR"),
         detail: "Base ativa no fechamento do mês",
@@ -171,8 +185,8 @@ export default function Reports() {
         scope: `Fechamento de ${selectedPeriod}`,
           icon: Users,
           color: "text-blue-600 bg-blue-50",
-        },
-        {
+        }] : []),
+        ...(data.checkins !== null ? [{
           question: "Qual foi a frequência no mês?",
           value: `${data.checkins.toLocaleString("pt-BR")} check-ins`,
         detail: "Acessos reais registrados",
@@ -181,8 +195,8 @@ export default function Reports() {
         scope: `Período ${selectedPeriod}`,
           icon: Activity,
           color: "text-cyan-700 bg-cyan-50",
-        },
-        {
+        }] : []),
+        ...(data.risk !== null && data.attention !== null ? [{
           question: "Quantos alunos exigem retenção?",
           value: `${data.risk} em risco`,
         detail: `${data.attention} aluno(s) requerem atenção · estado atual`,
@@ -191,7 +205,7 @@ export default function Reports() {
         scope: "Estado atual da base, independente do período histórico",
           icon: AlertTriangle,
           color: "text-orange-600 bg-orange-50",
-        },
+        }] : []),
       ]
     : [];
   function toggleFavorite(question: string) {
@@ -231,9 +245,19 @@ export default function Reports() {
     setSelectedView("");
   }
   function exportCsv() {
+    const managementRows = management ? [
+      ["Receita por plano", "Plano", "Total", "Pagamentos"],
+      ...management.revenue_by_plan.map(item => ["Receita por plano", item.enrollment__plan__name, item.total, item.payments]),
+      ["Inadimplência por plano", "Plano", "Total", "Cobranças"],
+      ...management.overdue_by_plan.map(item => ["Inadimplência por plano", item.enrollment__plan__name, item.total, item.charges]),
+    ] : [];
     const rows = [
+      ["Relatório Cfit", `Período ${selectedPeriod}`, management?.scope.unit_name ?? "Escopo da sessão", management?.scope.basis ?? ""],
       ["Pergunta", "Valor", "Detalhe", "Escopo"],
       ...reports.map((item) => [item.question, item.value, item.detail, item.scope]),
+      ...managementRows,
+      ["Fila de retenção", "Aluno", "Score", "Situação"],
+      ...retention.map(item => ["Fila de retenção", item.student_name, item.score, item.status]),
     ];
     const csv = rows
       .map((row) =>
@@ -324,7 +348,7 @@ export default function Reports() {
         </button>
         <button
           type="button"
-          disabled={!data}
+          disabled={!data || !management || managementLoading || retentionLoading || managementError || retentionError}
           onClick={exportCsv}
           className="ml-auto flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 disabled:opacity-50"
         >
@@ -355,7 +379,6 @@ export default function Reports() {
           </button>
         </div>
       ) : (
-        <>
           <div className="grid gap-5 md:grid-cols-2">
             {reports
               .sort(
@@ -368,7 +391,7 @@ export default function Reports() {
                   key={item.question}
                   className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
                 >
-                  <button
+                  {reportAccess.retentionManage && <button
                     type="button"
                     onClick={() => toggleFavorite(item.question)}
                     aria-label="Favoritar relatório"
@@ -382,7 +405,7 @@ export default function Reports() {
                           : "none"
                       }
                     />
-                  </button>
+                  </button>}
                   <div
                     className={`flex h-11 w-11 items-center justify-center rounded-xl ${item.color}`}
                   >
@@ -396,10 +419,12 @@ export default function Reports() {
                   </p>
                   <p className="mt-2 text-sm text-slate-500">{item.detail}</p>
                   <details className="mt-4 text-xs text-slate-500"><summary className="cursor-pointer font-bold text-blue-600">Como é calculado</summary><p className="mt-2">Fórmula: {item.formula}</p><p>Fonte: {item.source}</p><p>Escopo: {item.scope}</p></details>
+                  <Link to={item.source.startsWith("Financeiro") ? `/finance?period=${selectedPeriod}` : item.source === "Alunos" ? "/students?status=active" : item.source === "Check-ins" ? `/checkins?period=${selectedPeriod}` : "/students?health=risk"} className="mt-4 inline-flex text-xs font-bold text-blue-600">Abrir dados de origem →</Link>
                 </article>
               ))}
           </div>
-          {management && (
+      )}
+          {managementLoading ? <div className="mt-6 h-56 animate-pulse rounded-2xl bg-white" /> : managementError ? <section className="mt-6 rounded-2xl border border-red-200 bg-white p-6"><p className="text-red-700">Não foi possível carregar os indicadores operacionais.</p><button type="button" onClick={loadManagement} className="mt-3 font-bold text-blue-600">Tentar novamente</button></section> : management && (
             <div className="mt-6 grid gap-5 xl:grid-cols-2">
               <section className="rounded-2xl border bg-white p-6">
                 <h2 className="font-black">Receita por plano</h2>
@@ -490,7 +515,7 @@ export default function Reports() {
               Alunos em risco ou atenção, com fatores explicáveis e próxima
               ação.
             </p>
-            <div className="cfit-record-list mt-4">
+            {retentionLoading ? <div className="mt-4 h-28 animate-pulse rounded-xl bg-slate-100" /> : retentionError ? <div className="mt-4 text-sm text-red-700">Não foi possível carregar a retenção. <button type="button" onClick={loadRetention} className="font-bold underline">Tentar novamente</button></div> : <div className="cfit-record-list mt-4">
               {retention.map((item) => (
                 <article
                   key={item.student}
@@ -523,10 +548,8 @@ export default function Reports() {
                   Nenhum aluno na fila de retenção.
                 </p>
               )}
-            </div>
+            </div>}
           </section>
-        </>
-      )}
     </DashboardLayout>
   );
 }

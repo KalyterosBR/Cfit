@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { cepMask, cpfMask, isValidCpf, isValidEmail, normalizeEmail, phoneMask } from "../../../utils/masks";
 import axios from "axios";
 
 import { Toast } from "../../../services/toast";
@@ -58,15 +59,15 @@ export default function useStudentForm({
 
     useEffect(() => {
         setName(student?.name ?? "");
-        setCpf(student?.cpf ?? "");
-        setPhone(student?.phone ?? "");
+        setCpf(cpfMask(student?.cpf ?? ""));
+        setPhone(phoneMask(student?.phone ?? ""));
 
         setBirthDate(student?.birth_date ?? "");
         setEmail(student?.email ?? "");
         setEmailOptIn(student?.email_opt_in ?? false);
         setWhatsappOptIn(student?.whatsapp_opt_in ?? false);
 
-        setCep(student?.cep ?? "");
+        setCep(cepMask(student?.cep ?? ""));
         setStreet(student?.street ?? "");
         setNumber(student?.number ?? "");
         setNeighborhood(student?.neighborhood ?? "");
@@ -78,7 +79,7 @@ export default function useStudentForm({
         );
 
         setEmergencyPhone(
-            student?.emergency_phone ?? "",
+            phoneMask(student?.emergency_phone ?? ""),
         );
 
         setErrors({
@@ -163,9 +164,7 @@ export default function useStudentForm({
                 "Informe o nome do aluno.";
         }
 
-        if (
-            cpf.replace(/\D/g, "").length !== 11
-        ) {
+        if (!isValidCpf(cpf)) {
             newErrors.cpf =
                 "Informe um CPF válido.";
         }
@@ -186,9 +185,7 @@ export default function useStudentForm({
 
         if (
             email.trim() &&
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                email.trim(),
-            )
+            !isValidEmail(email)
         ) {
             newErrors.email =
                 "Informe um e-mail válido.";
@@ -241,7 +238,7 @@ export default function useStudentForm({
                 phone,
 
                 birth_date: birthDate || null,
-                email: email.trim() || null,
+                email: email.trim() ? normalizeEmail(email) : null,
                 email_opt_in: emailOptIn,
                 whatsapp_opt_in: whatsappOptIn,
 

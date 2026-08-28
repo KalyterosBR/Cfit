@@ -1,8 +1,10 @@
 import axios from "axios";
-import { Building2, CheckCircle2, Pencil, Power } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Building2, CheckCircle2, Minus, Pencil, Power, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import toast from "react-hot-toast";
+import { phoneMask } from "@/utils/masks";
+import { useSearchParams } from "react-router-dom";
 
 import PageHeader from "@/components/PageHeader";
 import DashboardLayout from "@/layouts/DashboardLayout";
@@ -28,20 +30,40 @@ type UnitMetric = {
   previous_revenue:string;
   rank:number;
   alerts:string[];
+  revenue_per_student:number;
+  revenue_change:number|null;
+  checkin_change:number|null;
 };
+type UnitCoverage = { domains: Array<{key:string;label:string;unassigned:number}>; unassigned_total:number; migration_policy:string };
 type UnitForm = Pick<Unit, "name" | "code" | "address" | "phone">;
 const emptyForm: UnitForm = { name: "", code: "", address: "", phone: "" };
 
+function Variation({ value }: { value: number | null }) {
+  if (value === null) return <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400"><Minus size={13} /> Sem base</span>;
+  const positive = value > 0;
+  const negative = value < 0;
+  const Icon = positive ? ArrowUpRight : negative ? ArrowDownRight : Minus;
+  return <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold ${positive ? "bg-emerald-50 text-emerald-700" : negative ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}><Icon size={13} />{positive ? "+" : ""}{value}%</span>;
+}
+
 export default function Units() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [units, setUnits] = useState<Unit[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<UnitMetric[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [form, setForm] = useState<UnitForm>(emptyForm);
   const [editing, setEditing] = useState<Unit | null>(null);
-  const [period, setPeriod] = useState(() =>
-    new Date().toISOString().slice(0, 7),
-  );
+  const [period, setPeriod] = useState(() => searchParams.get("period") || new Date().toISOString().slice(0, 7));
+  const [coverage, setCoverage] = useState<UnitCoverage | null>(null);
+  const [sortBy, setSortBy] = useState<"rank" | "active_students" | "checkins" | "revenue">((searchParams.get("sort") as "rank" | "active_students" | "checkins" | "revenue") || "rank");
+  const [density, setDensity] = useState<"comfortable" | "compact">((searchParams.get("density") as "comfortable" | "compact") || "comfortable");
+  const [showChanges, setShowChanges] = useState(searchParams.get("changes") !== "hidden");
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set("period", period); next.set("sort", sortBy); next.set("density", density); next.set("changes", showChanges ? "visible" : "hidden");
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+  }, [density, period, searchParams, setSearchParams, showChanges, sortBy]);
 
   const load=useCallback(async()=> {
     const [unitsResponse, meResponse] = await Promise.all([
@@ -55,13 +77,14 @@ export default function Units() {
         meResponse.data.capabilities.includes("units.manage"),
     );
     try {
-      setMetrics(
-        (
-          await Api.get<UnitMetric[]>("/academies/units/comparison/", {
+      const [comparison, coverageResponse] = await Promise.all([
+          Api.get<UnitMetric[]>("/academies/units/comparison/", {
             params: { period },
-          })
-        ).data,
-      );
+          }),
+          Api.get<UnitCoverage>("/academies/units/unit-coverage/"),
+      ]);
+      setMetrics(comparison.data);
+      setCoverage(coverageResponse.data);
     } catch {
       setMetrics([]);
       toast.error(
@@ -178,6 +201,13 @@ export default function Units() {
           />
         </label>
       </div>
+      {coverage && coverage.unassigned_total > 0 && (
+        <section className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4" aria-labelledby="coverage-title">
+          <h2 id="coverage-title" className="font-black text-amber-950">Dados históricos aguardando definição de unidade</h2>
+          <p className="mt-1 text-sm text-amber-900">{coverage.unassigned_total} registro(s) não foram atribuídos automaticamente. Revise a origem antes de qualquer migração.</p>
+          <ul className="mt-2 flex flex-wrap gap-3 text-xs font-bold text-amber-800">{coverage.domains.filter(item => item.unassigned).map(item => <li key={item.key}>{item.label}: {item.unassigned}</li>)}</ul>
+        </section>
+      )}
       {canManage && (
         <form
           onSubmit={save}
@@ -223,8 +253,10 @@ export default function Units() {
             <input
               value={form.phone}
               onChange={(e) =>
-                setForm((current) => ({ ...current, phone: e.target.value }))
+                setForm((current) => ({ ...current, phone: phoneMask(e.target.value) }))
               }
+              inputMode="tel"
+              maxLength={15}
               className="mt-2 h-11 w-full rounded-xl border px-3 font-normal"
             />
           </label>
@@ -329,6 +361,62 @@ export default function Units() {
           );
         })}
       </div>
+      {metrics.length > 0 && (
+        <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white" aria-labelledby="comparison-title">
+          <header className="border-b border-slate-100 px-5 py-5 sm:px-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-xl">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-600">Desempenho da rede</p>
+                <h2 id="comparison-title" className="mt-1 text-xl font-black tracking-tight text-slate-950">Comparação consolidada</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">Compare base ativa, movimento e resultado financeiro das unidades no período selecionado.</p>
+              </div>
+              <div className="rounded-2xl bg-slate-950 px-4 py-3 text-right text-white">
+                <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Unidades comparadas</span>
+                <strong className="mt-1 block text-2xl leading-none">{metrics.length}</strong>
+              </div>
+            </div>
+          </header>
+
+          <div className="flex flex-wrap items-end gap-3 border-b border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
+            <div className="mr-auto flex items-center gap-2 text-sm font-bold text-slate-700"><SlidersHorizontal size={16} className="text-blue-600" /> Ajustar leitura</div>
+            <label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Ordenar por
+              <select value={sortBy} onChange={event => setSortBy(event.target.value as typeof sortBy)} className="mt-1 block h-10 min-w-36 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-blue-500">
+                <option value="rank">Ranking</option><option value="revenue">Receita</option><option value="checkins">Check-ins</option><option value="active_students">Alunos ativos</option>
+              </select>
+            </label>
+            <label className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Densidade
+              <select value={density} onChange={event => setDensity(event.target.value as typeof density)} className="mt-1 block h-10 min-w-32 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-blue-500">
+                <option value="comfortable">Confortável</option><option value="compact">Compacta</option>
+              </select>
+            </label>
+            <label className="flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
+              <input type="checkbox" checked={showChanges} onChange={event => setShowChanges(event.target.checked)} className="size-4 accent-blue-600" /> Variações
+            </label>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className={`w-full min-w-[760px] text-left text-sm ${density === "compact" ? "[&_td]:py-2.5" : "[&_td]:py-4"}`}>
+              <thead className="bg-white text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                <tr className="border-b border-slate-100"><th className="px-6 py-3">Posição e unidade</th><th className="px-4 py-3 text-right">Alunos ativos</th><th className="px-4 py-3 text-right">Check-ins</th>{showChanges && <th className="px-4 py-3">Variação dos acessos</th>}<th className="px-4 py-3 text-right">Receita recebida</th>{showChanges && <th className="px-4 py-3">Variação da receita</th>}<th className="px-6 py-3 text-right">Receita por aluno</th></tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {[...metrics].sort((a,b) => sortBy === "rank" ? a.rank-b.rank : Number(b[sortBy])-Number(a[sortBy])).map(metric => (
+                  <tr key={metric.id} className="transition-colors hover:bg-blue-50/40">
+                    <td className="px-6"><div className="flex items-center gap-3"><span className={`grid size-9 shrink-0 place-items-center rounded-xl text-xs font-black ${metric.rank === 1 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"}`}>{metric.rank}º</span><strong className="text-slate-900">{metric.name}</strong></div></td>
+                    <td className="px-4 text-right font-bold tabular-nums text-slate-800">{metric.active_students.toLocaleString("pt-BR")}</td>
+                    <td className="px-4 text-right font-bold tabular-nums text-slate-800">{metric.checkins.toLocaleString("pt-BR")}</td>
+                    {showChanges && <td className="px-4"><Variation value={metric.checkin_change} /></td>}
+                    <td className="px-4 text-right font-black tabular-nums text-slate-950">{Number(metric.revenue).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>
+                    {showChanges && <td className="px-4"><Variation value={metric.revenue_change} /></td>}
+                    <td className="px-6 text-right font-semibold tabular-nums text-slate-600">{metric.revenue_per_student.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <footer className="border-t border-slate-100 bg-slate-50/50 px-6 py-3 text-xs text-slate-500">Receita considera caixa recebido; check-ins usam o período selecionado; alunos ativos refletem a base atual.</footer>
+        </section>
+      )}
     </DashboardLayout>
   );
 }

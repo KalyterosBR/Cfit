@@ -97,5 +97,34 @@ class UnitViewSet(viewsets.ModelViewSet):
         ranking = {row["id"]: position for position, row in enumerate(sorted(rows, key=lambda item: (float(item["revenue"]), item["checkins"]), reverse=True), start=1)}
         for row in rows:
             row["rank"] = ranking[row["id"]]
+            row["revenue_per_student"] = round(float(row["revenue"]) / row["active_students"], 2) if row["active_students"] else 0
+            row["revenue_change"] = round((float(row["revenue"]) - float(row["previous_revenue"])) * 100 / float(row["previous_revenue"]), 1) if float(row["previous_revenue"]) else None
+            row["checkin_change"] = round((row["checkins"] - row["previous_checkins"]) * 100 / row["previous_checkins"], 1) if row["previous_checkins"] else None
             row["alerts"] = (["Receita abaixo do período anterior"] if float(row["revenue"]) < float(row["previous_revenue"]) else []) + (["Check-ins abaixo do período anterior"] if row["checkins"] < row["previous_checkins"] else [])
         return Response(rows)
+
+    @action(detail=False, methods=["get"], url_path="unit-coverage")
+    def unit_coverage(self, request):
+        """Diagnóstico somente leitura; dados ambíguos nunca são atribuídos automaticamente."""
+        from apps.checkins.models import CheckIn
+        from apps.enrollments.models import Enrollment
+        from apps.financial.models import Charge
+        from apps.students.models import Student
+        from apps.workouts.models import WorkoutPlan
+
+        membership = get_active_membership(request.user)
+        academy = membership.academy if membership else None
+        if academy is None:
+            return Response({"domains": [], "unassigned_total": 0})
+        domains = [
+            ("students", "Alunos", Student.objects.filter(academy=academy, unit__isnull=True).count()),
+            ("enrollments", "Matrículas", Enrollment.objects.filter(student__academy=academy, unit__isnull=True).count()),
+            ("charges", "Cobranças", Charge.objects.filter(enrollment__student__academy=academy, unit__isnull=True).count()),
+            ("checkins", "Check-ins", CheckIn.objects.filter(student__academy=academy, unit__isnull=True).count()),
+            ("workouts", "Treinos", WorkoutPlan.objects.filter(student__academy=academy, unit__isnull=True).count()),
+        ]
+        return Response({
+            "domains": [{"key": key, "label": label, "unassigned": count} for key, label, count in domains],
+            "unassigned_total": sum(item[2] for item in domains),
+            "migration_policy": "manual_review_required",
+        })

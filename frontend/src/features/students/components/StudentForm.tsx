@@ -1,5 +1,6 @@
 import Input from "../../../components/Input";
 import Button from "../../../components/Button";
+import DatePicker from "../../../components/DatePicker";
 
 import useStudentForm from "../hooks/useStudentForm";
 
@@ -125,16 +126,13 @@ export default function StudentForm({
                     </div>
 
                     <div>
-                        <Input
+                        <DatePicker
                             label="Data de nascimento *"
                             required
-                            type="date"
                             value={birthDate}
                             error={errors.birthDate}
                             max={new Date().toISOString().slice(0, 10)}
-                            onChange={(e) =>
-                                setBirthDate(e.target.value)
-                            }
+                            onChange={setBirthDate}
                         />
                     </div>
 

@@ -26,6 +26,30 @@ export function phoneMask(value: string) {
         .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
+export function isValidCpf(value: string) {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+
+    const calculateDigit = (length: number) => {
+        const total = digits.slice(0, length).split("").reduce(
+            (sum, digit, index) => sum + Number(digit) * (length + 1 - index),
+            0,
+        );
+        const remainder = (total * 10) % 11;
+        return remainder === 10 ? 0 : remainder;
+    };
+
+    return calculateDigit(9) === Number(digits[9]) && calculateDigit(10) === Number(digits[10]);
+}
+
+export function isValidEmail(value: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+export function normalizeEmail(value: string) {
+    return value.trim().toLowerCase();
+}
+
 export function cepMask(value: string) {
     const digits = value
         .replace(/\D/g, "")

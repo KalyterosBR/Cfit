@@ -62,10 +62,10 @@ export interface StudentOperationalSummary {
         status: "pending" | "overdue";
         origin: { enrollment_id: string; enrollment_status: string; enrollment_status_label: string; plan_name: string; is_active_enrollment: boolean };
     } | null;
-    financial: { status: string; reason: string };
+    financial: { status: string; reason: string } | null;
     health: StudentHealthScore;
     latest_checkin_at: string | null;
-    checkins_last_30_days: number;
+    checkins_last_30_days: number | null;
     current_workout: {
         id: string;
         name: string;

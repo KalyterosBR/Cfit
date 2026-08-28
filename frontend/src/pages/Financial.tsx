@@ -1,7 +1,11 @@
 import {
+    lazy,
+    Suspense,
     useCallback,
     useEffect,
+    useRef,
     useState,
+    type ReactNode,
 } from "react";
 
 import {
@@ -28,12 +32,10 @@ import {
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { SkeletonBlock } from "@/components/AsyncState";
 import PageHeader from "@/components/PageHeader";
-import FinancialForecast from "@/features/students/components/FinancialForecast";
-import CashFlowSection from "@/features/students/components/CashFlowSection";
-import FinancialInconsistenciesSection from "@/features/students/components/FinancialInconsistenciesSection";
-import RecurringFailuresSection from "@/features/students/components/RecurringFailuresSection";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { getRequestErrorKind } from "@/services/http/request-error";
+import { useSession } from "@/features/auth/access-control";
+import { hasCapability } from "@/features/auth/access-policy";
 
 import {
     cancelCharge,
@@ -57,6 +59,29 @@ import {
     type OverdueRangeFilter,
     type ReconciliationFilter,
 } from "@/features/students/services/financial.service";
+
+const FinancialForecast = lazy(() => import("@/features/students/components/FinancialForecast"));
+const CashFlowSection = lazy(() => import("@/features/students/components/CashFlowSection"));
+const FinancialInconsistenciesSection = lazy(() => import("@/features/students/components/FinancialInconsistenciesSection"));
+const RecurringFailuresSection = lazy(() => import("@/features/students/components/RecurringFailuresSection"));
+
+function DeferredFinancialSection({ children }: { children: ReactNode }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        const element = containerRef.current;
+        if (!element || visible) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => entry.isIntersecting && setVisible(true),
+            { rootMargin: "320px 0px" },
+        );
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [visible]);
+
+    return <div ref={containerRef} className="min-h-40">{visible ? <Suspense fallback={<SkeletonBlock className="h-40 w-full rounded-3xl" />}>{children}</Suspense> : <SkeletonBlock className="h-40 w-full rounded-3xl" />}</div>;
+}
 
 
 type PendingAction = {
@@ -160,6 +185,8 @@ function getDateParam(searchParams: URLSearchParams, name: string) {
 
 
 export default function Financial() {
+    const session = useSession();
+    const canManage = hasCapability(session.capabilities, "finance.manage");
     const navigate = useNavigate();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -742,21 +769,21 @@ export default function Financial() {
                 })}
             </div>
 
-            <FinancialForecast
-                data={forecast}
-                loading={forecastLoading}
-                error={forecastError}
-                months={forecastMonths}
-                onMonthsChange={setForecastMonths}
-                onMonthOpen={openForecastMonth}
-                onRetry={loadForecast}
-            />
+            <DeferredFinancialSection><FinancialForecast
+                    data={forecast}
+                    loading={forecastLoading}
+                    error={forecastError}
+                    months={forecastMonths}
+                    onMonthsChange={setForecastMonths}
+                    onMonthOpen={openForecastMonth}
+                    onRetry={loadForecast}
+            /></DeferredFinancialSection>
 
-            <CashFlowSection />
+            <DeferredFinancialSection><CashFlowSection canManage={canManage} /></DeferredFinancialSection>
 
-            <RecurringFailuresSection />
+            <DeferredFinancialSection><RecurringFailuresSection /></DeferredFinancialSection>
 
-            <FinancialInconsistenciesSection />
+            <DeferredFinancialSection><FinancialInconsistenciesSection canManage={canManage} /></DeferredFinancialSection>
 
             <div
                 id="financial-charges"
@@ -1101,7 +1128,7 @@ export default function Financial() {
                     <>
                         {viewMode === "charges" ? (
                         <>
-                        <div className={`flex min-h-[73px] flex-col gap-3 border-b px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 ${
+                        {canManage && <div className={`flex min-h-[73px] flex-col gap-3 border-b px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 ${
                             selectedCharges.length > 0
                                 ? "border-blue-100 bg-blue-50/70"
                                 : "border-slate-200 bg-slate-50/60"
@@ -1138,7 +1165,7 @@ export default function Financial() {
                             >
                                 Registrar pagamentos
                             </button>
-                        </div>
+                        </div>}
                         <div className="overflow-x-auto">
                             <table className="cfit-data-table w-full min-w-[1460px]">
                                 <thead className="bg-slate-50/80 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -1148,7 +1175,7 @@ export default function Financial() {
                                                 type="checkbox"
                                                 checked={allEligibleSelected}
                                                 onChange={toggleAllEligibleCharges}
-                                                disabled={eligibleCharges.length === 0}
+                                                disabled={!canManage || eligibleCharges.length === 0}
                                                 aria-label="Selecionar cobranças disponíveis nesta página"
                                                 className="h-4 w-4 rounded border-slate-300 accent-blue-600 disabled:opacity-40"
                                             />
@@ -1173,7 +1200,7 @@ export default function Financial() {
                                                     type="checkbox"
                                                     checked={selectedChargeIds.has(charge.id)}
                                                     onChange={() => toggleChargeSelection(charge.id)}
-                                                    disabled={!eligibleCharges.some((item) => item.id === charge.id)}
+                                                    disabled={!canManage || !eligibleCharges.some((item) => item.id === charge.id)}
                                                     aria-label={`Selecionar cobrança de ${charge.student_name}`}
                                                     className="h-4 w-4 rounded border-slate-300 accent-blue-600 disabled:cursor-not-allowed disabled:opacity-30"
                                                 />
@@ -1228,7 +1255,7 @@ export default function Financial() {
                                                 )}
                                             </td>
                                             <td className="px-6 py-4">
-                                                {(charge.status === "pending" || charge.status === "overdue")
+                                                {canManage && (charge.status === "pending" || charge.status === "overdue")
                                                     && charge.operational_category !== "inconsistent" ? (
                                                     <div className="flex justify-end gap-2">
                                                         <button

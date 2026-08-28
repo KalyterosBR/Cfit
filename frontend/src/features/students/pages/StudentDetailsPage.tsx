@@ -48,6 +48,8 @@ import {
 import type { Student } from "../types/student";
 import StudentWorkoutSection from "../components/StudentWorkoutSection";
 import StudentAssessments from "../components/StudentAssessments";
+import { useSession } from "@/features/auth/access-control";
+import { getStudentDetailsDataAccess } from "@/features/auth/access-policy";
 
 import {
     createCheckIn,
@@ -128,6 +130,8 @@ function OperationalItem({
 
 
 export default function StudentDetailsPage() {
+    const session = useSession();
+    const dataAccess = getStudentDetailsDataAccess(session.capabilities);
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -388,11 +392,11 @@ export default function StudentDetailsPage() {
 
 
     useEffect(() => {
-        loadEnrollments();
-        loadCharges();
+        if (dataAccess.enrollments) loadEnrollments();
+        if (dataAccess.finance) loadCharges();
         loadTimeline();
         loadOperationalSummary();
-    }, [id]);
+    }, [dataAccess.enrollments, dataAccess.finance, id]);
 
 
     function formatBirthDate(date: string | null) {
@@ -435,7 +439,7 @@ export default function StudentDetailsPage() {
     function handleTabChange(tab: StudentTab) {
         setActiveTab(tab);
 
-        if (tab === "checkins") {
+        if (tab === "checkins" && dataAccess.checkins) {
             setCheckInsPage(1);
             loadCheckIns(1);
         }
@@ -870,7 +874,7 @@ export default function StudentDetailsPage() {
                             </div>
 
                             <div className="flex shrink-0 flex-wrap gap-2">
-                                <button
+                                {dataAccess.enrollments && <button
                                     type="button"
                                     onClick={() =>
                                         setShowEnrollmentModal(true)
@@ -879,25 +883,25 @@ export default function StudentDetailsPage() {
                                 >
                                     <PlusCircle size={16} />
                                     Adicionar plano
-                                </button>
+                                </button>}
 
-                                <button
+                                {dataAccess.checkinsManage && <button
                                     type="button"
                                     onClick={() => setShowCheckInModal(true)}
                                     className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                                 >
                                     <DoorOpen size={16} />
                                     Registrar check-in
-                                </button>
+                                </button>}
 
-                                <button
+                                {dataAccess.studentsManage && <button
                                     type="button"
                                     onClick={() => setOpenEditModal(true)}
                                     className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                                 >
                                     <Pencil size={16} />
                                     Editar aluno
-                                </button>
+                                </button>}
                             </div>
                         </div>
 
@@ -935,7 +939,7 @@ export default function StudentDetailsPage() {
                                 </p>
                             ) : (
                                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                    <OperationalItem
+                                    {dataAccess.enrollments && <OperationalItem
                                         label="Plano atual"
                                         value={
                                             operationalSummary.active_plans.length > 0
@@ -944,8 +948,8 @@ export default function StudentDetailsPage() {
                                                     .join(", ")
                                                 : "Sem plano ativo"
                                         }
-                                    />
-                                    <OperationalItem
+                                    />}
+                                    {dataAccess.finance && <OperationalItem
                                         label="Próximo vencimento"
                                         value={
                                             operationalSummary.next_charge
@@ -957,29 +961,29 @@ export default function StudentDetailsPage() {
                                                 ? "danger"
                                                 : "default"
                                         }
-                                    />
-                                    <OperationalItem
+                                    />}
+                                    {dataAccess.checkins && <OperationalItem
                                         label="Último check-in"
                                         value={
                                             operationalSummary.latest_checkin_at
                                                 ? formatDateTime(operationalSummary.latest_checkin_at)
                                                 : "Nenhum check-in"
                                         }
-                                    />
-                                    <OperationalItem
+                                    />}
+                                    {dataAccess.checkins && operationalSummary.checkins_last_30_days !== null && <OperationalItem
                                         label="Frequência · 30 dias"
                                         value={`${operationalSummary.checkins_last_30_days} ${operationalSummary.checkins_last_30_days === 1 ? "check-in" : "check-ins"}`}
-                                    />
-                                    <OperationalItem
+                                    />}
+                                    {dataAccess.workouts && <OperationalItem
                                         label="Treino atual"
                                         value={operationalSummary.current_workout?.name ?? "Sem treino ativo"}
                                         tone={operationalSummary.current_workout ? "default" : "muted"}
-                                    />
-                                    <OperationalItem
+                                    />}
+                                    {dataAccess.workouts && <OperationalItem
                                         label="Próxima avaliação"
                                         value="Ainda não disponível"
                                         tone="muted"
-                                    />
+                                    />}
                                     <OperationalItem
                                         label="Responsável"
                                         value={operationalSummary.current_workout?.instructor ?? "Ainda não disponível"}
@@ -1007,7 +1011,7 @@ export default function StudentDetailsPage() {
                     {/* ABAS */}
                     <div className="rounded-2xl border border-slate-200/80 bg-white px-4 pt-1 shadow-[0_14px_35px_-30px_rgba(15,23,42,0.25)]">
                         <nav className="flex gap-7 overflow-x-auto">
-                            {tabs.map((tab) => (
+                            {tabs.filter((tab) => tab.id === "overview" || tab.id === "history" || (tab.id === "plans" && dataAccess.enrollments) || (tab.id === "financial" && dataAccess.finance) || (tab.id === "checkins" && dataAccess.checkins) || ((tab.id === "workouts" || tab.id === "assessments") && dataAccess.workouts)).map((tab) => (
                                 <button
                                     key={tab.id}
                                     type="button"

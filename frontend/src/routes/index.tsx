@@ -67,6 +67,8 @@ function DocumentTitle() {
 
     const title = location.pathname.startsWith("/students/")
         ? "Detalhes do aluno"
+        : location.pathname.startsWith("/settings/")
+        ? "Configurações"
         : routeTitles[location.pathname] ?? "Cfit";
 
     useEffect(() => {
@@ -143,6 +145,10 @@ export default function AppRoutes() {
 
                     <Route
                         path="/settings"
+                        element={<CapabilityRoute requirement={routeAccess["/settings"]}><SettingsPage /></CapabilityRoute>}
+                    />
+                    <Route
+                        path="/settings/:section"
                         element={<CapabilityRoute requirement={routeAccess["/settings"]}><SettingsPage /></CapabilityRoute>}
                     />
                     <Route path="/automations" element={<CapabilityRoute requirement={routeAccess["/automations"]}><Automations /></CapabilityRoute>} />

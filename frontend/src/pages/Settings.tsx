@@ -8,6 +8,8 @@ import {
   Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { normalizeEmail, phoneMask } from "@/utils/masks";
+import { Link, useParams } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Api } from "@/services/http";
@@ -114,6 +116,7 @@ const categories = [
 ];
 
 export default function Settings() {
+  const { section } = useParams<{ section?: string }>();
   const [search, setSearch] = useState("");
   const searchRef=useRef<HTMLInputElement>(null);
   const [academies, setAcademies] = useState<Academy[]>([]);
@@ -135,6 +138,8 @@ export default function Settings() {
     null,
   );
   const [sessions, setSessions] = useState<LoginSession[]>([]);
+  const [savedAcademySnapshot, setSavedAcademySnapshot] = useState("");
+  const [savedOperationalSnapshot, setSavedOperationalSnapshot] = useState("");
   useEffect(() => {
     Promise.all([
       Api.get<Academy[]>("/academies/"),
@@ -146,10 +151,39 @@ export default function Settings() {
         setAcademies(a.data);
         setMe(m.data);
         setOperational(settings.data);
+        setSavedAcademySnapshot(JSON.stringify(a.data[0] ?? null));
+        setSavedOperationalSnapshot(JSON.stringify(settings.data));
         setSessions(sessionData.data);
       })
       .catch(() => toast.error("Não foi possível carregar as configurações."));
   }, []);
+  const hasUnsavedChanges = Boolean(
+    (savedAcademySnapshot && JSON.stringify(academies[0] ?? null) !== savedAcademySnapshot) ||
+    (savedOperationalSnapshot && JSON.stringify(operational) !== savedOperationalSnapshot),
+  );
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasUnsavedChanges]);
+  useEffect(() => {
+    const guardLinks = (event: MouseEvent) => {
+      if (!hasUnsavedChanges || event.defaultPrevented) return;
+      const link = (event.target as HTMLElement).closest("a[href]") as HTMLAnchorElement | null;
+      if (!link || link.target === "_blank" || link.href === window.location.href) return;
+      if (!window.confirm("Existem alterações não salvas. Deseja sair mesmo assim?")) event.preventDefault();
+    };
+    document.addEventListener("click", guardLinks, true);
+    return () => document.removeEventListener("click", guardLinks, true);
+  }, [hasUnsavedChanges]);
+  useEffect(() => {
+    if (!section) return;
+    const timer = window.setTimeout(() => document.getElementById(section)?.scrollIntoView({ block: "start" }), 0);
+    return () => window.clearTimeout(timer);
+  }, [section]);
   useEffect(()=>{function focusSearch(event:KeyboardEvent){if(event.key==="/"&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&document.activeElement?.tagName!=="INPUT"&&document.activeElement?.tagName!=="TEXTAREA"){event.preventDefault();searchRef.current?.focus()}if(event.key==="Escape"&&document.activeElement===searchRef.current){setSearch("");searchRef.current?.blur()}}window.addEventListener("keydown",focusSearch);return()=>window.removeEventListener("keydown",focusSearch)},[]);
   useEffect(() => {
     if (!canAdmin) return;
@@ -198,6 +232,7 @@ export default function Settings() {
         reason: "Atualização das configurações da academia",
       });
       setAcademies([response.data]);
+      setSavedAcademySnapshot(JSON.stringify(response.data));
       toast.success("Dados da academia atualizados e auditados.");
     } catch {
       toast.error("Não foi possível atualizar a academia.");
@@ -229,14 +264,14 @@ export default function Settings() {
   async function saveOperationalSettings() {
     if (!operational) return;
     try {
-      setOperational(
-        (
+      const saved = (
           await Api.patch<OperationalSettings>("/academies/settings/", {
             ...operational,
             reason: "Atualização de regras operacionais",
           })
-        ).data,
-      );
+        ).data;
+      setOperational(saved);
+      setSavedOperationalSnapshot(JSON.stringify(saved));
       toast.success("Regras operacionais atualizadas e auditadas.");
     } catch {
       toast.error("Não foi possível salvar as regras operacionais.");
@@ -307,6 +342,11 @@ export default function Settings() {
         eyebrow="Estrutura da operação"
         context="Regras, acesso e governança"
       />
+      {hasUnsavedChanges && (
+        <div role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+          Existem alterações não salvas nesta página.
+        </div>
+      )}
       <div className="sticky top-0 z-20 mb-5 bg-[#f4f7fb]/90 py-2 backdrop-blur-md dark:bg-[#07101f]/90">
         <Search
           size={17}
@@ -320,7 +360,7 @@ export default function Settings() {
           className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 shadow-sm"
         />
       </div>
-      {academies[0] && (
+      {(!section || section === "academy") && academies[0] && (
         <section id="academy" className="mb-5 scroll-mt-5 rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
           <p className="text-xs font-bold uppercase tracking-widest text-blue-600">
             Academia atual
@@ -359,6 +399,7 @@ export default function Settings() {
                   onChange={(e) =>
                     setAcademies([{ ...academies[0], email: e.target.value }])
                   }
+                  onBlur={(e) => setAcademies([{ ...academies[0], email: normalizeEmail(e.target.value) }])}
                   placeholder="contato@academia.com"
                   className="mt-2 h-11 w-full rounded-xl border border-blue-100 bg-white px-3 font-normal text-slate-900"
                 />
@@ -369,8 +410,10 @@ export default function Settings() {
                   type="tel"
                   value={academies[0].phone}
                   onChange={(e) =>
-                    setAcademies([{ ...academies[0], phone: e.target.value }])
+                    setAcademies([{ ...academies[0], phone: phoneMask(e.target.value) }])
                   }
+                  inputMode="tel"
+                  maxLength={15}
                   placeholder="(00) 00000-0000"
                   className="mt-2 h-11 w-full rounded-xl border border-blue-100 bg-white px-3 font-normal text-slate-900"
                 />
@@ -402,8 +445,8 @@ export default function Settings() {
         className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
       >
         {filtered.map(({ icon: Icon, ...item }) => (
-          <a
-            href={item.id === "plans" ? "/plans" : `#${item.id}`}
+          <Link
+            to={item.id === "plans" ? "/plans" : `/settings/${item.id}`}
             key={item.title}
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[var(--cfit-shadow-card)] transition hover:-translate-y-0.5 hover:border-blue-300"
           >
@@ -413,7 +456,7 @@ export default function Settings() {
             <h2 className="mt-5 font-black text-slate-950">{item.title}</h2>
             <p className="mt-2 text-sm text-slate-500">{item.description}</p>
             <p className="mt-3 text-xs font-bold text-blue-600">Abrir seção</p>
-          </a>
+          </Link>
         ))}
       </nav>
       {filtered.length === 0 && (
@@ -421,7 +464,7 @@ export default function Settings() {
           Nenhuma configuração corresponde à busca.
         </p>
       )}
-      {canAdmin && operational && (
+      {(!section || section === "finance") && canAdmin && operational && (
         <section id="finance" className="mt-6 scroll-mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="font-black">Regras operacionais</h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -507,7 +550,7 @@ export default function Settings() {
           </div>
         </section>
       )}
-      {canAdmin && (
+      {(!section || section === "users") && canAdmin && (
         <section id="users" className="mt-6 scroll-mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="font-black text-slate-950">Usuários e permissões</h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -529,6 +572,7 @@ export default function Settings() {
               onChange={(e) =>
                 setInvite((current) => ({ ...current, email: e.target.value }))
               }
+              onBlur={(e) => setInvite((current) => ({ ...current, email: normalizeEmail(e.target.value) }))}
               placeholder="E-mail"
               className="h-10 rounded-xl border px-3 text-sm"
             />
@@ -647,7 +691,7 @@ export default function Settings() {
           )}
         </section>
       )}
-      {canAdmin && (
+      {(!section || section === "security") && canAdmin && (
         <section id="audit" className="mt-6 scroll-mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="font-black text-slate-950">
             Auditoria administrativa
@@ -693,7 +737,7 @@ export default function Settings() {
           )}
         </section>
       )}
-      <section id="security" className="mt-6 scroll-mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      {(!section || section === "security") && <section id="security" className="mt-6 scroll-mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-black text-slate-950">Segurança da conta</h2>
@@ -738,8 +782,8 @@ export default function Settings() {
             </div>
           ))}
         </div>
-      </section>
-      {me?.role === "OWNER" && (
+      </section>}
+      {(!section || section === "users" || section === "security") && me?.role === "OWNER" && (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-6">
           <h2 className="font-black text-slate-950">
             Transferência de propriedade

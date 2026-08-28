@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useSession } from "@/features/auth/access-control";
+import { hasCapability } from "@/features/auth/access-policy";
 
 import DashboardLayout from "../layouts/DashboardLayout";
 import Button from "../components/Button";
@@ -63,6 +64,7 @@ const initialForm: SavePlanPayload = {
 
 export default function Plans() {
     const session = useSession();
+    const canManage = hasCapability(session.capabilities, "plans.manage");
     const [searchParams, setSearchParams] = useSearchParams();
     const [plans, setPlans] =
         useState<Plan[]>([]);
@@ -125,7 +127,7 @@ export default function Plans() {
                 : "all";
             setStatusFilter(nextStatus);
             setPage(1);
-            if (searchParams.get("action") === "new") {
+            if (searchParams.get("action") === "new" && canManage) {
                 openCreateModal();
                 const next = new URLSearchParams(searchParams);
                 next.delete("action");
@@ -133,7 +135,7 @@ export default function Plans() {
             }
         }, 0);
         return () => window.clearTimeout(timer);
-    }, [searchParams, setSearchParams]);
+    }, [canManage, searchParams, setSearchParams]);
 
 
     useEffect(() => {
@@ -424,13 +426,13 @@ export default function Plans() {
                 subtitle="Gerencie valores, duração e disponibilidade dos planos da academia."
                 eyebrow="Estratégia comercial"
                 context="Oferta, adesão e impacto"
-                actions={
+                actions={canManage ?
                     <Button onClick={openCreateModal}>
                         <span className="inline-flex items-center gap-2">
                             <Plus size={16} />
                             Novo plano
                         </span>
-                    </Button>
+                    </Button> : undefined
                 }
             />
 
@@ -593,7 +595,7 @@ export default function Plans() {
                                                 </h2>
                                             </div>
 
-                                            <div className="flex shrink-0 items-center gap-1">
+                                            {canManage && <div className="flex shrink-0 items-center gap-1">
                                                 <button
                                                     type="button"
                                                     onClick={() =>
@@ -624,7 +626,7 @@ export default function Plans() {
                                                         <RotateCcw size={16} />
                                                     )}
                                                 </button>
-                                            </div>
+                                            </div>}
                                         </div>
 
                                         <p className="mt-3 min-h-10 text-sm leading-5 text-slate-500">

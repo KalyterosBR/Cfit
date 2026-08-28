@@ -66,7 +66,7 @@ function periodLabel(value: string, granularity: "daily" | "monthly") {
 }
 
 
-export default function CashFlowSection() {
+export default function CashFlowSection({ canManage }: { canManage: boolean }) {
     const today = new Date().toISOString().slice(0, 10);
     const [summary, setSummary] = useState<CashFlowSummary | null>(null);
     const [loading, setLoading] = useState(true);
@@ -196,9 +196,9 @@ export default function CashFlowSection() {
                         <option value="all">Todas as categorias</option>
                         {categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                     </select>
-                    <button type="button" onClick={openModal} className="flex h-10 items-center gap-2 rounded-lg bg-slate-950 px-4 text-xs font-bold text-white hover:bg-blue-700">
+                    {canManage && <button type="button" onClick={openModal} className="flex h-10 items-center gap-2 rounded-lg bg-slate-950 px-4 text-xs font-bold text-white hover:bg-blue-700">
                         <Plus size={15} /> Nova movimentação
-                    </button>
+                    </button>}
                 </div>
             </div>
 

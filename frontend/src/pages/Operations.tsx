@@ -1,3 +1,415 @@
-import{useCallback,useEffect,useState}from"react";import{ArrowRight,Clock,Search,UserRound}from"lucide-react";import{useNavigate}from"react-router-dom";import toast from"react-hot-toast";import{EmptyState,ErrorState,SkeletonState}from"@/components/AsyncState";import Modal from"@/components/Modal";import PageHeader from"@/components/PageHeader";import DashboardLayout from"@/layouts/DashboardLayout";import{Api}from"@/services/http";
-type History={id:string;event:string;message:string;actor_name:string;created_at:string};type Issue={id:string;source:string;source_url:string;title:string;detail:string;next_action:string;priority:string;priority_label:string;status:string;status_label:string;assigned_to:string|null;assigned_to_name:string|null;due_at:string|null;overdue:boolean;resolution:string;history:History[]};type Page={count:number;next:string|null;previous:string|null;results:Issue[]};type Options={responsibles:Array<{id:string;name:string}>;sources:Array<[string,string]>};const field="h-10 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3 text-sm";
-export default function Operations(){const nav=useNavigate(),[data,setData]=useState<Page>({count:0,next:null,previous:null,results:[]}),[options,setOptions]=useState<Options>({responsibles:[],sources:[]}),[loading,setLoading]=useState(true),[error,setError]=useState(false),[search,setSearch]=useState(""),[source,setSource]=useState(""),[priority,setPriority]=useState(""),[status,setStatus]=useState(""),[overdue,setOverdue]=useState(false),[page,setPage]=useState(1),[selected,setSelected]=useState<Issue|null>(null),[saving,setSaving]=useState(false);const load=useCallback(async()=>{try{setLoading(true);setError(false);const[a,b]=await Promise.all([Api.get<Page>("/operations/issues/",{params:{search:search||undefined,source:source||undefined,priority:priority||undefined,status:status||undefined,overdue:overdue||undefined,page}}),Api.get<Options>("/operations/issues/options/")]);setData(a.data);setOptions(b.data)}catch{setError(true)}finally{setLoading(false)}},[overdue,page,priority,search,source,status]);useEffect(()=>{void load()},[load]);async function update(body:Record<string,string|null>){if(!selected)return;setSaving(true);try{const response=await Api.patch<Issue>(`/operations/issues/${selected.id}/`,body);setSelected(response.data);toast.success("Pendência atualizada.");await load()}catch{toast.error("Não foi possível atualizar a pendência.")}finally{setSaving(false)}}const counts={critical:data.results.filter(x=>x.priority==="critical"&&!["resolved","dismissed"].includes(x.status)).length,overdue:data.results.filter(x=>x.overdue).length,unassigned:data.results.filter(x=>!x.assigned_to&&!["resolved","dismissed"].includes(x.status)).length};return <DashboardLayout><div className="space-y-5"><PageHeader title="Central operacional" subtitle="Pendências reais, responsáveis, SLA e próximas ações em um único fluxo." eyebrow="Comando diário" context="Prioridade, responsabilidade e resolução"/><div className="grid gap-3 sm:grid-cols-3">{[["Críticas",counts.critical],["SLA vencido",counts.overdue],["Sem responsável",counts.unassigned]].map(([label,value])=><div key={label} className="rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)] p-4"><p className="text-xs font-bold uppercase text-[var(--cfit-text-tertiary)]">{label}</p><p className="mt-1 text-2xl font-black">{value}</p></div>)}</div><section className="rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)]"><div className="grid gap-3 border-b border-[var(--cfit-border)] p-4 sm:grid-cols-2 xl:grid-cols-5"><label className="relative"><Search size={16} className="absolute left-3 top-3 text-[var(--cfit-text-tertiary)]"/><input value={search}onChange={e=>{setSearch(e.target.value);setPage(1)}}placeholder="Pesquisar pendência"className={`${field} w-full pl-9`}/></label><select value={source}onChange={e=>setSource(e.target.value)}className={field}><option value="">Todas as origens</option>{options.sources.map(([v,l])=><option key={v}value={v}>{l}</option>)}</select><select value={priority}onChange={e=>setPriority(e.target.value)}className={field}><option value="">Todas as prioridades</option><option value="critical">Crítica</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select><select value={status}onChange={e=>setStatus(e.target.value)}className={field}><option value="">Todas as situações</option><option value="open">Aberta</option><option value="in_progress">Em andamento</option><option value="resolved">Resolvida</option><option value="dismissed">Descartada</option></select><label className="flex items-center gap-2 text-sm"><input type="checkbox"checked={overdue}onChange={e=>setOverdue(e.target.checked)}/>Somente SLA vencido</label></div>{loading?<div className="p-5"><SkeletonState rows={6}/></div>:error?<div className="p-5"><ErrorState onRetry={load}/></div>:data.results.length===0?<div className="p-8"><EmptyState label="Operação em dia"detail="Nenhuma pendência corresponde aos filtros atuais."/></div>:<div className="cfit-record-list">{data.results.map(item=><button key={item.id}onClick={()=>setSelected(item)}className="flex w-full flex-wrap items-center justify-between gap-4 p-4 text-left hover:bg-[var(--cfit-surface-hover)]"><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="cfit-chip"data-tone={item.priority==="critical"?"danger":item.priority==="high"?"warning":"neutral"}>{item.priority_label}</span><span className="text-xs font-bold uppercase text-[var(--cfit-text-tertiary)]">{options.sources.find(x=>x[0]===item.source)?.[1]||item.source}</span>{item.overdue&&<span className="text-xs font-bold text-red-600">SLA vencido</span>}</div><strong className="mt-2 block truncate">{item.title}</strong><p className="mt-1 text-sm text-[var(--cfit-text-secondary)]">{item.next_action}</p></div><div className="text-right text-xs text-[var(--cfit-text-secondary)]"><p>{item.status_label}</p><p className="mt-1">{item.assigned_to_name||"Sem responsável"}</p></div></button>)}</div>}<div className="flex items-center justify-between border-t border-[var(--cfit-border)]p-4 text-sm"><span>{data.count} pendência(s)</span><div className="flex gap-2"><button disabled={!data.previous}onClick={()=>setPage(x=>x-1)}className="cfit-secondary-button">Anterior</button><button disabled={!data.next}onClick={()=>setPage(x=>x+1)}className="cfit-secondary-button">Próxima</button></div></div></section><Modal open={Boolean(selected)}title={selected?.title||"Pendência"}onClose={()=>!saving&&setSelected(null)}>{selected&&<div className="space-y-5"><div className="rounded-xl bg-[var(--cfit-surface-subtle)]p-4"><p>{selected.detail||"Sem detalhe adicional."}</p><p className="mt-3 flex gap-2 text-sm"><ArrowRight size={16}/>{selected.next_action}</p><p className="mt-2 flex gap-2 text-sm"><Clock size={16}/>{selected.due_at?new Date(selected.due_at).toLocaleString("pt-BR"):"Sem prazo"}</p><p className="mt-2 flex gap-2 text-sm"><UserRound size={16}/>{selected.assigned_to_name||"Sem responsável"}</p></div><div className="grid gap-3 sm:grid-cols-2"><select value={selected.assigned_to||""}onChange={e=>void update({assigned_to:e.target.value||null,comment:"Responsável alterado"})}className={field}><option value="">Sem responsável</option>{options.responsibles.map(x=><option key={x.id}value={x.id}>{x.name}</option>)}</select><select value={selected.priority}onChange={e=>void update({priority:e.target.value,comment:"Prioridade alterada"})}className={field}><option value="critical">Crítica</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select></div><div className="flex flex-wrap gap-2"><button onClick={()=>void update({status:"in_progress",comment:"Atendimento iniciado"})}className="cfit-primary-button">Assumir atendimento</button>{selected.source_url&&<button onClick={()=>nav(selected.source_url)}className="cfit-secondary-button">Abrir origem</button>}<button onClick={()=>{const resolution=prompt("Como esta pendência foi resolvida?");if(resolution)void update({status:"resolved",resolution})}}className="cfit-secondary-button">Resolver</button></div><div><h3 className="font-black">Histórico</h3><div className="mt-2 cfit-record-list">{selected.history.map(x=><div key={x.id}className="py-3 text-sm"><p className="font-bold">{x.actor_name} · {x.event}</p><p className="text-[var(--cfit-text-secondary)]">{x.message||"Alteração registrada"} · {new Date(x.created_at).toLocaleString("pt-BR")}</p></div>)}</div></div></div>}</Modal></div></DashboardLayout>}
+import { useCallback, useEffect, useState } from "react";
+import { ArrowRight, Clock, Search, UserRound } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/AsyncState";
+import Modal from "@/components/Modal";
+import PageHeader from "@/components/PageHeader";
+import DashboardLayout from "@/layouts/DashboardLayout";
+import { Api } from "@/services/http";
+import { useSession } from "@/features/auth/access-control";
+import { hasCapability } from "@/features/auth/access-policy";
+type History = {
+  id: string;
+  event: string;
+  message: string;
+  actor_name: string;
+  created_at: string;
+};
+type Issue = {
+  id: string;
+  source: string;
+  source_url: string;
+  title: string;
+  detail: string;
+  next_action: string;
+  priority: string;
+  priority_label: string;
+  status: string;
+  status_label: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  due_at: string | null;
+  overdue: boolean;
+  resolution: string;
+  history: History[];
+};
+type Page = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Issue[];
+};
+type Options = {
+  responsibles: Array<{ id: string; name: string }>;
+  sources: Array<[string, string]>;
+};
+const field =
+  "h-10 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3 text-sm";
+export default function Operations() {
+  const session = useSession();
+  const canManage = hasCapability(session.capabilities, "operations.manage");
+  const nav = useNavigate(),
+    [data, setData] = useState<Page>({
+      count: 0,
+      next: null,
+      previous: null,
+      results: [],
+    }),
+    [options, setOptions] = useState<Options>({
+      responsibles: [],
+      sources: [],
+    }),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(false),
+    [search, setSearch] = useState(""),
+    [source, setSource] = useState(""),
+    [priority, setPriority] = useState(""),
+    [status, setStatus] = useState(""),
+    [overdue, setOverdue] = useState(false),
+    [page, setPage] = useState(1),
+    [selected, setSelected] = useState<Issue | null>(null),
+    [saving, setSaving] = useState(false);
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(false);
+      const [a, b] = await Promise.all([
+        Api.get<Page>("/operations/issues/", {
+          params: {
+            search: search || undefined,
+            source: source || undefined,
+            priority: priority || undefined,
+            status: status || undefined,
+            overdue: overdue || undefined,
+            page,
+          },
+        }),
+        Api.get<Options>("/operations/issues/options/"),
+      ]);
+      setData(a.data);
+      setOptions(b.data);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [overdue, page, priority, search, source, status]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  async function update(body: Record<string, string | null>) {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const response = await Api.patch<Issue>(
+        `/operations/issues/${selected.id}/`,
+        body,
+      );
+      setSelected(response.data);
+      toast.success("Pendência atualizada.");
+      await load();
+    } catch {
+      toast.error("Não foi possível atualizar a pendência.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  const counts = {
+    critical: data.results.filter(
+      (x) =>
+        x.priority === "critical" &&
+        !["resolved", "dismissed"].includes(x.status),
+    ).length,
+    overdue: data.results.filter((x) => x.overdue).length,
+    unassigned: data.results.filter(
+      (x) => !x.assigned_to && !["resolved", "dismissed"].includes(x.status),
+    ).length,
+  };
+  return (
+    <DashboardLayout>
+      <div className="space-y-5">
+        <PageHeader
+          title="Central operacional"
+          subtitle="Pendências reais, responsáveis, SLA e próximas ações em um único fluxo."
+          eyebrow="Comando diário"
+          context="Prioridade, responsabilidade e resolução"
+        />
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Críticas", counts.critical],
+            ["SLA vencido", counts.overdue],
+            ["Sem responsável", counts.unassigned],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              className="rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)] p-4"
+            >
+              <p className="text-xs font-bold uppercase text-[var(--cfit-text-tertiary)]">
+                {label}
+              </p>
+              <p className="mt-1 text-2xl font-black">{value}</p>
+            </div>
+          ))}
+        </div>
+        <section className="rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)]">
+          <div className="grid gap-3 border-b border-[var(--cfit-border)] p-4 sm:grid-cols-2 xl:grid-cols-5">
+            <label className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-3 text-[var(--cfit-text-tertiary)]"
+              />
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Pesquisar pendência"
+                className={`${field} w-full pl-9`}
+              />
+            </label>
+            <select
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              className={field}
+            >
+              <option value="">Todas as origens</option>
+              {options.sources.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className={field}
+            >
+              <option value="">Todas as prioridades</option>
+              <option value="critical">Crítica</option>
+              <option value="high">Alta</option>
+              <option value="medium">Média</option>
+              <option value="low">Baixa</option>
+            </select>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className={field}
+            >
+              <option value="">Todas as situações</option>
+              <option value="open">Aberta</option>
+              <option value="in_progress">Em andamento</option>
+              <option value="resolved">Resolvida</option>
+              <option value="dismissed">Descartada</option>
+            </select>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={overdue}
+                onChange={(e) => setOverdue(e.target.checked)}
+              />
+              Somente SLA vencido
+            </label>
+          </div>
+          {loading ? (
+            <div className="p-5">
+              <SkeletonState rows={6} />
+            </div>
+          ) : error ? (
+            <div className="p-5">
+              <ErrorState onRetry={load} />
+            </div>
+          ) : data.results.length === 0 ? (
+            <div className="p-8">
+              <EmptyState
+                label="Operação em dia"
+                detail="Nenhuma pendência corresponde aos filtros atuais."
+              />
+            </div>
+          ) : (
+            <div className="cfit-record-list">
+              {data.results.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setSelected(item)}
+                  className="flex w-full flex-wrap items-center justify-between gap-4 p-4 text-left hover:bg-[var(--cfit-surface-hover)]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="cfit-chip"
+                        data-tone={
+                          item.priority === "critical"
+                            ? "danger"
+                            : item.priority === "high"
+                              ? "warning"
+                              : "neutral"
+                        }
+                      >
+                        {item.priority_label}
+                      </span>
+                      <span className="text-xs font-bold uppercase text-[var(--cfit-text-tertiary)]">
+                        {options.sources.find(
+                          (x) => x[0] === item.source,
+                        )?.[1] || item.source}
+                      </span>
+                      {item.overdue && (
+                        <span className="text-xs font-bold text-red-600">
+                          SLA vencido
+                        </span>
+                      )}
+                    </div>
+                    <strong className="mt-2 block truncate">
+                      {item.title}
+                    </strong>
+                    <p className="mt-1 text-sm text-[var(--cfit-text-secondary)]">
+                      {item.next_action}
+                    </p>
+                  </div>
+                  <div className="text-right text-xs text-[var(--cfit-text-secondary)]">
+                    <p>{item.status_label}</p>
+                    <p className="mt-1">
+                      {item.assigned_to_name || "Sem responsável"}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center justify-between border-t border-[var(--cfit-border)]p-4 text-sm">
+            <span>{data.count} pendência(s)</span>
+            <div className="flex gap-2">
+              <button
+                disabled={!data.previous}
+                onClick={() => setPage((x) => x - 1)}
+                className="cfit-secondary-button"
+              >
+                Anterior
+              </button>
+              <button
+                disabled={!data.next}
+                onClick={() => setPage((x) => x + 1)}
+                className="cfit-secondary-button"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
+        </section>
+        <Modal
+          open={Boolean(selected)}
+          title={selected?.title || "Pendência"}
+          onClose={() => !saving && setSelected(null)}
+        >
+          {selected && (
+            <div className="space-y-5">
+              <div className="rounded-xl bg-[var(--cfit-surface-subtle)]p-4">
+                <p>{selected.detail || "Sem detalhe adicional."}</p>
+                <p className="mt-3 flex gap-2 text-sm">
+                  <ArrowRight size={16} />
+                  {selected.next_action}
+                </p>
+                <p className="mt-2 flex gap-2 text-sm">
+                  <Clock size={16} />
+                  {selected.due_at
+                    ? new Date(selected.due_at).toLocaleString("pt-BR")
+                    : "Sem prazo"}
+                </p>
+                <p className="mt-2 flex gap-2 text-sm">
+                  <UserRound size={16} />
+                  {selected.assigned_to_name || "Sem responsável"}
+                </p>
+              </div>
+              {canManage && <div className="grid gap-3 sm:grid-cols-2">
+                <select
+                  value={selected.assigned_to || ""}
+                  onChange={(e) =>
+                    void update({
+                      assigned_to: e.target.value || null,
+                      comment: "Responsável alterado",
+                    })
+                  }
+                  className={field}
+                >
+                  <option value="">Sem responsável</option>
+                  {options.responsibles.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selected.priority}
+                  onChange={(e) =>
+                    void update({
+                      priority: e.target.value,
+                      comment: "Prioridade alterada",
+                    })
+                  }
+                  className={field}
+                >
+                  <option value="critical">Crítica</option>
+                  <option value="high">Alta</option>
+                  <option value="medium">Média</option>
+                  <option value="low">Baixa</option>
+                </select>
+              </div>}
+              <div className="flex flex-wrap gap-2">
+                {canManage && <>
+                <button
+                  onClick={() =>
+                    void update({
+                      status: "in_progress",
+                      comment: "Atendimento iniciado",
+                    })
+                  }
+                  className="cfit-primary-button"
+                >
+                  Assumir atendimento
+                </button>
+                </>}
+                {selected.source_url && (
+                  <button
+                    onClick={() => nav(selected.source_url)}
+                    className="cfit-secondary-button"
+                  >
+                    Abrir origem
+                  </button>
+                )}
+                {canManage && <button
+                  onClick={() => {
+                    const resolution = prompt(
+                      "Como esta pendência foi resolvida?",
+                    );
+                    if (resolution)
+                      void update({ status: "resolved", resolution });
+                  }}
+                  className="cfit-secondary-button"
+                >
+                  Resolver
+                </button>}
+              </div>
+              <div>
+                <h3 className="font-black">Histórico</h3>
+                <div className="mt-2 cfit-record-list">
+                  {selected.history.map((x) => (
+                    <div key={x.id} className="py-3 text-sm">
+                      <p className="font-bold">
+                        {x.actor_name} · {x.event}
+                      </p>
+                      <p className="text-[var(--cfit-text-secondary)]">
+                        {x.message || "Alteração registrada"} ·{" "}
+                        {new Date(x.created_at).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
+      </div>
+    </DashboardLayout>
+  );
+}

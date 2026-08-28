@@ -14,6 +14,8 @@ import DashboardLayout from "@/layouts/DashboardLayout";
 import { Api } from "@/services/http";
 import toast from "react-hot-toast";
 import DeviceManagement from "@/features/students/components/DeviceManagement";
+import { useSession } from "@/features/auth/access-control";
+import { hasCapability } from "@/features/auth/access-policy";
 
 function today() {
   const date = new Date();
@@ -21,6 +23,8 @@ function today() {
 }
 
 export default function CheckIns() {
+  const session = useSession();
+  const canManage = hasCapability(session.capabilities, "checkins.manage");
   const [searchParams] = useSearchParams();
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
   const [from, setFrom] = useState(() => searchParams.get("from") ?? today());
@@ -195,17 +199,17 @@ export default function CheckIns() {
               placeholder="Orientação exibida à recepção"
               className="h-10 rounded-xl border px-3 md:col-span-2"
             />
-            <button
+            {canManage && <button
               type="button"
               onClick={savePolicy}
               className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white"
             >
               Salvar política
-            </button>
+            </button>}
           </div>
         </details>
       )}
-      <DeviceManagement />
+      <DeviceManagement canManage={canManage} />
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
         {[
           {
