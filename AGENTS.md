@@ -2838,13 +2838,13 @@ Uma fase ampla pode permanecer `[~]` mesmo quando algumas fatias internas estão
 - [x] Favoritos e visões salvas possuem persistência server-side e escopos pessoal, unidade e academia.
 - [~] Relatório gerencial usa cache curto por academia, unidade e período; carregamento independente por bloco permanece como refinamento.
 - [x] Relatórios gerenciais incluem Agenda, Turmas, Comercial, Retenção e Treinos com fontes persistidas.
-- [ ] Garantir navegação para origem e exportação idêntica aos filtros.
+- [~] Navegação para origem preserva o período exato em Financeiro e Check-ins e abre o segmento correto de retenção; a exportação inclui período, escopo, fórmula e fonte. O indicador histórico de alunos ativos ainda abre a base ativa atual, pois a listagem não oferece reconstrução por data de fechamento.
 
 #### Fase 8 — Configurações, usuários e governança
 
 - [~] Seções pesquisáveis, membros, capacidades, sessões, auditoria e preferências existem.
 - [~] A rota `/settings/:section` separa a apresentação das seções sem duplicar os módulos, mas a implementação ainda compartilha a página principal e não constitui uma divisão completa em páginas independentes.
-- [~] Busca aceita foco pelo atalho `/`; salvamentos são por seção e ações sensíveis exigem confirmação. Alterações de academia e regras operacionais possuem aviso visual e proteção ao sair da página, mas a proteção ainda não cobre todos os formulários da área.
+- [x] Busca aceita foco pelo atalho `/`; salvamentos são por seção e ações sensíveis exigem confirmação. Todos os rascunhos da área — academia, regras operacionais e convite de usuário — possuem aviso identificado e proteção ao sair; permissões, 2FA e sessões permanecem ações imediatas confirmadas pela API.
 - [~] Membros e auditoria possuem filtros server-side; acesso simultâneo a várias unidades ainda exige decisão de escopo.
 - [x] Homologação interativa concluída com contas reais dos seis perfis: Proprietário, Administrador, Gerente, Recepção, Professor e Financeiro; confirmação registrada pelo usuário em 28/08/2026.
 
@@ -3109,8 +3109,12 @@ Validações confirmadas em 31/08/2026:
 Pendências reais preservadas:
 - executar QA visual autenticado nos temas claro e noturno e nos breakpoints definidos quando houver navegador e sessões disponíveis;
 - repetir a suíte Django e os testes frontend em ambiente Docker/Node compatível;
-- estender a proteção contra alterações não salvas aos formulários de Configurações ainda não cobertos;
+- manter a proteção contra alterações não salvas ao adicionar novos formulários de rascunho em Configurações;
 - concluir o particionamento histórico por unidade somente com política explícita de migração; o diagnóstico atual não atribui dados ambiguamente.
+
+Validação pública complementar em 31/08/2026:
+- a rota `/login` foi inspecionada com Chromium em `360×800`, `390×844`, `768×1024`, `1366×768` e `1920×1080`, sem overflow horizontal e com o rótulo `Ambiente Cfit` integralmente visível; essa validação não substitui o QA autenticado das rotas internas.
+- Relatórios passou a abrir recebimentos e check-ins com as datas inicial e final exatas do período, usar o segmento real `at_risk` na origem da retenção e exportar fórmula e fonte no CSV; a origem do indicador histórico de alunos ativos continua identificada como base ativa atual.
 
 Correção do carregamento dos módulos em 31/08/2026:
 - a remoção anterior do `buildCommand` deixou de executar automaticamente as migrations de produção; as migrations `operations.0011` a `operations.0014` sustentam interações e propostas de leads, segmentos de campanhas e os campos/garantias novos de documentos usados por Comercial e Turmas, Relacionamento, Documentos, Portal e pela sincronização da Central operacional;

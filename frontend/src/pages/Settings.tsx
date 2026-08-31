@@ -81,6 +81,13 @@ const roles = [
   ["TRAINER", "Professor"],
   ["FINANCIAL", "Financeiro"],
 ];
+const emptyInvite = () => ({
+  name: "",
+  email: "",
+  password: "",
+  role: "RECEPTION",
+  active_unit: "",
+});
 const categories = [
   {
     id: "academy",
@@ -140,13 +147,7 @@ export default function Settings() {
     me?.capabilities.includes("*") || me?.capabilities.includes("users.manage"),
   );
   const [savingAcademy, setSavingAcademy] = useState(false);
-  const [invite, setInvite] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "RECEPTION",
-    active_unit: "",
-  });
+  const [invite, setInvite] = useState(emptyInvite);
   const [operational, setOperational] = useState<OperationalSettings | null>(
     null,
   );
@@ -170,10 +171,25 @@ export default function Settings() {
       })
       .catch(() => toast.error("Não foi possível carregar as configurações."));
   }, []);
-  const hasUnsavedChanges = Boolean(
-    (savedAcademySnapshot && JSON.stringify(academies[0] ?? null) !== savedAcademySnapshot) ||
-    (savedOperationalSnapshot && JSON.stringify(operational) !== savedOperationalSnapshot),
+  const hasAcademyChanges = Boolean(
+    savedAcademySnapshot && JSON.stringify(academies[0] ?? null) !== savedAcademySnapshot,
   );
+  const hasOperationalChanges = Boolean(
+    savedOperationalSnapshot && JSON.stringify(operational) !== savedOperationalSnapshot,
+  );
+  const hasInviteDraft = Boolean(
+    invite.name.trim() ||
+    invite.email.trim() ||
+    invite.password ||
+    invite.role !== "RECEPTION" ||
+    invite.active_unit,
+  );
+  const hasUnsavedChanges = hasAcademyChanges || hasOperationalChanges || hasInviteDraft;
+  const unsavedLabels = [
+    hasAcademyChanges ? "dados da academia" : "",
+    hasOperationalChanges ? "regras operacionais" : "",
+    hasInviteDraft ? "convite de usuário" : "",
+  ].filter(Boolean);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (!hasUnsavedChanges) return;
@@ -267,13 +283,7 @@ export default function Settings() {
         ...invite,
         active_unit: invite.active_unit || null,
       });
-      setInvite({
-        name: "",
-        email: "",
-        password: "",
-        role: "RECEPTION",
-        active_unit: "",
-      });
+      setInvite(emptyInvite());
       setMembers((await Api.get<Page<Member>>("/users/members/")).data.results);
       toast.success("Usuário criado e vinculado à academia.");
     } catch {
@@ -357,7 +367,7 @@ export default function Settings() {
       />
       {hasUnsavedChanges && (
         <div role="status" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-          Existem alterações não salvas nesta página.
+          Existem alterações não salvas em: {unsavedLabels.join(", ")}.
         </div>
       )}
       <div className="sticky top-0 z-20 mb-5 bg-[#f4f7fb]/90 py-2 backdrop-blur-md dark:bg-[#07101f]/90">

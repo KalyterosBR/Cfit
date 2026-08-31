@@ -27,6 +27,15 @@ function period() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
+function monthRange(value: string) {
+  const [year, month] = value.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+
+  return {
+    from: `${value}-01`,
+    to: `${value}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
 type ReportData = {
   revenue: string | null;
   checkins: number | null;
@@ -161,7 +170,9 @@ export default function Reports() {
     return () => window.clearTimeout(timer);
   }, [load]);
   const reports = data
-    ? [
+    ? (() => {
+      const range = monthRange(selectedPeriod);
+      return [
         ...(data.revenue !== null ? [{
           question: "Qual é a receita do mês?",
           value: Number(data.revenue).toLocaleString("pt-BR", {
@@ -175,6 +186,8 @@ export default function Reports() {
         formula: "Soma das cobranças pagas pela data de recebimento",
         source: "Financeiro · caixa",
         scope: `Período ${selectedPeriod}`,
+          originPath: `/finance?paid_date_from=${range.from}&paid_date_to=${range.to}`,
+          originLabel: "Abrir recebimentos do período",
           icon: DollarSign,
           color: "text-emerald-600 bg-emerald-50",
         }] : []),
@@ -185,6 +198,8 @@ export default function Reports() {
         formula: "Cadastros ativos na data final do período",
         source: "Alunos",
         scope: `Fechamento de ${selectedPeriod}`,
+          originPath: "/students?status=active",
+          originLabel: "Abrir base ativa atual",
           icon: Users,
           color: "text-blue-600 bg-blue-50",
         }] : []),
@@ -195,6 +210,8 @@ export default function Reports() {
         formula: "Contagem de acessos liberados no período",
         source: "Check-ins",
         scope: `Período ${selectedPeriod}`,
+          originPath: `/checkins?from=${range.from}&to=${range.to}`,
+          originLabel: "Abrir acessos do período",
           icon: Activity,
           color: "text-cyan-700 bg-cyan-50",
         }] : []),
@@ -205,10 +222,13 @@ export default function Reports() {
         formula: "Health Score abaixo de 40; atenção entre 40 e 69",
         source: "Health Score compartilhado",
         scope: "Estado atual da base, independente do período histórico",
+          originPath: "/students?segment=at_risk",
+          originLabel: "Abrir alunos em risco",
           icon: AlertTriangle,
           color: "text-orange-600 bg-orange-50",
         }] : []),
-      ]
+      ];
+    })()
     : [];
   function toggleFavorite(question: string) {
     const next = favorites.includes(question)
@@ -255,8 +275,8 @@ export default function Reports() {
     ] : [];
     const rows = [
       ["Relatório Cfit", `Período ${selectedPeriod}`, management?.scope.unit_name ?? "Escopo da sessão", management?.scope.basis ?? ""],
-      ["Pergunta", "Valor", "Detalhe", "Escopo"],
-      ...reports.map((item) => [item.question, item.value, item.detail, item.scope]),
+      ["Pergunta", "Valor", "Detalhe", "Fórmula", "Fonte", "Escopo"],
+      ...reports.map((item) => [item.question, item.value, item.detail, item.formula, item.source, item.scope]),
       ...managementRows,
       ["Fila de retenção", "Aluno", "Score", "Situação"],
       ...retention.map(item => ["Fila de retenção", item.student_name, item.score, item.status]),
@@ -419,7 +439,7 @@ export default function Reports() {
                   </p>
                   <p className="mt-2 text-sm text-slate-500">{item.detail}</p>
                   <details className="mt-4 text-xs text-slate-500"><summary className="cursor-pointer font-bold text-blue-600">Como é calculado</summary><p className="mt-2">Fórmula: {item.formula}</p><p>Fonte: {item.source}</p><p>Escopo: {item.scope}</p></details>
-                  <Link to={item.source.startsWith("Financeiro") ? `/finance?period=${selectedPeriod}` : item.source === "Alunos" ? "/students?status=active" : item.source === "Check-ins" ? `/checkins?period=${selectedPeriod}` : "/students?health=risk"} className="mt-4 inline-flex text-xs font-bold text-blue-600">Abrir dados de origem →</Link>
+                  <Link to={item.originPath} className="mt-4 inline-flex text-xs font-bold text-blue-600">{item.originLabel} →</Link>
                 </article>
               ))}
           </div>
