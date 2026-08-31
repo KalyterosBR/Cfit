@@ -503,6 +503,7 @@ class LeadProposalViewSet(viewsets.ModelViewSet):
         lead = self.request.query_params.get("lead")
         return queryset.filter(lead_id=lead) if lead else queryset
 
+    @transaction.atomic
     def perform_create(self, serializer):
         lead = serializer.validated_data["lead"]
         academy, unit = get_request_scope(self.request.user)
@@ -511,8 +512,12 @@ class LeadProposalViewSet(viewsets.ModelViewSet):
         if not allowed.exists():
             from rest_framework.exceptions import ValidationError
             raise ValidationError({"lead": "O lead não pertence ao contexto da sessão."})
+        previous_stage = lead.stage
         proposal = serializer.save(created_by=self.request.user)
-        AdministrativeAudit.objects.create(academy=lead.academy, actor=self.request.user, action="lead.proposal_created", entity_type="lead_proposal", entity_id=str(proposal.pk), new_state={"lead": str(lead.pk), "amount": str(proposal.amount), "status": proposal.status})
+        if proposal.status == "presented" and lead.stage in {"new", "contacted", "visit"}:
+            lead.stage = "proposal"
+            lead.save(update_fields=["stage", "updated_at"])
+        AdministrativeAudit.objects.create(academy=lead.academy, actor=self.request.user, action="lead.proposal_created", entity_type="lead_proposal", entity_id=str(proposal.pk), new_state={"lead": str(lead.pk), "amount": str(proposal.amount), "status": proposal.status, "previous_stage": previous_stage, "current_stage": lead.stage})
 
 
 class CampaignSegmentViewSet(viewsets.ModelViewSet):

@@ -130,6 +130,7 @@ class OperationsApiTests(APITestCase):
         self.assertEqual(interaction.status_code, status.HTTP_201_CREATED)
         self.assertEqual(proposal.status_code, status.HTTP_201_CREATED)
         detail = self.client.get(reverse("lead-detail", args=[lead.id]))
+        self.assertEqual(detail.data["stage"], "proposal")
         self.assertEqual(detail.data["interactions"][0]["notes"], "Contato realizado por telefone.")
         self.assertEqual(detail.data["proposals"][0]["title"], "Plano anual")
         self.assertTrue(AdministrativeAudit.objects.filter(action="lead.interaction_created", entity_id=str(interaction.data["id"])).exists())

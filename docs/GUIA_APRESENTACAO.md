@@ -6,8 +6,10 @@ O Cfit é uma plataforma web de gestão para academias que centraliza alunos, pl
 
 ## 2. Como apresentar o nome e a proposta
 
-**Nome do projeto:** Cfit  
-**Posicionamento:** tecnologia, performance e gestão premium.  
+**Nome do projeto:** Cfit
+
+**Posicionamento:** tecnologia, performance e gestão premium.
+
 **Ideia central:** o Cfit acompanha a performance da academia, não apenas seus registros administrativos.
 
 Uma forma simples de explicar:
@@ -479,4 +481,3 @@ Procure conseguir explicar com suas próprias palavras:
 ## 17. Encerramento sugerido
 
 > O Cfit demonstra como uma aplicação moderna pode conectar gestão administrativa, experiência do aluno e operação diária. A base atual já cobre os principais domínios de uma academia e foi construída para evoluir de forma gradual, segura e auditável, sem perder clareza para quem utiliza o sistema.
-
