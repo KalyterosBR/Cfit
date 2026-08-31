@@ -3116,6 +3116,11 @@ Validação pública complementar em 31/08/2026:
 - a rota `/login` foi inspecionada com Chromium em `360×800`, `390×844`, `768×1024`, `1366×768` e `1920×1080`, sem overflow horizontal e com o rótulo `Ambiente Cfit` integralmente visível; essa validação não substitui o QA autenticado das rotas internas.
 - Relatórios passou a abrir recebimentos e check-ins com as datas inicial e final exatas do período, usar o segmento real `at_risk` na origem da retenção e exportar fórmula e fonte no CSV; a origem do indicador histórico de alunos ativos continua identificada como base ativa atual.
 
+Limpeza conservadora em 31/08/2026:
+- capturas temporárias da pasta `foto pra tu olhar`, metadado `Zone.Identifier`, logos PNG já substituídos por WebP, a página sem rota `ComingSoon` e tokens TypeScript sem importação foram removidos após busca de referências e build de produção;
+- caches Python regeneráveis foram apagados; migrations, testes, documentação, fontes de favicon e `backups/product-screens-original` foram preservados;
+- `frontend/src/services/api.ts` foi mantido porque a validação confirmou seu uso indireto pela camada HTTP.
+
 Correção do carregamento dos módulos em 31/08/2026:
 - a remoção anterior do `buildCommand` deixou de executar automaticamente as migrations de produção; as migrations `operations.0011` a `operations.0014` sustentam interações e propostas de leads, segmentos de campanhas e os campos/garantias novos de documentos usados por Comercial e Turmas, Relacionamento, Documentos, Portal e pela sincronização da Central operacional;
 - `vercel.json` voltou a executar `scripts/vercel-build.sh`, conforme suporte oficial da configuração estática da Vercel, para aplicar migrations antes da nova versão entrar em operação;
