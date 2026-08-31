@@ -2843,15 +2843,16 @@ Uma fase ampla pode permanecer `[~]` mesmo quando algumas fatias internas estão
 #### Fase 8 — Configurações, usuários e governança
 
 - [~] Seções pesquisáveis, membros, capacidades, sessões, auditoria e preferências existem.
-- [ ] Dividir a página longa em rotas ou seções independentes sem duplicar módulos operacionais.
-- [~] Busca aceita foco pelo atalho `/`; salvamentos são por seção e ações sensíveis exigem confirmação, mas aviso global de alterações sujas permanece pendente.
+- [~] A rota `/settings/:section` separa a apresentação das seções sem duplicar os módulos, mas a implementação ainda compartilha a página principal e não constitui uma divisão completa em páginas independentes.
+- [~] Busca aceita foco pelo atalho `/`; salvamentos são por seção e ações sensíveis exigem confirmação. Alterações de academia e regras operacionais possuem aviso visual e proteção ao sair da página, mas a proteção ainda não cobre todos os formulários da área.
 - [~] Membros e auditoria possuem filtros server-side; acesso simultâneo a várias unidades ainda exige decisão de escopo.
 - [x] Homologação interativa concluída com contas reais dos seis perfis: Proprietário, Administrador, Gerente, Recepção, Professor e Financeiro; confirmação registrada pelo usuário em 28/08/2026.
 
 #### Fase 9 — Gestão e comparação entre unidades
 
 - [~] Cadastro, unidade ativa, isolamento de APIs novas e comparação inicial existem.
-- [~] Cartões possuem período, ranking, alertas e comparação com o mês anterior; tabela consolidada e filtros avançados permanecem como refinamento.
+- [~] Cartões e tabela consolidada possuem período, ranking, alertas, receita por aluno, variações contra o mês anterior, ordenação, densidade e persistência dos controles na URL; filtros adicionais e particionamento histórico permanecem como refinamento.
+- [x] O diagnóstico somente leitura `/api/academies/units/unit-coverage/` explicita registros sem unidade por domínio e exige revisão manual, sem atribuição automática.
 - [ ] Particionar e migrar incrementalmente os domínios históricos antes de declarar consolidado confiável.
 - [!] Dados históricos ambíguos exigem regra de migração aprovada; não inferir unidade silenciosamente.
 
@@ -3070,12 +3071,52 @@ Próxima entrega recomendada: continuar a Fase 3 pelos refinamentos de Treinos q
 - frontend lê a API de `VITE_API_URL`, mantendo `localhost` somente como fallback de desenvolvimento;
 - backend aceita `DATABASE_URL` Neon pooled com SSL, mantém as variáveis PostgreSQL separadas para Docker local e desativa conexões persistentes na Vercel;
 - o script `scripts/vercel-build.sh` permanece preparado para executar migrations em produção, preferindo `DATABASE_URL_UNPOOLED`, criar o superusuário inicial de forma idempotente e coletar estáticos;
-- após o commit `d5610f2`, o `vercel.json` da raiz não declara mais `buildCommand`; portanto, esse script não é chamado explicitamente pela configuração versionada e migrations, bootstrap e `collectstatic` não devem ser considerados automáticos até que o comando seja configurado no projeto da Vercel ou executado por um fluxo operacional equivalente;
+- após a correção de 31/08/2026, o `vercel.json` da raiz voltou a declarar `buildCommand: "bash scripts/vercel-build.sh"`; em deploy de produção, migrations, bootstrap idempotente e `collectstatic` voltam a ser executados explicitamente pelo script versionado;
 - o comando idempotente `bootstrap_superuser` cria o primeiro administrador somente quando as duas variáveis `DJANGO_BOOTSTRAP_SUPERUSER_*` estiverem presentes; nunca atualiza a senha de uma conta existente e não imprime a senha;
 - hosts, CORS e CSRF são configurados por ambiente; HTTPS, cookies seguros, HSTS e proteção de conteúdo ficam ativos quando `DEBUG=False`;
 - deploy Vercel falha explicitamente sem `DJANGO_SECRET_KEY` ou `DATABASE_URL`;
 - arquivos enviados usam `/tmp` na Vercel apenas para compatibilidade transitória e não possuem persistência durável; antes de liberar logos, fotos ou documentos em produção é obrigatório integrar armazenamento de objetos privado. Não tratar Vercel Functions como armazenamento de mídia;
 - nenhum segredo foi adicionado ao repositório; `.env`, ambientes Vercel e artefatos locais permanecem ignorados.
+
+---
+
+## 48.13 Estado confirmado após as alterações de 28/08/2026 — auditado em 31/08/2026
+
+O commit `4d07282` foi enviado para `origin/main` e o workspace foi encontrado limpo e sincronizado na auditoria de retomada. A mensagem do commit o identificou como visualmente incompleto; não havia arquivos locais perdidos, mudanças em staging ou arquivos não rastreados.
+
+Alterações confirmadas no código:
+- Agenda recebeu refinamento amplo das visões Dia, Semana e Mês e passou a reutilizar o novo `DatePicker` nos fluxos de data;
+- Central operacional recebeu organização visual e preserva leitura para `operations.view`, restringindo atribuição, prioridade, início e resolução a `operations.manage`;
+- Check-ins concentra uma gestão de equipamentos mais detalhada, incluindo estados, diagnóstico, histórico e comandos já sustentados pelas APIs existentes;
+- relatórios respeitam capacidades por domínio antes de carregar dados financeiros, de alunos, check-ins e retenção;
+- resumo operacional do aluno omite dados de matrícula, financeiro, check-ins e treinos quando a sessão não possui a capacidade correspondente;
+- notificações operacionais consultam e apresentam somente fontes autorizadas para a sessão;
+- Configurações aceita `/settings/:section`, normaliza contato e possui proteção parcial contra saída com alterações não salvas;
+- Unidades apresenta comparação consolidada configurável e diagnóstico explícito dos registros históricos ainda sem unidade;
+- cadastro de aluno valida CPF, normaliza e-mail e mantém máscaras compartilhadas;
+- logos internos passaram a usar os assets WebP adicionados ao repositório.
+
+Correção de retomada em 31/08/2026:
+- duas classes Tailwind concatenadas em `frontend/src/pages/Operations.tsx` foram separadas, restaurando o `padding` do rodapé da lista e do bloco de detalhes da pendência, além das classes semânticas de borda e superfície associadas.
+
+Validações confirmadas em 31/08/2026:
+- `npm run lint`: aprovado sem erros, com três avisos de dependências de hooks;
+- `npm run build`: TypeScript e build Vite de produção aprovados;
+- `git diff --check`: aprovado;
+- a execução local de `npm run test` iniciou quatro arquivos: dois passaram e dois não foram carregados porque o Node `22.22.1` disponível foi compilado sem suporte a TypeScript para `--experimental-strip-types`; não registrar essa limitação do ambiente como regressão funcional;
+- validações Django não foram repetidas porque o comando `docker` não estava disponível na distribuição WSL durante a retomada.
+
+Pendências reais preservadas:
+- executar QA visual autenticado nos temas claro e noturno e nos breakpoints definidos quando houver navegador e sessões disponíveis;
+- repetir a suíte Django e os testes frontend em ambiente Docker/Node compatível;
+- estender a proteção contra alterações não salvas aos formulários de Configurações ainda não cobertos;
+- concluir o particionamento histórico por unidade somente com política explícita de migração; o diagnóstico atual não atribui dados ambiguamente.
+
+Correção do carregamento dos módulos em 31/08/2026:
+- a remoção anterior do `buildCommand` deixou de executar automaticamente as migrations de produção; as migrations `operations.0011` a `operations.0014` sustentam interações e propostas de leads, segmentos de campanhas e os campos/garantias novos de documentos usados por Comercial e Turmas, Relacionamento, Documentos, Portal e pela sincronização da Central operacional;
+- `vercel.json` voltou a executar `scripts/vercel-build.sh`, conforme suporte oficial da configuração estática da Vercel, para aplicar migrations antes da nova versão entrar em operação;
+- a política do frontend passou a tratar `portal.view` como capacidade exclusiva: o curinga administrativo `*` não libera mais `/portal`, mantendo a rota coerente com a API `/api/users/portal/me/`, que aceita somente contas de aluno;
+- a correção versionada exige um novo deploy do backend para aplicar as migrations ao banco publicado; até esse deploy, o banco remoto pode continuar sem as tabelas e colunas necessárias.
 
 ---
 

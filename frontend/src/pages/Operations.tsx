@@ -277,7 +277,7 @@ export default function Operations() {
               ))}
             </div>
           )}
-          <div className="flex items-center justify-between border-t border-[var(--cfit-border)]p-4 text-sm">
+          <div className="flex items-center justify-between border-t border-[var(--cfit-border)] p-4 text-sm">
             <span>{data.count} pendência(s)</span>
             <div className="flex gap-2">
               <button
@@ -304,7 +304,7 @@ export default function Operations() {
         >
           {selected && (
             <div className="space-y-5">
-              <div className="rounded-xl bg-[var(--cfit-surface-subtle)]p-4">
+              <div className="rounded-xl bg-[var(--cfit-surface-subtle)] p-4">
                 <p>{selected.detail || "Sem detalhe adicional."}</p>
                 <p className="mt-3 flex gap-2 text-sm">
                   <ArrowRight size={16} />

@@ -18,6 +18,7 @@ test("portal do aluno não concede acesso administrativo", () => {
     assert.equal(hasAccess(capabilities, routeAccess["/portal"]), true);
     assert.equal(hasAccess(capabilities, routeAccess["/students"]), false);
     assert.equal(hasAccess(capabilities, routeAccess["/finance"]), false);
+    assert.equal(hasAccess(["*"], routeAccess["/portal"]), false);
 });
 test("documentos e crescimento respeitam capacidades operacionais", () => {
     assert.equal(hasAccess(["students.manage"], routeAccess["/documents"]), true);

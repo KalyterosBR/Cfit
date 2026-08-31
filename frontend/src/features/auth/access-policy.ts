@@ -19,7 +19,10 @@ export const routeAccess: Record<string, AccessRequirement> = {
 };
 
 export function hasAccess(capabilities: string[], requirement?: AccessRequirement) {
-    if (!requirement || capabilities.includes("*")) return true;
+    if (!requirement) return true;
+    const requiresStudentPortal = requirement.anyOf?.includes("portal.view") || requirement.allOf?.includes("portal.view");
+    if (requiresStudentPortal) return capabilities.includes("portal.view");
+    if (capabilities.includes("*")) return true;
     return (!requirement.anyOf?.length || requirement.anyOf.some(item => capabilities.includes(item)))
         && (!requirement.allOf?.length || requirement.allOf.every(item => capabilities.includes(item)));
 }
