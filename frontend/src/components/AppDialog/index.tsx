@@ -9,10 +9,7 @@ import {
     type FormEvent,
     type ReactNode,
 } from "react";
-import { AlertTriangle } from "lucide-react";
-
-import Button from "../Button";
-import Modal from "../Modal";
+import { AlertTriangle, CircleHelp, X } from "lucide-react";
 
 type InputType = "text" | "email" | "password" | "date" | "datetime-local" | "tel";
 
@@ -90,61 +87,94 @@ export function AppDialogProvider({ children }: { children: ReactNode }) {
         <AppDialogContext.Provider value={contextValue}>
             {children}
 
-            <Modal
-                open={Boolean(request)}
-                title={request?.title ?? "Confirmação"}
-                onClose={() => close(request?.kind === "confirm" ? false : null)}
-                maxWidth="md"
-            >
-                {request && (
-                    <form onSubmit={submit} className="space-y-6">
-                        <div className="flex gap-3">
-                            <span
-                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                                    request.tone === "danger"
-                                        ? "bg-red-50 text-red-600"
-                                        : "bg-blue-50 text-blue-600"
-                                }`}
+            {request && (
+                <div className="cfit-modal-overlay fixed inset-0 z-[70] flex items-center justify-center bg-[var(--cfit-overlay)] p-3 backdrop-blur-md sm:p-6">
+                    <section
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="cfit-action-dialog-title"
+                        data-tone={request.tone ?? "default"}
+                        className="cfit-action-dialog cfit-floating-panel relative flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-[1.65rem] border sm:max-h-[90vh]"
+                    >
+                        <div className="cfit-action-dialog-accent absolute inset-x-0 top-0 h-[3px]" />
+
+                        <header className="cfit-action-dialog-header flex items-start justify-between gap-4 border-b px-5 pb-5 pt-6 sm:px-7 sm:pb-6 sm:pt-7">
+                            <div className="flex min-w-0 items-start gap-4">
+                                <span className="cfit-action-dialog-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.9rem] border">
+                                    {request.tone === "danger" ? <AlertTriangle size={21} /> : <CircleHelp size={21} />}
+                                </span>
+
+                                <div className="min-w-0">
+                                    <p className="cfit-action-dialog-eyebrow text-[9px] font-black uppercase tracking-[0.22em]">
+                                        Confirmação segura
+                                    </p>
+                                    <h2 id="cfit-action-dialog-title" className="mt-1.5 break-words text-xl font-black tracking-[-0.025em] sm:text-2xl">
+                                        {request.title}
+                                    </h2>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => close(request.kind === "confirm" ? false : null)}
+                                className="cfit-action-dialog-close flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition"
+                                aria-label="Fechar diálogo"
+                                title="Fechar"
                             >
-                                <AlertTriangle size={19} />
-                            </span>
-                            <p className="pt-1 text-sm leading-6 text-[var(--cfit-text-secondary)]">
-                                {request.description}
-                            </p>
-                        </div>
+                                <X size={18} />
+                            </button>
+                        </header>
 
-                        {promptRequest && (
-                            <label className="block text-sm font-bold text-[var(--cfit-text-primary)]">
-                                {promptRequest.label}
-                                <input
-                                    ref={inputRef}
-                                    type={promptRequest.inputType ?? "text"}
-                                    value={value}
-                                    minLength={promptRequest.minLength}
-                                    required={promptRequest.required}
-                                    placeholder={promptRequest.placeholder}
-                                    onChange={(event) => setValue(event.target.value)}
-                                    className="mt-2 h-11 w-full rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3 text-sm text-[var(--cfit-text-primary)] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
-                                />
-                                {promptRequest.minLength && value.length > 0 && value.length < promptRequest.minLength && (
-                                    <span className="mt-2 block text-xs font-semibold text-red-600">
-                                        Informe ao menos {promptRequest.minLength} caracteres.
-                                    </span>
-                                )}
-                            </label>
-                        )}
+                        <form onSubmit={submit} className="min-h-0 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6">
+                            {request.description && (
+                                <div className="cfit-action-dialog-message rounded-2xl border px-4 py-3.5">
+                                    <p className="text-sm font-medium leading-6">
+                                        {request.description}
+                                    </p>
+                                </div>
+                            )}
 
-                        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                            <Button type="button" variant="secondary" onClick={() => close(request.kind === "confirm" ? false : null)}>
-                                {request.cancelLabel ?? "Cancelar"}
-                            </Button>
-                            <Button type="submit" disabled={!valueIsValid}>
-                                {request.confirmLabel ?? "Confirmar"}
-                            </Button>
-                        </div>
-                    </form>
-                )}
-            </Modal>
+                            {promptRequest && (
+                                <label className="mt-5 block text-sm font-extrabold">
+                                    {promptRequest.label}
+                                    <input
+                                        ref={inputRef}
+                                        type={promptRequest.inputType ?? "text"}
+                                        value={value}
+                                        minLength={promptRequest.minLength}
+                                        required={promptRequest.required}
+                                        placeholder={promptRequest.placeholder}
+                                        onChange={(event) => setValue(event.target.value)}
+                                        className="cfit-action-dialog-input mt-2.5 h-12 w-full rounded-xl border px-3.5 text-sm font-medium outline-none transition"
+                                    />
+                                    {promptRequest.minLength && value.length > 0 && value.length < promptRequest.minLength && (
+                                        <span className="mt-2 block text-xs font-bold text-[var(--cfit-danger)]">
+                                            Informe ao menos {promptRequest.minLength} caracteres.
+                                        </span>
+                                    )}
+                                </label>
+                            )}
+
+                            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                                <button
+                                    type="button"
+                                    onClick={() => close(request.kind === "confirm" ? false : null)}
+                                    className="cfit-action-dialog-cancel order-2 flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-extrabold transition sm:order-1"
+                                >
+                                    {request.cancelLabel ?? "Cancelar"}
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!valueIsValid}
+                                    className="cfit-action-dialog-confirm order-1 flex min-h-11 items-center justify-center rounded-xl border px-4 text-sm font-extrabold transition disabled:cursor-not-allowed disabled:opacity-50 sm:order-2"
+                                >
+                                    {request.confirmLabel ?? "Confirmar"}
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            )}
         </AppDialogContext.Provider>
     );
 }
