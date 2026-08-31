@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Api } from "@/services/http";
+import { useAppDialog } from "@/components/AppDialog";
 
 import {
     getFinancialInconsistencies,
@@ -52,6 +53,7 @@ function priorityDetails(priority: FinancialInconsistencyPriority) {
 
 
 export default function FinancialInconsistenciesSection({ canManage }: { canManage: boolean }) {
+    const dialog = useAppDialog();
     const navigate = useNavigate();
     const [issues, setIssues] = useState<FinancialInconsistency[]>([]);
     const [summary, setSummary] = useState(emptySummary);
@@ -64,7 +66,12 @@ export default function FinancialInconsistenciesSection({ canManage }: { canMana
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     async function updateWorkflow(issue: FinancialInconsistency, status: "in_progress" | "resolved") {
-        const comment = window.prompt(status === "resolved" ? "Descreva a resolução:" : "Adicione um comentário para assumir a tratativa:");
+        const comment = await dialog.prompt({
+            title: status === "resolved" ? "Resolver inconsistência" : "Assumir tratativa",
+            description: status === "resolved" ? "Descreva como a inconsistência foi resolvida." : "Registre um comentário para contextualizar o início da tratativa.",
+            label: status === "resolved" ? "Resolução" : "Comentário",
+            confirmLabel: status === "resolved" ? "Marcar como resolvida" : "Assumir",
+        });
         if (!comment) return;
         await Api.post("/financial/charges/inconsistency-workflow/", { issue_key: issue.id, entity_type: issue.entity_type, entity_id: issue.entity_id, status, resolution: status === "resolved" ? comment : "", comment });
         await load();

@@ -7,6 +7,7 @@ import { phoneMask } from "@/utils/masks";
 import { useSearchParams } from "react-router-dom";
 
 import PageHeader from "@/components/PageHeader";
+import { useAppDialog } from "@/components/AppDialog";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Api } from "@/services/http";
 
@@ -47,6 +48,7 @@ function Variation({ value }: { value: number | null }) {
 }
 
 export default function Units() {
+  const dialog = useAppDialog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [units, setUnits] = useState<Unit[]>([]);
   const [active, setActive] = useState<string | null>(null);
@@ -154,9 +156,12 @@ export default function Units() {
       return;
     }
     if (
-      !window.confirm(
-        `${unit.active ? "Inativar" : "Reativar"} a unidade ${unit.name}?`,
-      )
+      !await dialog.confirm({
+        title: `${unit.active ? "Inativar" : "Reativar"} unidade`,
+        description: `${unit.active ? "Inativar" : "Reativar"} a unidade ${unit.name}?`,
+        confirmLabel: unit.active ? "Inativar unidade" : "Reativar unidade",
+        tone: unit.active ? "danger" : "default",
+      })
     )
       return;
     try {

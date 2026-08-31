@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import Button from "../../../components/Button";
+import { useAppDialog } from "@/components/AppDialog";
 
 import {
     cancelEnrollment,
@@ -43,6 +44,7 @@ export default function ManageEnrollmentModal({
     onClose,
     onSuccess,
 }: ManageEnrollmentModalProps) {
+    const dialog = useAppDialog();
     const [loadingAction, setLoadingAction] =
         useState<EnrollmentAction>(null);
 
@@ -119,7 +121,8 @@ export default function ManageEnrollmentModal({
             switch (action) {
                 case "freeze":
                     {
-                    const frozenUntil = window.prompt("Até qual data a matrícula ficará trancada? (AAAA-MM-DD)", "");
+                    const frozenUntil = await dialog.prompt({ title: "Trancar matrícula", description: "Informe até quando a matrícula ficará trancada. A data é opcional.", label: "Trancada até", inputType: "date", required: false, confirmLabel: "Trancar matrícula" });
+                    if (frozenUntil === null) return;
                     await freezeEnrollment(
                         enrollment.id,
                         frozenUntil || undefined,
@@ -141,7 +144,7 @@ export default function ManageEnrollmentModal({
                     break;
 
                 case "renew": {
-                    const dueDate = window.prompt("Novo vencimento da matrícula (AAAA-MM-DD):");
+                    const dueDate = await dialog.prompt({ title: "Renovar matrícula", description: `Defina o novo vencimento da matrícula do plano ${enrollment.plan_name}.`, label: "Novo vencimento", inputType: "date", confirmLabel: "Renovar matrícula" });
                     if (!dueDate) return;
                     await renewEnrollment(enrollment.id, dueDate);
                     break;

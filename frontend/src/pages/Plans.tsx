@@ -22,6 +22,7 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import Modal from "../components/Modal";
 import PageHeader from "../components/PageHeader";
+import { useAppDialog } from "@/components/AppDialog";
 
 import { Toast } from "../services/toast";
 import { getRequestErrorKind } from "../services/http/request-error";
@@ -63,6 +64,7 @@ const initialForm: SavePlanPayload = {
 
 
 export default function Plans() {
+    const dialog = useAppDialog();
     const session = useSession();
     const canManage = hasCapability(session.capabilities, "plans.manage");
     const [searchParams, setSearchParams] = useSearchParams();
@@ -331,9 +333,11 @@ export default function Plans() {
                 || editingPlan.contract_text !== payload.contract_text
             )
         ) {
-            const confirmed = window.confirm(
-                `Este plano possui ${editingPlan.active_students_count} ${editingPlan.active_students_count === 1 ? "aluno ativo" : "alunos ativos"}. As matrículas existentes preservam os valores já contratados, mas as novas condições serão usadas nas próximas matrículas. Deseja continuar?`,
-            );
+            const confirmed = await dialog.confirm({
+                title: "Atualizar plano com alunos ativos",
+                description: `Este plano possui ${editingPlan.active_students_count} ${editingPlan.active_students_count === 1 ? "aluno ativo" : "alunos ativos"}. As matrículas existentes preservam os valores já contratados, mas as novas condições serão usadas nas próximas matrículas.`,
+                confirmLabel: "Atualizar plano",
+            });
 
             if (!confirmed) {
                 return;
@@ -372,9 +376,12 @@ export default function Plans() {
             ? "inativar"
             : "reativar";
 
-        const confirmed = window.confirm(
-            `Deseja realmente ${action} o plano "${plan.name}"?`,
-        );
+        const confirmed = await dialog.confirm({
+            title: `${plan.active ? "Inativar" : "Reativar"} plano`,
+            description: `Deseja realmente ${action} o plano “${plan.name}”?`,
+            confirmLabel: plan.active ? "Inativar plano" : "Reativar plano",
+            tone: plan.active ? "danger" : "default",
+        });
 
         if (!confirmed) {
             return;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Copy, Pause, Play, Search, Zap } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAppDialog } from "@/components/AppDialog";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/AsyncState";
 import PageHeader from "@/components/PageHeader";
 import PaginationFooter from "@/components/PaginationFooter";
@@ -43,6 +44,7 @@ const events = [
 ];
 
 export default function Automations() {
+  const dialog = useAppDialog();
   const [rules, setRules] = useState<Rule[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [form, setForm] = useState({
@@ -127,7 +129,7 @@ export default function Automations() {
   async function updateExecution(item: Execution, operationalStatus: string) {
     const notes =
       operationalStatus === "completed"
-        ? window.prompt("Como esta ocorrência foi resolvida?")
+        ? await dialog.prompt({ title: "Resolver ocorrência", description: "Explique a solução aplicada para manter o histórico operacional compreensível.", label: "Resolução", confirmLabel: "Concluir ocorrência" })
         : "";
     if (operationalStatus === "completed" && !notes) return;
     await Api.post(`/automations/rules/${item.rule}/resolve-execution/`, {

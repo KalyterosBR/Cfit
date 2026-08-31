@@ -3,6 +3,7 @@ import { Archive, Download, Plus, RefreshCw, Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/AsyncState";
 import Modal from "@/components/Modal";
+import { useAppDialog } from "@/components/AppDialog";
 import PaginationFooter from "@/components/PaginationFooter";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import PageHeader from "@/components/PageHeader";
@@ -15,6 +16,7 @@ const field="h-11 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-s
 const unwrap=<T,>(data:T[]|Page<T>)=>Array.isArray(data)?data:data.results;
 
 export default function Documents(){
+  const dialog=useAppDialog();
   const [students,setStudents]=useState<Student[]>([]);
   const [data,setData]=useState<Page<Document>>({count:0,next:null,previous:null,results:[]});
   const [selected,setSelected]=useState(""),[search,setSearch]=useState(""),[status,setStatus]=useState(""),[type,setType]=useState(""),[page,setPage]=useState(1);
@@ -38,15 +40,16 @@ export default function Documents(){
   }
   async function createPortal(){
     const student=students.find(item=>item.id===selected);if(!student)return;
-    const email=prompt("E-mail de acesso:",student.email||"");const password=prompt("Senha inicial com ao menos 8 caracteres:");if(!email||!password)return;
+    const email=await dialog.prompt({title:"Criar acesso ao portal",description:`Defina o e-mail usado por ${student.name} para entrar no portal.`,label:"E-mail de acesso",inputType:"email",initialValue:student.email||"",confirmLabel:"Continuar"});if(!email)return;
+    const password=await dialog.prompt({title:"Senha inicial do portal",description:"A senha será usada somente no primeiro acesso e deve ter ao menos 8 caracteres.",label:"Senha inicial",inputType:"password",minLength:8,confirmLabel:"Criar acesso"});if(!password)return;
     await Api.post(`/users/portal/students/${student.id}/access/`,{email,password});toast.success("Acesso do portal criado.");
   }
   async function renew(item:Document){
-    const expires_at=prompt("Nova validade (AAAA-MM-DD), ou deixe vazio:",item.expires_at||"");
+    const expires_at=await dialog.prompt({title:"Criar nova versão",description:`Informe a nova validade de “${item.title}”. O aceite da versão anterior será preservado.`,label:"Nova validade",inputType:"date",initialValue:item.expires_at||"",required:false,confirmLabel:"Criar versão"});if(expires_at===null)return;
     await Api.post(`/operations/documents/${item.id}/renew/`,{expires_at:expires_at||null});toast.success("Nova versão criada sem alterar o aceite anterior.");await load();
   }
   async function archive(item:Document){
-    const reason=prompt("Motivo do arquivamento:");if(!reason)return;
+    const reason=await dialog.prompt({title:"Arquivar documento",description:`“${item.title}” deixará de aparecer entre os documentos ativos. O histórico será preservado.`,label:"Motivo do arquivamento",tone:"danger",confirmLabel:"Arquivar"});if(!reason)return;
     await Api.post(`/operations/documents/${item.id}/archive/`,{reason});toast.success("Documento arquivado.");await load();
   }
   async function download(item:Document){

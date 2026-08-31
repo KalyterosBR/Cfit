@@ -18,6 +18,7 @@ import {
 import toast from "react-hot-toast";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/AsyncState";
 import Modal from "@/components/Modal";
+import { useAppDialog } from "@/components/AppDialog";
 import PageHeader from "@/components/PageHeader";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Api } from "@/services/http";
@@ -103,6 +104,7 @@ function localInput(value: string) {
 }
 
 export default function Schedule() {
+  const dialog = useAppDialog();
   const session = useSession();
   const canManage = hasCapability(session.capabilities, "schedule.manage");
   const [events, setEvents] = useState<ScheduleEvent[]>([]),
@@ -224,7 +226,7 @@ export default function Schedule() {
   }
   async function cancelEvent() {
     if (!selected) return;
-    const reason = window.prompt("Motivo do cancelamento:");
+    const reason = await dialog.prompt({ title: "Cancelar evento", description: `O evento “${selected.title}” será cancelado e permanecerá no histórico.`, label: "Motivo do cancelamento", tone: "danger", confirmLabel: "Cancelar evento" });
     if (!reason) return;
     await Api.post(`/schedule/events/${selected.id}/cancel/`, { reason });
     toast.success("Evento cancelado.");

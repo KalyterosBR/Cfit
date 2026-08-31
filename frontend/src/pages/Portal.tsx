@@ -3,6 +3,7 @@ import { CalendarDays, ClipboardCheck, CreditCard, Dumbbell, FileText, Footprint
 import toast from "react-hot-toast";
 
 import { ErrorState, ModuleSkeleton } from "@/components/AsyncState";
+import { useAppDialog } from "@/components/AppDialog";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import { clearTokens } from "@/features/auth/services/token.service";
 import { Api } from "@/services/http";
@@ -21,6 +22,7 @@ type PortalData = {
 const formatDate = (value: string) => new Date(value).toLocaleString("pt-BR");
 
 export default function Portal() {
+  const dialog = useAppDialog();
   const [data, setData] = useState<PortalData | null>(null);
   const [error, setError] = useState(false);
   const [operating, setOperating] = useState("");
@@ -38,7 +40,7 @@ export default function Portal() {
     finally { setOperating(""); }
   }
   async function updatePhone() {
-    const phone = window.prompt("Novo telefone:", data?.student.phone || "");
+    const phone = await dialog.prompt({ title: "Atualizar telefone", description: "Informe o número que deseja manter no seu cadastro.", label: "Telefone", inputType: "tel", initialValue: data?.student.phone || "", required: false, confirmLabel: "Salvar telefone" });
     if (phone === null) return;
     await Api.patch("/users/portal/me/", { phone });
     toast.success("Telefone atualizado.");

@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { normalizeEmail, phoneMask } from "@/utils/masks";
 import { Link, useParams } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
+import { useAppDialog } from "@/components/AppDialog";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Api } from "@/services/http";
 
@@ -116,6 +117,7 @@ const categories = [
 ];
 
 export default function Settings() {
+  const dialog = useAppDialog();
   const { section } = useParams<{ section?: string }>();
   const [search, setSearch] = useState("");
   const searchRef=useRef<HTMLInputElement>(null);
@@ -174,11 +176,19 @@ export default function Settings() {
       if (!hasUnsavedChanges || event.defaultPrevented) return;
       const link = (event.target as HTMLElement).closest("a[href]") as HTMLAnchorElement | null;
       if (!link || link.target === "_blank" || link.href === window.location.href) return;
-      if (!window.confirm("Existem alterações não salvas. Deseja sair mesmo assim?")) event.preventDefault();
+      event.preventDefault();
+      void dialog.confirm({
+        title: "Descartar alterações?",
+        description: "Existem alterações não salvas nesta página. Se você sair agora, elas serão perdidas.",
+        confirmLabel: "Sair sem salvar",
+        tone: "danger",
+      }).then((confirmed) => {
+        if (confirmed) window.location.assign(link.href);
+      });
     };
     document.addEventListener("click", guardLinks, true);
     return () => document.removeEventListener("click", guardLinks, true);
-  }, [hasUnsavedChanges]);
+  }, [dialog, hasUnsavedChanges]);
   useEffect(() => {
     if (!section) return;
     const timer = window.setTimeout(() => document.getElementById(section)?.scrollIntoView({ block: "start" }), 0);
@@ -279,7 +289,7 @@ export default function Settings() {
   }
   async function toggleTwoFactor() {
     if (!me) return;
-    const password = prompt("Confirme sua senha atual:");
+    const password = await dialog.prompt({ title: me.two_factor_enabled ? "Desativar verificação em duas etapas" : "Ativar verificação em duas etapas", description: "Confirme sua identidade para alterar esta proteção de segurança.", label: "Senha atual", inputType: "password", confirmLabel: "Confirmar alteração" });
     if (!password) return;
     try {
       const response = await Api.post("/users/me/two-factor/", {
@@ -297,11 +307,7 @@ export default function Settings() {
     }
   }
   async function revokeSession(id: string) {
-    if (
-      !confirm(
-        "Encerrar esta sessão? Será necessário entrar novamente nesse dispositivo.",
-      )
-    )
+    if (!await dialog.confirm({ title: "Encerrar sessão", description: "Será necessário entrar novamente nesse dispositivo. Esta ação ficará registrada na auditoria.", confirmLabel: "Encerrar sessão", tone: "danger" }))
       return;
     await Api.delete("/users/me/sessions/", { data: { session: id } });
     setSessions((current) =>
@@ -314,13 +320,9 @@ export default function Settings() {
     toast.success("Sessão encerrada e auditada.");
   }
   async function transferOwnership(member: Member) {
-    if (
-      !confirm(
-        `Transferir definitivamente a propriedade para ${member.email}? Sua conta passará a Administrador.`,
-      )
-    )
+    if (!await dialog.confirm({ title: "Transferir propriedade", description: `A propriedade será transferida definitivamente para ${member.email}. Sua conta passará a Administrador.`, confirmLabel: "Continuar transferência", tone: "danger" }))
       return;
-    const password = prompt("Confirme sua senha atual:");
+    const password = await dialog.prompt({ title: "Confirmar transferência", description: "Digite sua senha atual para autorizar a transferência definitiva de propriedade.", label: "Senha atual", inputType: "password", confirmLabel: "Transferir propriedade", tone: "danger" });
     if (!password) return;
     try {
       await Api.post("/users/ownership/transfer/", {

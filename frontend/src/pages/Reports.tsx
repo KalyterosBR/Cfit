@@ -21,6 +21,7 @@ import { Api } from "@/services/http";
 import { Link, useSearchParams } from "react-router-dom";
 import { useSession } from "@/features/auth/access-control";
 import { getReportsDataAccess } from "@/features/auth/access-policy";
+import { useAppDialog } from "@/components/AppDialog";
 
 function period() {
   const d = new Date();
@@ -81,6 +82,7 @@ type SavedReportView = {
 };
 
 export default function Reports() {
+  const dialog = useAppDialog();
   const session = useSession();
   const reportAccess = getReportsDataAccess(session.capabilities);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -215,9 +217,9 @@ export default function Reports() {
     setFavorites(next);
   }
   async function saveCurrentView() {
-    const name = window.prompt("Nome da visão gerencial:");
+    const name = await dialog.prompt({ title: "Salvar visão gerencial", description: "Dê um nome que ajude a identificar este conjunto de período, escopo e indicadores.", label: "Nome da visão", confirmLabel: "Continuar" });
     if (!name?.trim()) return;
-    const makeDefault = window.confirm("Usar esta visão como padrão?");
+    const makeDefault = await dialog.confirm({ title: "Usar como visão padrão?", description: "Esta visão será aplicada automaticamente quando você abrir Relatórios.", confirmLabel: "Usar como padrão", cancelLabel: "Salvar sem definir" });
     const { data: view } = await Api.post<SavedReportView>("/users/report-views/", {
       name: name.trim(),
       period: selectedPeriod,
@@ -239,7 +241,7 @@ export default function Reports() {
   async function removeSelectedView() {
     if (!selectedView) return;
     const view = savedViews.find((item) => item.id === selectedView);
-    if (!view?.editable || !window.confirm(`Excluir a visão “${view.name}”?`)) return;
+    if (!view?.editable || !await dialog.confirm({ title: "Excluir visão gerencial", description: `A visão “${view.name}” será removida. Os dados dos relatórios não serão alterados.`, confirmLabel: "Excluir visão", tone: "danger" })) return;
     await Api.delete(`/users/report-views/${view.id}/`);
     setSavedViews((current) => current.filter((item) => item.id !== selectedView));
     setSelectedView("");
@@ -275,12 +277,10 @@ export default function Reports() {
     URL.revokeObjectURL(link.href);
   }
   async function registerContact(item: RetentionItem) {
-    const notes = window.prompt(`Registre o contato com ${item.student_name}:`);
+    const notes = await dialog.prompt({ title: "Registrar contato", description: `Registre o resultado do contato com ${item.student_name}.`, label: "Resumo do contato", confirmLabel: "Continuar" });
     if (!notes) return;
-    const nextAction = window.prompt(
-      "Qual é a próxima ação?",
-      "Acompanhar retorno",
-    );
+    const nextAction = await dialog.prompt({ title: "Próxima ação", description: "Defina o próximo passo para manter a tratativa clara.", label: "Próxima ação", initialValue: "Acompanhar retorno", required: false, confirmLabel: "Registrar contato" });
+    if (nextAction === null) return;
     await Api.post(`/students/${item.student}/interactions/`, {
       interaction_type: "whatsapp",
       status: "completed",

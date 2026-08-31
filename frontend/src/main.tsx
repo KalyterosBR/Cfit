@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "react-hot-toast";
+import { AppDialogProvider } from "@/components/AppDialog";
 
 import "./index.css";
 
@@ -14,7 +15,9 @@ createRoot(
   document.getElementById("root")!,
 ).render(
   <StrictMode>
-    <AppRoutes />
+    <AppDialogProvider>
+      <AppRoutes />
+    </AppDialogProvider>
 
     <Toaster
       position="top-right"

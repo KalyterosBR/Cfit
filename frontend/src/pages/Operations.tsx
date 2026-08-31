@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/AsyncState";
 import Modal from "@/components/Modal";
+import { useAppDialog } from "@/components/AppDialog";
 import PageHeader from "@/components/PageHeader";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Api } from "@/services/http";
@@ -47,6 +48,7 @@ type Options = {
 const field =
   "h-10 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3 text-sm";
 export default function Operations() {
+  const dialog = useAppDialog();
   const session = useSession();
   const canManage = hasCapability(session.capabilities, "operations.manage");
   const nav = useNavigate(),
@@ -378,10 +380,8 @@ export default function Operations() {
                   </button>
                 )}
                 {canManage && <button
-                  onClick={() => {
-                    const resolution = prompt(
-                      "Como esta pendência foi resolvida?",
-                    );
+                  onClick={async () => {
+                    const resolution = await dialog.prompt({ title: "Resolver pendência", description: "Descreva a solução aplicada para concluir esta pendência e registrar seu histórico.", label: "Resolução", confirmLabel: "Marcar como resolvida" });
                     if (resolution)
                       void update({ status: "resolved", resolution });
                   }}
