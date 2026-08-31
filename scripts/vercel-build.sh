@@ -2,11 +2,11 @@
 set -eu
 
 if [ "${VERCEL_ENV:-}" = "production" ]; then
-    if [ -n "${DATABASE_URL_UNPOOLED:-}" ]; then
-        DATABASE_URL="${DATABASE_URL_UNPOOLED}" python manage.py migrate --noinput
-    else
-        python manage.py migrate --noinput
-    fi
+    # Migre exatamente a mesma conexão que o Django usa em runtime. Usar uma
+    # URL alternativa aqui pode atualizar outra branch ou outro banco Neon e
+    # publicar código novo sobre um schema antigo.
+    python manage.py migrate --noinput
+    python manage.py migrate --check
     python manage.py bootstrap_superuser
 fi
 

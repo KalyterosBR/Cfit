@@ -3070,7 +3070,7 @@ Próxima entrega recomendada: continuar a Fase 3 pelos refinamentos de Treinos q
 - `frontend/vercel.json` usa o preset Vite, fallback SPA para `index.html` e cache imutável dos assets versionados;
 - frontend lê a API de `VITE_API_URL`, mantendo `localhost` somente como fallback de desenvolvimento;
 - backend aceita `DATABASE_URL` Neon pooled com SSL, mantém as variáveis PostgreSQL separadas para Docker local e desativa conexões persistentes na Vercel;
-- o script `scripts/vercel-build.sh` permanece preparado para executar migrations em produção, preferindo `DATABASE_URL_UNPOOLED`, criar o superusuário inicial de forma idempotente e coletar estáticos;
+- o script `scripts/vercel-build.sh` executa migrations em produção usando exatamente `DATABASE_URL`, a mesma conexão usada pelo Django em runtime; depois executa `migrate --check`, cria o superusuário inicial de forma idempotente e coleta estáticos;
 - após a correção de 31/08/2026, o `vercel.json` da raiz voltou a declarar `buildCommand: "bash scripts/vercel-build.sh"`; em deploy de produção, migrations, bootstrap idempotente e `collectstatic` voltam a ser executados explicitamente pelo script versionado;
 - o comando idempotente `bootstrap_superuser` cria o primeiro administrador somente quando as duas variáveis `DJANGO_BOOTSTRAP_SUPERUSER_*` estiverem presentes; nunca atualiza a senha de uma conta existente e não imprime a senha;
 - hosts, CORS e CSRF são configurados por ambiente; HTTPS, cookies seguros, HSTS e proteção de conteúdo ficam ativos quando `DEBUG=False`;
@@ -3117,6 +3117,8 @@ Correção do carregamento dos módulos em 31/08/2026:
 - `vercel.json` voltou a executar `scripts/vercel-build.sh`, conforme suporte oficial da configuração estática da Vercel, para aplicar migrations antes da nova versão entrar em operação;
 - a política do frontend passou a tratar `portal.view` como capacidade exclusiva: o curinga administrativo `*` não libera mais `/portal`, mantendo a rota coerente com a API `/api/users/portal/me/`, que aceita somente contas de aluno;
 - a correção versionada exige um novo deploy do backend para aplicar as migrations ao banco publicado; até esse deploy, o banco remoto pode continuar sem as tabelas e colunas necessárias.
+- os logs do primeiro deploy corretivo confirmaram que o banco de runtime permaneceu sem `operations.0011` a `operations.0014`: `operations_campaignsegment` não existia e `operations_studentdocument.requires_acceptance` não existia;
+- a causa operacional foi a possibilidade de o build migrar `DATABASE_URL_UNPOOLED` enquanto a aplicação publicada consultava `DATABASE_URL`; o script passou a migrar somente `DATABASE_URL` e a executar `migrate --check`, impedindo sucesso do build quando esse mesmo banco ainda possuir migrations pendentes.
 
 ---
 
