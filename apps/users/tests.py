@@ -94,7 +94,8 @@ class RolePermissionTests(APITestCase):
         item = next(entry for entry in response.data["results"] if entry["id"] == str(audit.id))
         self.assertEqual(item["action_label"], "Meta de receita atualizada")
         self.assertEqual(item["entity_label"], "Meta de receita")
-        self.assertEqual(item["changes"][0]["field"], "Target amount")
+        self.assertEqual(item["changes"][0]["field"], "Valor da meta")
+        self.assertEqual(item["changes"][0]["field_key"], "target_amount")
 
     def test_students_are_isolated_by_academy_and_active_unit(self):
         unit = Unit.objects.create(academy=self.academy, name="Centro", code="centro")

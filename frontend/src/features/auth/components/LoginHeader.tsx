@@ -5,9 +5,9 @@ export default function LoginHeader() {
     return (
         <div>
             {/* TOPO CLEAN */}
-            <div className="flex items-center justify-between gap-4">
-                <div>
-                    <p className="text-[9px] font-bold uppercase leading-4 tracking-[0.2em] text-slate-400">
+            <div className="flex min-w-0 items-center justify-between gap-4 px-0.5">
+                <div className="min-w-0 pr-2">
+                    <p className="whitespace-nowrap text-[9px] font-bold uppercase leading-4 tracking-[0.2em] text-slate-400">
                         Ambiente Cfit
                     </p>
 

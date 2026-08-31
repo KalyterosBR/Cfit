@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Building2,
+  ChevronDown,
   CreditCard,
   Search,
   Settings2,
@@ -41,12 +42,14 @@ type Audit = {
   actor_email: string;
   action: string;
   action_label: string;
+  entity_type: string;
   entity_label: string;
   entity_id: string;
   previous_state: object;
   new_state: object;
-  changes: Array<{ field: string; previous: unknown; current: unknown }>;
+  changes: Array<{ field: string; field_key: string; previous: unknown; current: unknown }>;
   reason: string;
+  origin: string;
   created_at: string;
 };
 type Page<T> = { results: T[] };
@@ -116,6 +119,13 @@ const categories = [
   },
 ];
 
+function formatAuditValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "Não informado";
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
 export default function Settings() {
   const dialog = useAppDialog();
   const { section } = useParams<{ section?: string }>();
@@ -125,6 +135,7 @@ export default function Settings() {
   const [me, setMe] = useState<Me | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [audits, setAudits] = useState<Audit[]>([]);
+  const [auditOpen, setAuditOpen] = useState(false);
   const canAdmin = Boolean(
     me?.capabilities.includes("*") || me?.capabilities.includes("users.manage"),
   );
@@ -695,45 +706,100 @@ export default function Settings() {
       )}
       {(!section || section === "security") && canAdmin && (
         <section id="audit" className="mt-6 scroll-mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-black text-slate-950">
-            Auditoria administrativa
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Quem alterou, quando e os valores anterior e posterior.
-          </p>
-          <div className="mt-5 space-y-3">
-            {audits.map((audit) => (
-              <article
-                key={audit.id}
-                className="rounded-xl border border-slate-100 bg-slate-50 p-4"
-              >
-                <div className="flex flex-wrap justify-between gap-2">
-                  <p className="text-sm font-bold text-slate-800">
-                    {audit.actor_email} · {audit.action_label}
-                  </p>
-                  <time className="text-xs text-slate-500">
-                    {new Date(audit.created_at).toLocaleString("pt-BR")}
-                  </time>
-                </div>
-                <p className="mt-1 text-xs font-semibold text-slate-500">{audit.entity_label} · {audit.entity_id}</p>
-                <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-                  {audit.changes.map((change) => (
-                    <div key={change.field} className="rounded-lg bg-white p-2">
-                      <dt className="font-bold text-slate-600">{change.field}</dt>
-                      <dd className="mt-1 text-slate-500">{String(change.previous ?? "—")} → {String(change.current ?? "—")}</dd>
-                    </div>
-                  ))}
-                </dl>
-                {audit.reason && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    Motivo: {audit.reason}
-                  </p>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-black text-slate-950">Histórico administrativo</h2>
+                {audits.length > 0 && (
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700">
+                    {audits.length} {audits.length === 1 ? "registro" : "registros"}
+                  </span>
                 )}
-              </article>
-            ))}
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Alterações importantes feitas pela equipe, em linguagem operacional.
+              </p>
+            </div>
+            {audits.length > 0 && (
+              <button
+                type="button"
+                aria-expanded={auditOpen}
+                aria-controls="audit-history"
+                onClick={() => setAuditOpen((current) => !current)}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
+              >
+                {auditOpen ? "Recolher histórico" : "Ver histórico"}
+                <ChevronDown className={`h-4 w-4 transition-transform ${auditOpen ? "rotate-180" : ""}`} />
+              </button>
+            )}
           </div>
+          {!auditOpen && audits[0] && (
+            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-blue-700">Última atividade</p>
+              <div className="mt-1 flex flex-wrap items-baseline justify-between gap-2">
+                <p className="min-w-0 text-sm font-bold text-slate-800">
+                  {audits[0].action_label} <span className="font-medium text-slate-500">em {audits[0].entity_label.toLowerCase()}</span>
+                </p>
+                <time className="text-xs text-slate-500">
+                  {new Date(audits[0].created_at).toLocaleString("pt-BR")}
+                </time>
+              </div>
+            </div>
+          )}
+          {auditOpen && (
+            <div id="audit-history" className="mt-5 space-y-3">
+              {audits.map((audit) => (
+                <details key={audit.id} className="group rounded-xl border border-slate-100 bg-slate-50 open:border-blue-200">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 marker:hidden">
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-slate-800">{audit.action_label}</p>
+                      <p className="mt-1 break-words text-xs text-slate-500">
+                        {audit.entity_label} · {audit.actor_email} · {new Date(audit.created_at).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {audit.changes.length > 0 && (
+                        <span className="hidden rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500 sm:inline">
+                          {audit.changes.length} {audit.changes.length === 1 ? "alteração" : "alterações"}
+                        </span>
+                      )}
+                      <ChevronDown className="mt-0.5 h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+                    </div>
+                  </summary>
+                  <div className="border-t border-slate-200 px-4 pb-4 pt-3">
+                    {audit.changes.length > 0 ? (
+                      <dl className="grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-3">
+                        {audit.changes.map((change) => (
+                          <div key={change.field_key} className="min-w-0 rounded-lg bg-white p-3">
+                            <dt className="font-bold text-slate-700">{change.field}</dt>
+                            <dd className="mt-1 break-words text-slate-500">
+                              {formatAuditValue(change.previous)} <span aria-label="alterado para">→</span> {formatAuditValue(change.current)}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : (
+                      <p className="text-xs text-slate-500">Registro sem alteração de campos.</p>
+                    )}
+                    {audit.reason && (
+                      <p className="mt-3 text-xs text-slate-600"><strong>Motivo:</strong> {audit.reason}</p>
+                    )}
+                    <details className="mt-3 border-t border-slate-200 pt-3">
+                      <summary className="cursor-pointer text-xs font-bold text-slate-500 hover:text-blue-700">Detalhes técnicos</summary>
+                      <dl className="mt-3 grid gap-x-4 gap-y-2 break-all text-[11px] text-slate-500 sm:grid-cols-2">
+                        <div><dt className="font-bold text-slate-700">Código da ação</dt><dd>{audit.action}</dd></div>
+                        <div><dt className="font-bold text-slate-700">Origem</dt><dd>{audit.origin || "Não informada"}</dd></div>
+                        <div><dt className="font-bold text-slate-700">Tipo de registro</dt><dd>{audit.entity_type}</dd></div>
+                        <div><dt className="font-bold text-slate-700">Identificador</dt><dd>{audit.entity_id}</dd></div>
+                      </dl>
+                    </details>
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
           {audits.length === 0 && (
-            <p className="mt-5 text-sm text-slate-500">
+            <p className="mt-4 text-sm text-slate-500">
               Nenhuma alteração administrativa registrada.
             </p>
           )}

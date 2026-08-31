@@ -2077,8 +2077,8 @@ export default function StudentDetailsPage() {
                         />
                     </div>
 
-                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                        <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-amber-950">
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-400/30">
+                        <label className="flex cursor-pointer items-start gap-3 text-sm font-semibold text-amber-950 dark:text-amber-100">
                             <input
                                 type="checkbox"
                                 checked={checkInContingency}
@@ -2087,11 +2087,11 @@ export default function StudentDetailsPage() {
                                     setCheckInSubmitError("");
                                 }}
                                 disabled={registeringCheckIn}
-                                className="mt-0.5"
+                                className="mt-0.5 accent-amber-600 dark:accent-amber-400"
                             />
                             <span>
                                 Autorizar em contingência
-                                <span className="mt-1 block text-xs font-normal leading-5 text-amber-800">
+                                <span className="mt-1 block text-xs font-normal leading-5 text-amber-800 dark:text-amber-200">
                                     Use somente para liberar manualmente um acesso bloqueado pela política da unidade.
                                 </span>
                             </span>
@@ -2099,7 +2099,7 @@ export default function StudentDetailsPage() {
 
                         {checkInContingency && (
                             <div className="mt-3">
-                                <label htmlFor="checkin-contingency-reason" className="text-sm font-semibold text-amber-950">
+                                <label htmlFor="checkin-contingency-reason" className="text-sm font-semibold text-amber-950 dark:text-amber-100">
                                     Motivo da liberação <span aria-hidden="true">*</span>
                                 </label>
                                 <input
@@ -2110,7 +2110,7 @@ export default function StudentDetailsPage() {
                                     required
                                     disabled={registeringCheckIn}
                                     placeholder="Ex.: Liberação autorizada pelo gerente"
-                                    className="mt-2 h-10 w-full rounded-xl border border-amber-200 bg-white px-3 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
+                                    className="mt-2 h-10 w-full rounded-xl border border-amber-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 dark:border-amber-400/30"
                                 />
                             </div>
                         )}
