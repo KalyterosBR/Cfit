@@ -117,11 +117,11 @@ function OperationalItem({
     }[tone];
 
     return (
-        <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                 {label}
             </p>
-            <p className={`mt-1 text-sm font-semibold ${valueClass}`}>
+            <p className={`mt-1 min-w-0 break-words text-sm font-semibold [overflow-wrap:anywhere] ${valueClass}`}>
                 {value}
             </p>
         </div>
@@ -855,11 +855,13 @@ export default function StudentDetailsPage() {
                                                 "Não informado"}
                                         </span>
 
-                                        <span className="inline-flex items-center gap-1.5">
-                                            <Mail size={15} />
+                                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                                            <Mail className="shrink-0" size={15} />
 
-                                            {student.email ??
-                                                "Não informado"}
+                                            <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                                                {student.email ??
+                                                    "Não informado"}
+                                            </span>
                                         </span>
 
                                         <span className="inline-flex items-center gap-1.5">
