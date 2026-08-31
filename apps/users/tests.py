@@ -9,6 +9,8 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.core.cache import cache
+from django.core import mail
+from django.test import override_settings
 
 
 class RolePermissionTests(APITestCase):
@@ -190,6 +192,33 @@ class RolePermissionTests(APITestCase):
         second = self.client.post("/api/users/password/reset/confirm/", payload, format="json")
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 400)
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_password_reset_request_sends_branded_email(self):
+        response = self.client.post(
+            "/api/users/password/reset/",
+            {"email": self.admin.email},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, [self.admin.email])
+        self.assertIn("Redefina sua senha", message.subject)
+        self.assertIn("/reset-password?uid=", message.body)
+        self.assertIn("Criar nova senha", message.alternatives[0][0])
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_password_reset_does_not_disclose_unknown_email(self):
+        response = self.client.post(
+            "/api/users/password/reset/",
+            {"email": "desconhecido@cfit.test"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mail.outbox, [])
 
     def test_admin_cannot_create_owner(self):
         self.client.force_authenticate(self.admin)

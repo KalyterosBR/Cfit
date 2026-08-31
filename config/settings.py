@@ -225,7 +225,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@cfit.local")
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "apps.core.email_backends.ResendEmailBackend"
+    if RESEND_API_KEY
+    else "django.core.mail.backends.console.EmailBackend",
+)
 
 
 # ==========================================

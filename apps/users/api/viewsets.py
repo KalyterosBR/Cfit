@@ -12,6 +12,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth import authenticate
 from django.core.cache import cache
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils import timezone
@@ -353,7 +354,15 @@ class PasswordResetRequestView(APIView):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
             reset_url = f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')}/reset-password?uid={uid}&token={token}"
-            send_mail("Redefinição de senha do Cfit", f"Use este link para redefinir sua senha: {reset_url}", getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@cfit.local"), [user.email], fail_silently=True)
+            context = {"reset_url": reset_url}
+            send_mail(
+                "Redefina sua senha de acesso ao Cfit",
+                render_to_string("users/password_reset_email.txt", context),
+                getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@cfit.local"),
+                [user.email],
+                html_message=render_to_string("users/password_reset_email.html", context),
+                fail_silently=True,
+            )
         return Response({"detail": "Se o e-mail estiver cadastrado, as instruções serão enviadas."})
 
 

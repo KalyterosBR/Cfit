@@ -3131,6 +3131,20 @@ Correção do carregamento dos módulos em 31/08/2026:
 
 ---
 
+## 48.14 Integração preparada com Resend — 31/08/2026
+
+- o fluxo existente de redefinição de senha passou a enviar uma mensagem transacional em HTML, com alternativa em texto e identidade visual do Cfit;
+- `apps.core.email_backends.ResendEmailBackend` integra o backend do Django à API do Resend e preserva suporte a destinatários adicionais, resposta e anexos;
+- quando `RESEND_API_KEY` está configurada, o Django seleciona automaticamente o backend do Resend; sem a chave, o ambiente local preserva o backend de console;
+- `RESEND_API_KEY` e `DEFAULT_FROM_EMAIL` foram documentadas em `.env.example`; nenhum segredo foi incluído no repositório;
+- a resposta pública do pedido de recuperação continua genérica para não revelar se uma conta existe, e o token permanece individual e de uso único;
+- testes cobrem o payload de texto/HTML enviado ao Resend, ausência da chave, e-mail conhecido, e-mail desconhecido e uso único do token;
+- validações aprovadas: `5` testes direcionados, `python manage.py check`, `makemigrations --check --dry-run` sem alterações e `git diff --check`;
+- a ativação em produção foi deliberadamente adiada: ainda é necessário verificar um domínio próprio no Resend e configurar `RESEND_API_KEY`, `DEFAULT_FROM_EMAIL` e, opcionalmente, `EMAIL_BACKEND` no projeto backend da Vercel;
+- enquanto essas variáveis não forem configuradas na Vercel, a funcionalidade preparada não realiza envio real pelo Resend.
+
+---
+
 ## 49. Protocolo de encerramento da sessão
 Frase-gatilho exata:
 ```text
