@@ -1,10 +1,11 @@
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 import os
 import secrets
 import uuid
-from datetime import timedelta
+from datetime import timedelta, timezone as datetime_timezone
 
 from django.contrib.auth.hashers import check_password, make_password
 from rest_framework import viewsets
@@ -166,7 +167,12 @@ class DeviceWebhookView(APIView):
         if not student:
             event.success = False; event.message = "Aluno não encontrado"; event.save(update_fields=["success", "message", "updated_at"])
             return Response({"student": ["Aluno não encontrado nesta unidade."]}, status=400)
-        checkin = CheckIn.objects.create(student=student, unit=device.unit, source=CheckIn.Source.ACCESS_CONTROL, equipment=device.name, location=device.unit.name, access_result=request.data.get("access_result", CheckIn.AccessResult.ALLOWED), block_reason=str(request.data.get("block_reason", ""))[:255], device_response=str(request.data.get("device_response", "Evento autenticado e processado pelo webhook Cfit"))[:255])
+        checked_in_at = parse_datetime(str(request.data.get("checked_in_at", "")))
+        if checked_in_at is None:
+            checked_in_at = timezone.now()
+        elif timezone.is_naive(checked_in_at):
+            checked_in_at = timezone.make_aware(checked_in_at, datetime_timezone.utc)
+        checkin = CheckIn.objects.create(student=student, unit=device.unit, checked_in_at=checked_in_at, source=CheckIn.Source.ACCESS_CONTROL, equipment=device.name, location=device.unit.name, access_result=request.data.get("access_result", CheckIn.AccessResult.ALLOWED), block_reason=str(request.data.get("block_reason", ""))[:255], device_response=str(request.data.get("device_response", "Evento autenticado e processado pelo webhook Cfit"))[:255])
         event.message = "Acesso processado"; event.payload = {**request.data, "checkin": str(checkin.id)}; event.save(update_fields=["message", "payload", "updated_at"])
         return Response({"event": str(event.id), "checkin": str(checkin.id)}, status=201)
 

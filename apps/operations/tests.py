@@ -213,12 +213,13 @@ class OperationsApiTests(APITestCase):
         created = self.client.post(reverse("access-device-list"), {"unit": self.unit.id, "name": "Catraca", "identifier": "CAT-01", "kind": "turnstile"}, format="json")
         rotated = self.client.post(reverse("access-device-rotate-webhook-key", args=[created.data["id"]]))
         self.client.force_authenticate(user=None)
-        payload = {"device_identifier": "CAT-01", "idempotency_key": "evt-001", "student": str(self.student.id), "event_type": "access"}
+        payload = {"device_identifier": "CAT-01", "idempotency_key": "evt-001", "student": str(self.student.id), "event_type": "access", "checked_in_at": "2026-08-31T14:30:00Z"}
         accepted = self.client.post("/api/operations/device-events/", payload, format="json", HTTP_X_CFIT_DEVICE_KEY=rotated.data["webhook_key"])
         repeated = self.client.post("/api/operations/device-events/", payload, format="json", HTTP_X_CFIT_DEVICE_KEY=rotated.data["webhook_key"])
         self.assertEqual(accepted.status_code, status.HTTP_201_CREATED)
         self.assertEqual(repeated.status_code, status.HTTP_200_OK)
         self.assertEqual(CheckIn.objects.filter(student=self.student, equipment="Catraca").count(), 1)
+        self.assertEqual(CheckIn.objects.get(student=self.student, equipment="Catraca").checked_in_at.isoformat(), "2026-08-31T14:30:00+00:00")
 
     def test_connector_pulls_and_confirms_device_commands(self):
         created = self.client.post(reverse("access-device-list"), {

@@ -3,7 +3,10 @@
 import logging
 import os
 import time
+import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -72,6 +75,24 @@ class CfitClient:
         )
         response.raise_for_status()
 
+    def send_access_event(self, log: dict[str, Any], student_id: str):
+        event_code = int(log["event"])
+        response = self.session.post(
+            f"{self.settings.cfit_url}/api/operations/device-events/",
+            json={
+                "device_identifier": self.settings.device_identifier,
+                "idempotency_key": f"control-id:{self.settings.device_identifier}:access:{log['id']}",
+                "event_type": "access",
+                "student": student_id,
+                "checked_in_at": datetime.fromtimestamp(int(log["time"]), tz=timezone.utc).isoformat(),
+                "access_result": "allowed" if event_code == 7 else "blocked",
+                "block_reason": "" if event_code == 7 else "Acesso negado pelo equipamento Control iD",
+                "device_response": f"Control iD · evento {event_code} · portal {log.get('portal_id', '')}",
+            },
+            timeout=15,
+        )
+        response.raise_for_status()
+
 
 class ControlIdClient:
     def __init__(self, settings: Settings):
@@ -122,7 +143,36 @@ class ControlIdClient:
 
     def collect_logs(self, payload):
         limit = min(max(int(payload.get("limit", 100)), 1), 1000)
-        return self.post("load_objects.fcgi", {"object": "access_logs", "limit": limit, "order": ["descending", "id"]})
+        body: dict[str, Any] = {"object": "access_logs", "limit": limit, "order": ["ascending", "id"]}
+        after_id = int(payload.get("after_id", 0))
+        if after_id:
+            body["where"] = [{"object": "access_logs", "field": "id", "operator": ">", "value": after_id}]
+        return self.post("load_objects.fcgi", body)
+
+    def get_user(self, user_id: int):
+        response = self.post("load_objects.fcgi", {
+            "object": "users",
+            "where": [{"object": "users", "field": "id", "operator": "=", "value": int(user_id)}],
+            "limit": 1,
+        })
+        users = response.get("users", [])
+        return users[0] if users else None
+
+
+class CursorStore:
+    def __init__(self, path: Path):
+        self.path = path
+
+    def load(self) -> int:
+        try:
+            return max(0, int(json.loads(self.path.read_text(encoding="utf-8")).get("last_access_log_id", 0)))
+        except (FileNotFoundError, ValueError, TypeError, json.JSONDecodeError):
+            return 0
+
+    def save(self, value: int):
+        temporary = self.path.with_suffix(f"{self.path.suffix}.tmp")
+        temporary.write_text(json.dumps({"last_access_log_id": int(value)}), encoding="utf-8")
+        temporary.replace(self.path)
 
 
 class Connector:
@@ -130,6 +180,9 @@ class Connector:
         self.settings = settings
         self.cfit = CfitClient(settings)
         self.device = ControlIdClient(settings)
+        state_path = Path(os.getenv("CFIT_STATE_FILE", Path(__file__).with_name("connector-state.json")))
+        self.cursor = CursorStore(state_path)
+        self.user_cache: dict[int, str] = {}
 
     def execute(self, command):
         command_type = command["command_type"]
@@ -153,6 +206,31 @@ class Connector:
             except Exception as error:
                 LOG.exception("Falha no comando %s", command.get("id"))
                 self.cfit.confirm(command["id"], False, error=str(error)[:255])
+        self.sync_access_logs()
+
+    def sync_access_logs(self):
+        last_id = self.cursor.load()
+        response = self.device.collect_logs({"limit": 1000, "after_id": last_id})
+        logs = sorted(response.get("access_logs", []), key=lambda item: int(item["id"]))
+        for log in logs:
+            log_id = int(log["id"])
+            event_code = int(log.get("event", 0))
+            user_id = int(log.get("user_id", 0))
+            if event_code not in {6, 7} or user_id <= 0:
+                self.cursor.save(log_id)
+                continue
+            student_id = self.user_cache.get(user_id)
+            if student_id is None:
+                user = self.device.get_user(user_id)
+                student_id = str((user or {}).get("registration") or "").strip()
+                if not student_id:
+                    LOG.warning("Log %s ignorado: usuário %s sem registration", log_id, user_id)
+                    self.cursor.save(log_id)
+                    continue
+                self.user_cache[user_id] = student_id
+            self.cfit.send_access_event(log, student_id)
+            self.cursor.save(log_id)
+            LOG.info("Acesso Control iD %s sincronizado", log_id)
 
     def run(self):
         while True:
