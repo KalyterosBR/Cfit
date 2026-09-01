@@ -17,3 +17,8 @@ estrutura*.txt
 estrutura*.zip
 *_tree.txt
 *_tree.zip
+# Credenciais e estado local do conector Control iD
+connectors/control_id/connector-config.json
+connectors/control_id/connector-state.json
+connectors/control_id/device-key.xml
+connectors/control_id/control-id-password.xml

@@ -31,3 +31,26 @@ python connector.py
 A chave `CFIT_DEVICE_KEY` é exibida uma única vez ao rotacionar a chave do dispositivo no Cfit.
 
 O arquivo configurado em `CFIT_STATE_FILE` guarda somente o último identificador de log processado. Preserve-o entre reinícios para evitar releitura desnecessária; a API do Cfit também rejeita duplicações pela chave idempotente do evento.
+
+## Execução automática no Windows 11
+
+Copie a pasta `windows` para dentro da pasta local do conector e execute, no PowerShell com o mesmo usuário que operará a integração:
+
+```powershell
+.\windows\configure.ps1
+.\windows\run-connector.ps1
+```
+
+Depois da validação manual, encerre com `Ctrl + C` e instale a tarefa:
+
+```powershell
+.\windows\install-task.ps1
+```
+
+A tarefa inicia no logon do usuário, permanece ativa com a sessão bloqueada e tenta reiniciar o processo após falhas. `device-key.xml` e `control-id-password.xml` usam DPAPI e só podem ser abertos pelo mesmo usuário no mesmo computador. `connector-config.json` contém somente parâmetros não secretos.
+
+Para remover apenas a inicialização automática, preservando configuração e cursor:
+
+```powershell
+.\windows\uninstall-task.ps1
+```
