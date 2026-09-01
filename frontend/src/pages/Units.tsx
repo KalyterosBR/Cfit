@@ -207,10 +207,10 @@ export default function Units() {
         </label>
       </div>
       {coverage && coverage.unassigned_total > 0 && (
-        <section className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4" aria-labelledby="coverage-title">
-          <h2 id="coverage-title" className="font-black text-amber-950">Dados históricos aguardando definição de unidade</h2>
-          <p className="mt-1 text-sm text-amber-900">{coverage.unassigned_total} registro(s) não foram atribuídos automaticamente. Revise a origem antes de qualquer migração.</p>
-          <ul className="mt-2 flex flex-wrap gap-3 text-xs font-bold text-amber-800">{coverage.domains.filter(item => item.unassigned).map(item => <li key={item.key}>{item.label}: {item.unassigned}</li>)}</ul>
+        <section className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-400/35 dark:bg-amber-950/35" aria-labelledby="coverage-title">
+          <h2 id="coverage-title" className="font-black text-amber-950 dark:text-amber-100">Dados históricos aguardando definição de unidade</h2>
+          <p className="mt-1 text-sm text-amber-900 dark:text-amber-200">{coverage.unassigned_total} registro(s) não foram atribuídos automaticamente. Revise a origem antes de qualquer migração.</p>
+          <ul className="mt-2 flex flex-wrap gap-3 text-xs font-bold text-amber-800 dark:text-amber-300">{coverage.domains.filter(item => item.unassigned).map(item => <li key={item.key}>{item.label}: {item.unassigned}</li>)}</ul>
         </section>
       )}
       {canManage && (

@@ -76,7 +76,7 @@ export default function RevenueChart({
     const tickColor = variant === "canvas" ? "var(--cfit-text-secondary)" : "#a8b5c7";
 
     return (
-        <div className={variant === "canvas" ? "cfit-dark-canvas relative overflow-hidden border-y border-slate-200/80 bg-gradient-to-br from-blue-50/60 via-transparent to-cyan-50/60 py-7 text-slate-950" : "relative overflow-hidden rounded-[1.6rem] border border-white/[0.08] bg-[#071225] p-5 text-white shadow-[0_30px_70px_-42px_rgba(15,23,42,0.8)] sm:p-6"}>
+        <div className={variant === "canvas" ? "cfit-dark-canvas relative overflow-hidden border-y border-slate-200/80 bg-gradient-to-br from-blue-50/60 via-transparent to-cyan-50/60 px-5 py-7 text-slate-950 sm:px-7 lg:px-8" : "relative overflow-hidden rounded-[1.6rem] border border-white/[0.08] bg-[#071225] p-5 text-white shadow-[0_30px_70px_-42px_rgba(15,23,42,0.8)] sm:p-6"}>
             {variant === "card" && (
                 <>
                     <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-600/20 blur-[90px]" />
