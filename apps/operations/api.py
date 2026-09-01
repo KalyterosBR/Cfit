@@ -117,6 +117,14 @@ class AccessDeviceViewSet(viewsets.ModelViewSet):
         key = secrets.token_urlsafe(32)
         device.webhook_key_hash = make_password(key)
         device.save(update_fields=["webhook_key_hash", "updated_at"])
+        AdministrativeAudit.objects.create(
+            academy=device.academy,
+            actor=request.user,
+            action="access_device.key_rotated",
+            entity_type="access_device",
+            entity_id=str(device.pk),
+            new_state={"name": device.name, "identifier": device.identifier},
+        )
         return Response({"webhook_key": key, "detail": "Guarde esta chave: ela não será exibida novamente."})
 
 

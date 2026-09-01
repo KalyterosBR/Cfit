@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Activity, Plus, Radio } from "lucide-react";
+import { Activity, Copy, KeyRound, Plus, Radio } from "lucide-react";
 import toast from "react-hot-toast";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/AsyncState";
 import Modal from "@/components/Modal";
+import { useAppDialog } from "@/components/AppDialog";
 import { Api } from "@/services/http";
 
 type Device = {
@@ -46,6 +47,7 @@ export default function DeviceManagement({
 }: {
   canManage: boolean;
 }) {
+  const dialog = useAppDialog();
   const [items, setItems] = useState<Device[]>([]),
     [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true),
@@ -53,6 +55,10 @@ export default function DeviceManagement({
     [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Device | null>(null),
     [details, setDetails] = useState<Device | null>(null);
+  const [generatedKey, setGeneratedKey] = useState<{
+    deviceName: string;
+    value: string;
+  } | null>(null);
   const [events, setEvents] = useState<Event[]>([]),
     [commands, setCommands] = useState<Command[]>([]);
   const [form, setForm] = useState({
@@ -116,6 +122,23 @@ export default function DeviceManagement({
       await load();
     } catch {
       toast.error("Diagnóstico indisponível.");
+    }
+  }
+  async function rotateKey(item: Device) {
+    const confirmed = await dialog.confirm({
+      title: "Gerar nova chave do conector",
+      description: `A chave anterior de “${item.name}” deixará de funcionar imediatamente. A nova chave será exibida somente uma vez.`,
+      confirmLabel: "Gerar nova chave",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      const response = await Api.post<{ webhook_key: string }>(
+        `/operations/devices/${item.id}/rotate-webhook-key/`,
+      );
+      setGeneratedKey({ deviceName: item.name, value: response.data.webhook_key });
+    } catch {
+      toast.error("Não foi possível gerar a chave do conector.");
     }
   }
   async function toggle(item: Device) {
@@ -207,13 +230,22 @@ export default function DeviceManagement({
               </div>
               <div className="flex flex-wrap gap-2">
                 {canManage && (
-                  <button
-                    onClick={() => void diagnose(item)}
-                    className="cfit-secondary-button"
-                  >
-                    <Activity size={16} />
-                    Diagnosticar
-                  </button>
+                  <>
+                    <button
+                      onClick={() => void rotateKey(item)}
+                      className="cfit-secondary-button"
+                    >
+                      <KeyRound size={16} />
+                      Gerar chave
+                    </button>
+                    <button
+                      onClick={() => void diagnose(item)}
+                      className="cfit-secondary-button"
+                    >
+                      <Activity size={16} />
+                      Diagnosticar
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => void detail(item)}
@@ -252,6 +284,42 @@ export default function DeviceManagement({
           ))}
         </div>
       )}
+      <Modal
+        open={Boolean(generatedKey)}
+        title="Chave do conector"
+        onClose={() => setGeneratedKey(null)}
+      >
+        {generatedKey && (
+          <div>
+            <p className="text-sm leading-6 text-[var(--cfit-text-secondary)]">
+              Copie e guarde a chave de {generatedKey.deviceName}. Ela não será
+              exibida novamente depois que esta janela for fechada.
+            </p>
+            <label className="mt-5 block text-sm font-bold">
+              Chave do dispositivo
+              <input
+                readOnly
+                value={generatedKey.value}
+                onFocus={(event) => event.currentTarget.select()}
+                className={`${field} mt-2 w-full font-mono`}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(generatedKey.value).then(
+                  () => toast.success("Chave copiada."),
+                  () => toast.error("Selecione a chave e copie manualmente."),
+                );
+              }}
+              className="cfit-primary-button mt-4"
+            >
+              <Copy size={16} />
+              Copiar chave
+            </button>
+          </div>
+        )}
+      </Modal>
       <Modal
         open={open}
         title={editing ? "Editar equipamento" : "Novo equipamento"}
