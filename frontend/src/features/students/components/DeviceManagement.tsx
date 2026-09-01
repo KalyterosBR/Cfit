@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Activity, Copy, KeyRound, Plus, Radio } from "lucide-react";
+import { Activity, Copy, Download, KeyRound, Plus, Radio } from "lucide-react";
 import toast from "react-hot-toast";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/AsyncState";
 import Modal from "@/components/Modal";
@@ -163,7 +163,15 @@ export default function DeviceManagement({
         </span>
       </summary>
       {canManage && (
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <a
+            href="/downloads/CfitConnector-ControlId.zip"
+            download
+            className="cfit-secondary-button"
+          >
+            <Download size={16} />
+            Baixar conector Control iD
+          </a>
           <button
             onClick={() => {
               setEditing(null);

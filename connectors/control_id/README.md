@@ -34,7 +34,9 @@ O arquivo configurado em `CFIT_STATE_FILE` guarda somente o último identificado
 
 ## Execução automática no Windows 11
 
-Para a experiência gráfica, abra `windows\open-app.vbs`. O aplicativo permite salvar a configuração protegida, testar Cfit/iDFace, instalar a inicialização automática e iniciar ou parar a sincronização sem abrir o PowerShell.
+Baixe `CfitConnector-ControlId.zip` pela área **Acesso e equipamentos** da página de Check-ins, extraia a pasta e abra `windows\install-app.bat` com dois cliques. Na primeira execução ele prepara o ambiente e abre a interface gráfica. Nas próximas vezes, abra `windows\open-app.vbs`.
+
+O aplicativo permite salvar a configuração protegida, testar Cfit/iDFace, instalar a inicialização automática e iniciar ou parar a sincronização sem abrir o PowerShell.
 
 Os scripts abaixo permanecem disponíveis para instalação assistida e recuperação:
 
