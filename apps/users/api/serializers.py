@@ -1,4 +1,7 @@
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+import re
 
 from apps.academy.models import Unit
 from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, SavedReportView, User
@@ -100,6 +103,27 @@ class PasswordChangeSerializer(serializers.Serializer):
     def validate_current_password(self, value):
         if not self.context["request"].user.check_password(value):
             raise serializers.ValidationError("A senha atual está incorreta.")
+        return value
+
+    def validate_new_password(self, value):
+        user = self.context["request"].user
+        if user.check_password(value):
+            raise serializers.ValidationError("A nova senha deve ser diferente da senha atual.")
+
+        requirements = [
+            (re.search(r"[a-z]", value), "Inclua pelo menos uma letra minúscula."),
+            (re.search(r"[A-Z]", value), "Inclua pelo menos uma letra maiúscula."),
+            (re.search(r"\d", value), "Inclua pelo menos um número."),
+            (re.search(r"[^A-Za-z0-9]", value), "Inclua pelo menos um símbolo."),
+        ]
+        errors = [message for matches, message in requirements if not matches]
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        try:
+            validate_password(value, user=user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError(error.messages) from error
         return value
 
 

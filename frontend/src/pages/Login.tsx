@@ -21,8 +21,9 @@ export default function Login() {
                     <div className="mb-5 flex min-w-0 items-center justify-between gap-3 max-[339px]:mb-4 lg:hidden"><Link to="/" aria-label="Voltar à homepage" className="shrink-0 rounded-md bg-white px-2 py-1.5"><Logo width={76} /></Link><Link to="/" className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-bold text-slate-200 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-cyan-300"><ArrowLeft size={15} aria-hidden="true" /> Voltar</Link></div>
                     <Card className="border-0 bg-transparent p-0 shadow-none">
                         <LoginHeader />
-                        <div className="my-4 h-px bg-gradient-to-r from-white/10 via-white/10 to-transparent max-[339px]:my-3 sm:my-5" />
-                        <LoginForm />
+                        <div className="mt-5 max-[339px]:mt-4 sm:mt-6">
+                            <LoginForm />
+                        </div>
                     </Card>
                 </section>
             </div>

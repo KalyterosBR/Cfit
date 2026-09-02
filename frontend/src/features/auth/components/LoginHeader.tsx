@@ -28,9 +28,7 @@ export default function LoginHeader() {
 
 
             {/* IDENTIDADE */}
-            <div className="mt-5 flex items-center gap-3 max-[339px]:mt-3 sm:mt-6">
-                <span className="h-px w-8 bg-gradient-to-r from-blue-500 to-cyan-400" />
-
+            <div className="mt-5 flex items-center max-[339px]:mt-3 sm:mt-6">
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
                     Área do gestor
                 </span>

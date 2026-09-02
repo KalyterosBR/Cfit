@@ -178,11 +178,35 @@ class RolePermissionTests(APITestCase):
         created = User.objects.get(email="initial@cfit.test")
         self.assertTrue(created.must_change_password)
         self.client.force_authenticate(created)
-        changed = self.client.post("/api/users/password/change/", {"current_password": "senha-inicial", "new_password": "senha-pessoal-segura"}, format="json")
+        reused = self.client.post("/api/users/password/change/", {"current_password": "senha-inicial", "new_password": "senha-inicial"}, format="json")
+        self.assertEqual(reused.status_code, 400)
+        created.refresh_from_db()
+        self.assertTrue(created.must_change_password)
+        self.assertTrue(created.check_password("senha-inicial"))
+
+        changed = self.client.post("/api/users/password/change/", {"current_password": "senha-inicial", "new_password": "Senha-pessoal-9!"}, format="json")
         self.assertEqual(changed.status_code, 200)
         created.refresh_from_db()
         self.assertFalse(created.must_change_password)
-        self.assertTrue(created.check_password("senha-pessoal-segura"))
+        self.assertTrue(created.check_password("Senha-pessoal-9!"))
+
+    def test_initial_password_change_enforces_strength_requirements(self):
+        self.admin.set_password("senha-inicial")
+        self.admin.must_change_password = True
+        self.admin.save(update_fields=["password", "must_change_password"])
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.post(
+            "/api/users/password/change/",
+            {"current_password": "senha-inicial", "new_password": "senhafraca"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("new_password", response.data)
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.must_change_password)
+        self.assertTrue(self.admin.check_password("senha-inicial"))
 
     def test_password_reset_token_is_single_use(self):
         uid = urlsafe_base64_encode(force_bytes(self.admin.pk))
