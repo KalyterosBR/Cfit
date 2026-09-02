@@ -67,7 +67,7 @@ const emptyForm = {
   reminder_at: "",
 };
 const field =
-  "mt-2 h-11 w-full rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3 text-[var(--cfit-text-primary)]";
+  "mt-2 h-11 w-full rounded-xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-elevated)] px-3 text-[var(--cfit-text-primary)]";
 const typeColors: Record<EventType, string> = {
   class: "bg-blue-600",
   assessment: "bg-violet-600",
@@ -284,8 +284,8 @@ export default function Schedule() {
             </button>
           : undefined}
         />
-        <section className="rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)]">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cfit-border)] p-4">
+        <section className="rounded-2xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-primary)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--cfit-border-default)] p-4">
             <div className="flex items-center gap-2">
               <button
                 aria-label="Período anterior"
@@ -297,7 +297,7 @@ export default function Schedule() {
               </button>
               <button
                 onClick={() => setAnchor(new Date())}
-                className="h-10 rounded-xl border border-[var(--cfit-border)] px-3 text-sm font-bold"
+                className="h-10 rounded-xl border border-[var(--cfit-border-default)] px-3 text-sm font-bold"
               >
                 Hoje
               </button>
@@ -311,7 +311,7 @@ export default function Schedule() {
               </button>
               <strong className="ml-2 capitalize">{periodLabel}</strong>
             </div>
-            <div className="flex rounded-xl border border-[var(--cfit-border)] p-1">
+            <div className="flex rounded-xl border border-[var(--cfit-border-default)] p-1">
               {(["day", "week", "month"] as ViewMode[]).map((item) => (
                 <button
                   key={item}
@@ -323,7 +323,7 @@ export default function Schedule() {
               ))}
             </div>
           </div>
-          <div className="grid gap-3 border-b border-[var(--cfit-border)] p-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 border-b border-[var(--cfit-border-default)] p-4 sm:grid-cols-2 xl:grid-cols-5">
             <select
               aria-label="Filtrar por tipo"
               value={eventType}
@@ -423,7 +423,7 @@ export default function Schedule() {
                       <button
                         key={item.id}
                         onClick={() => openDetail(item)}
-                        className="w-full rounded-lg border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] p-2 text-left hover:border-blue-400"
+                        className="w-full rounded-lg border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-elevated)] p-2 text-left hover:border-blue-400"
                       >
                         <span
                           className={`mb-1 block h-1 rounded-full ${typeColors[item.event_type]}`}
@@ -485,7 +485,7 @@ export default function Schedule() {
                           <button
                             key={item.id}
                             onClick={() => openDetail(item)}
-                            className="w-full rounded-lg border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] p-1.5 text-left hover:border-blue-400"
+                            className="w-full rounded-lg border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-elevated)] p-1.5 text-left hover:border-blue-400"
                           >
                             <span
                               className={`mb-1 block h-1 rounded-full ${typeColors[item.event_type]}`}
@@ -695,7 +695,7 @@ export default function Schedule() {
                 <textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="mt-2 min-h-24 w-full rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] p-3"
+                  className="mt-2 min-h-24 w-full rounded-xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-elevated)] p-3"
                 />
               </label>
               <div className="flex justify-end gap-2">

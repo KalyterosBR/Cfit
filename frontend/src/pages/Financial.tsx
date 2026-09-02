@@ -1161,7 +1161,7 @@ export default function Financial() {
                                     setBulkPaymentMethod("pix");
                                     setBulkPaymentOpen(true);
                                 }}
-                                className="h-10 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                                className="h-10 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 dark:bg-emerald-700 dark:text-emerald-50 dark:hover:bg-emerald-600 dark:disabled:bg-[var(--cfit-surface-3)] dark:disabled:text-[var(--cfit-text-disabled)]"
                             >
                                 Registrar pagamentos
                             </button>
@@ -1264,7 +1264,7 @@ export default function Financial() {
                                                                 setPaymentMethod("pix");
                                                                 setPendingAction({ type: "pay", charge });
                                                             }}
-                                                            className="h-9 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                                                            className="h-9 rounded-lg bg-emerald-600 px-3 text-xs font-semibold text-white transition hover:bg-emerald-700 dark:bg-emerald-700 dark:text-emerald-50 dark:hover:bg-emerald-600"
                                                         >
                                                             Registrar pagamento
                                                         </button>

@@ -219,10 +219,10 @@ export default function Automations() {
           Criar automação
         </button>
       </form>
-      <div className="mt-5 grid gap-3 rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)] p-4 sm:grid-cols-3">
-        <label className="relative"><Search className="absolute left-3 top-3 text-[var(--cfit-text-tertiary)]" size={17}/><input value={search} onChange={event=>{setSearch(event.target.value);setRulePageNumber(1)}} placeholder="Buscar regra ou ação" className="h-11 w-full rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] pl-10 pr-3"/></label>
-        <select value={ruleState} onChange={event=>{setRuleState(event.target.value);setRulePageNumber(1)}} className="h-11 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3"><option value="">Todas as regras</option><option value="active">Ativas</option><option value="paused">Pausadas</option></select>
-        <select value={executionMode} onChange={event=>{setExecutionMode(event.target.value);setExecutionPageNumber(1)}} className="h-11 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3"><option value="">Todas as execuções</option><option value="real">Reais</option><option value="simulation">Simulações</option><option value="test">Testes</option></select>
+      <div className="mt-5 grid gap-3 rounded-2xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-primary)] p-4 sm:grid-cols-3">
+        <label className="relative"><Search className="absolute left-3 top-3 text-[var(--cfit-text-tertiary)]" size={17}/><input value={search} onChange={event=>{setSearch(event.target.value);setRulePageNumber(1)}} placeholder="Buscar regra ou ação" className="h-11 w-full rounded-xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-elevated)] pl-10 pr-3"/></label>
+        <select value={ruleState} onChange={event=>{setRuleState(event.target.value);setRulePageNumber(1)}} className="h-11 rounded-xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-elevated)] px-3"><option value="">Todas as regras</option><option value="active">Ativas</option><option value="paused">Pausadas</option></select>
+        <select value={executionMode} onChange={event=>{setExecutionMode(event.target.value);setExecutionPageNumber(1)}} className="h-11 rounded-xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-elevated)] px-3"><option value="">Todas as execuções</option><option value="real">Reais</option><option value="simulation">Simulações</option><option value="test">Testes</option></select>
       </div>
       {loading ? (
         <div className="mt-5">

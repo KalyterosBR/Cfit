@@ -65,6 +65,11 @@
   --cfit-border-subtle: rgba(148, 163, 184, 0.18);
   --cfit-border-default: rgba(100, 116, 139, 0.28);
   --cfit-border-strong: rgba(71, 85, 105, 0.42);
+  --cfit-border: var(--cfit-border-default);
+  --cfit-surface-primary: var(--cfit-surface-1);
+  --cfit-surface-subtle: var(--cfit-surface-2);
+  --cfit-surface: var(--cfit-surface-2);
+  --cfit-action-primary: var(--cfit-primary);
   --cfit-text-primary: #0b1628;
   --cfit-text-secondary: #44546a;
   --cfit-text-tertiary: #60738b;
@@ -523,6 +528,10 @@ body, #root { min-height: 100%; background-color: var(--cfit-canvas); }
   background-color: rgba(225, 29, 72, 0.15) !important;
 }
 
+.dark .cfit-internal :is(.bg-orange-50, .bg-orange-50\/60, .bg-orange-50\/70) {
+  background-color: rgba(234, 88, 12, 0.15) !important;
+}
+
 .dark .cfit-internal :is(.bg-violet-50, .bg-violet-50\/70) {
   background-color: rgba(124, 58, 237, 0.16) !important;
 }
@@ -543,6 +552,34 @@ body, #root { min-height: 100%; background-color: var(--cfit-canvas); }
   color: var(--cfit-text-disabled) !important;
 }
 
+.dark .cfit-internal :is(.text-red-600, .text-red-700, .text-red-800) {
+  color: var(--cfit-danger) !important;
+}
+
+.dark .cfit-internal :is(.text-orange-600, .text-orange-700, .text-orange-800) {
+  color: #fdba74 !important;
+}
+
+.dark .cfit-internal :is(.text-amber-700, .text-amber-800, .text-amber-900) {
+  color: #fcd34d !important;
+}
+
+.dark .cfit-internal :is(.text-emerald-700, .text-emerald-800, .text-emerald-900) {
+  color: var(--cfit-success) !important;
+}
+
+.dark .cfit-internal :is(.text-blue-700, .text-blue-800, .text-blue-900) {
+  color: #93c5fd !important;
+}
+
+.dark .cfit-internal :is(.text-cyan-700, .text-cyan-800, .text-cyan-900) {
+  color: #67e8f9 !important;
+}
+
+.dark .cfit-internal :is(.text-violet-600, .text-violet-700, .text-violet-800) {
+  color: #c4b5fd !important;
+}
+
 .dark .cfit-internal :is(.border-slate-100, .border-slate-200, .border-slate-200\/80, .border-slate-300) {
   border-color: var(--cfit-border-subtle) !important;
 }
@@ -553,6 +590,30 @@ body, #root { min-height: 100%; background-color: var(--cfit-canvas); }
 
 .dark .cfit-internal :is(.border-blue-100, .border-blue-200, .border-blue-200\/70, .border-blue-200\/80) {
   border-color: color-mix(in srgb, var(--cfit-primary) 32%, transparent) !important;
+}
+
+.dark .cfit-internal :is(.border-red-100, .border-red-200, .border-red-300\/70) {
+  border-color: color-mix(in srgb, var(--cfit-danger) 32%, transparent) !important;
+}
+
+.dark .cfit-internal :is(.border-amber-200, .border-amber-300, .border-amber-300\/70) {
+  border-color: color-mix(in srgb, var(--cfit-warning) 34%, transparent) !important;
+}
+
+.dark .cfit-internal :is(.border-orange-100, .border-orange-200) {
+  border-color: color-mix(in srgb, #fb923c 32%, transparent) !important;
+}
+
+.dark .cfit-internal :is(.border-emerald-100, .border-emerald-200, .border-emerald-200\/70) {
+  border-color: color-mix(in srgb, var(--cfit-success) 30%, transparent) !important;
+}
+
+.dark .cfit-internal :is(.border-cyan-100, .border-cyan-200) {
+  border-color: color-mix(in srgb, var(--cfit-info) 30%, transparent) !important;
+}
+
+.dark .cfit-internal :is(.border-violet-100, .border-violet-200) {
+  border-color: color-mix(in srgb, #a78bfa 32%, transparent) !important;
 }
 
 .dark .cfit-internal :is(input, select, textarea) {

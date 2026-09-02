@@ -210,7 +210,7 @@ export default function FinancialInconsistenciesSection({ canManage }: { canMana
                         const priorityInfo = priorityDetails(issue.priority);
 
                         return (
-                            <article key={issue.id} className="grid gap-5 p-5 lg:grid-cols-[minmax(220px,0.8fr)_minmax(320px,1.4fr)_auto] lg:items-start sm:p-6">
+                            <article key={issue.id} className="grid gap-4 p-5 lg:grid-cols-3 lg:items-stretch sm:p-6">
                                 <div>
                                     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${priorityInfo.className}`}>
                                         {priorityInfo.label}
@@ -220,36 +220,48 @@ export default function FinancialInconsistenciesSection({ canManage }: { canMana
                                     <p className="mt-1 text-xs text-slate-500">{issue.context || "Sem contexto adicional"}</p>
                                 </div>
 
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="rounded-xl border border-red-100 bg-red-50/60 p-4">
-                                        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-red-700"><AlertTriangle size={13} /> Causa</p>
-                                        <p className="mt-2 text-sm leading-6 text-slate-700">{issue.cause}</p>
-                                    </div>
-                                    <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700">Próxima ação</p>
-                                        <p className="mt-2 text-sm leading-6 text-slate-700">{issue.next_action}</p>
-                                    </div>
+                                <div className="rounded-xl border border-[var(--cfit-border-default)] bg-red-50/60 p-4">
+                                    <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-red-700"><AlertTriangle size={13} /> Causa</p>
+                                    <p className="mt-2 text-sm leading-6 text-slate-700">{issue.cause}</p>
+                                </div>
+                                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700">Próxima ação</p>
+                                    <p className="mt-2 text-sm leading-6 text-slate-700">{issue.next_action}</p>
                                 </div>
 
-                                <div className="min-w-[170px] text-xs text-slate-500 lg:text-right">
-                                    <p>Atualizado em {dateTime(issue.source_updated_at)}</p>
-                                    <p className="mt-1">Responsável: {issue.responsible || "Não informado"}</p>
-                                    <p className="mt-1 font-bold text-slate-600">Tratativa: {issue.workflow.status === "resolved" ? "Resolvida" : issue.workflow.status === "in_progress" ? "Em andamento" : "Aberta"}</p>
-                                    {issue.workflow.due_at && <p className="mt-1">Prazo: {dateTime(issue.workflow.due_at)}</p>}
-                                    {issue.workflow.resolution && <p className="mt-1 text-emerald-700">{issue.workflow.resolution}</p>}
-                                    {canManage && <div className="mt-3 flex justify-end gap-2">{issue.workflow.status === "open" && <button type="button" onClick={() => updateWorkflow(issue, "in_progress")} className="font-bold text-blue-600">Assumir</button>}{issue.workflow.status !== "resolved" && <button type="button" onClick={() => updateWorkflow(issue, "resolved")} className="font-bold text-emerald-700">Resolver</button>}</div>}
-                                    {issue.student && (
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate(`/students/${issue.student}`)}
-                                            className="mt-4 inline-flex items-center gap-2 font-bold text-blue-600 hover:text-blue-700"
-                                        >
-                                            Abrir aluno <ExternalLink size={13} />
-                                        </button>
-                                    )}
-                                    {issue.entity_type === "charge" && (
-                                        <button type="button" onClick={() => navigate(`/finance?charge=${issue.entity_id}#charges`)} className="mt-3 inline-flex items-center gap-2 font-bold text-blue-600 hover:text-blue-700">Abrir cobrança <ExternalLink size={13}/></button>
-                                    )}
+                                <div className="flex flex-col gap-3 border-t border-[var(--cfit-border-subtle)] pt-4 text-xs text-[var(--cfit-text-secondary)] lg:col-span-3 lg:flex-row lg:items-center lg:justify-between">
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                        <span className="cfit-chip" data-tone={issue.workflow.status === "resolved" ? "success" : issue.workflow.status === "in_progress" ? "info" : "neutral"}>
+                                            {issue.workflow.status === "resolved" ? "Resolvida" : issue.workflow.status === "in_progress" ? "Em andamento" : "Aberta"}
+                                        </span>
+                                        <span><strong className="text-[var(--cfit-text-primary)]">Responsável:</strong> {issue.responsible || "Não informado"}</span>
+                                        <span>Atualizado em {dateTime(issue.source_updated_at)}</span>
+                                        {issue.workflow.due_at && <span>Prazo: {dateTime(issue.workflow.due_at)}</span>}
+                                        {issue.workflow.resolution && <span className="font-semibold text-emerald-700">{issue.workflow.resolution}</span>}
+                                    </div>
+
+                                    <div className="flex shrink-0 flex-wrap gap-2">
+                                        {canManage && issue.workflow.status === "open" && (
+                                            <button type="button" onClick={() => updateWorkflow(issue, "in_progress")} className="cfit-secondary-button justify-center">
+                                                Assumir
+                                            </button>
+                                        )}
+                                        {canManage && issue.workflow.status !== "resolved" && (
+                                            <button type="button" onClick={() => updateWorkflow(issue, "resolved")} className="flex h-10 items-center justify-center rounded-xl bg-emerald-600 px-4 font-bold text-white transition hover:bg-emerald-700 dark:bg-emerald-700 dark:text-emerald-50 dark:hover:bg-emerald-600">
+                                                Resolver
+                                            </button>
+                                        )}
+                                        {issue.student && (
+                                            <button type="button" onClick={() => navigate(`/students/${issue.student}`)} className="cfit-secondary-button justify-center">
+                                                Abrir aluno <ExternalLink size={13} />
+                                            </button>
+                                        )}
+                                        {issue.entity_type === "charge" && (
+                                            <button type="button" onClick={() => navigate(`/finance?charge=${issue.entity_id}#charges`)} className="cfit-secondary-button justify-center">
+                                                Abrir cobrança <ExternalLink size={13} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </article>
                         );

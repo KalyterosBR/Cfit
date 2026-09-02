@@ -3145,6 +3145,57 @@ Correção do carregamento dos módulos em 31/08/2026:
 
 ---
 
+## 48.15 Dashboard e conector Control iD — 01/09/2026
+
+Os seis commits de 01/09/2026 foram enviados para `origin/main`; o estado consolidado desta entrega termina no commit `556bce2`.
+
+Refinamentos visuais:
+- `RecentPayments` recebeu ajuste de espaçamento superior para alinhar o conteúdo na composição aberta da Dashboard;
+- `RevenueChart` passou a preservar o espaçamento horizontal do canvas nos breakpoints suportados;
+- o aviso de registros históricos sem unidade em `/units` recebeu contraste próprio para o tema noturno, sem alterar a política que impede atribuição automática de dados ambíguos.
+
+Gestão segura da chave do conector:
+- a área **Acesso e equipamentos** em `/checkins` permite que usuários com `checkins.manage` gerem ou rotacionem a chave individual de um dispositivo;
+- a rotação exige confirmação explícita, invalida imediatamente a chave anterior e exibe a nova chave uma única vez;
+- a interface permite copiar a chave e orienta seu armazenamento antes do fechamento do modal;
+- o backend armazena somente o hash da chave e registra `access_device.key_rotated` em `AdministrativeAudit`; a chave em texto puro não é persistida nem deve ser incluída em logs.
+
+Sincronização de acessos Control iD:
+- o agente local em `connectors/control_id` continua usando apenas conexões HTTPS de saída com o Cfit e comunicação local com a API REST do equipamento;
+- acessos concedidos e negados são lidos incrementalmente em ordem crescente e enviados ao webhook autenticado do Cfit;
+- cada evento usa chave idempotente derivada do dispositivo e do identificador do log, evitando duplicação no backend;
+- o horário original informado pelo equipamento é preservado em `CheckIn.checked_in_at`; horários sem fuso são normalizados para UTC e a ausência ou invalidade do campo mantém o horário de recebimento como fallback;
+- o cursor local configurado por `CFIT_STATE_FILE` guarda somente o último identificador processado e permite retomada sem reler todo o histórico;
+- o conector resolve o usuário da Control iD para o identificador do aluno no Cfit, mantém cache local durante o processo e ignora com segurança eventos sem vínculo válido;
+- a sincronização atual reconhece os códigos de acesso concedido e negado já implementados, mantendo demais eventos fora do envio até homologação.
+
+Instalação e operação no Windows 11:
+- `frontend/public/downloads/CfitConnector-ControlId.zip` está disponível para download na área **Acesso e equipamentos**;
+- `windows/install-app.bat` cria o ambiente virtual, instala as dependências e abre a interface gráfica do conector;
+- `windows/cfit_connector_app.pyw` permite salvar configuração, testar as conexões com Cfit e iDFace, instalar a inicialização automática e iniciar ou parar a sincronização;
+- `windows/open-app.vbs` reabre a interface sem janela de terminal;
+- os scripts PowerShell continuam disponíveis para configuração assistida, execução manual, instalação e remoção da tarefa agendada;
+- a tarefa inicia no logon do usuário e possui política de reinício após falhas;
+- a chave do dispositivo e a senha da Control iD são protegidas com DPAPI e só podem ser recuperadas pelo mesmo usuário no mesmo computador; `connector-config.json` contém apenas parâmetros não secretos;
+- arquivos locais de credenciais, configuração, cursor, ambiente virtual e caches do conector permanecem ignorados pelo Git.
+
+Limites deliberados e homologação:
+- o conector ainda precisa ser homologado com equipamento Control iD real e com o modelo/firmware usados na academia antes de uso operacional;
+- remoção de usuários, cartões, faces, digitais, regras completas de acesso e monitor de eventos permanecem fora desta etapa;
+- a catraca continua operando em modo standalone quando o computador do conector estiver desligado; durante esse período, a sincronização com o Cfit fica suspensa até o agente voltar a executar.
+
+Validação de retomada em 02/09/2026:
+- workspace limpo, branch `main` sincronizada com `origin/main` no commit `556bce2`;
+- containers PostgreSQL, Django e frontend ativos;
+- `python manage.py check` aprovado e `makemigrations --check --dry-run` sem alterações;
+- lint do frontend aprovado sem erros, com três avisos preexistentes de dependências de hooks;
+- `26` testes frontend e `2` testes unitários do conector aprovados;
+- TypeScript e build Vite de produção aprovados;
+- a suíte Django encontrou `137` testes: `134` aprovados e `3` testes financeiros falharam porque fixtures com vencimento fixo em `01/09/2026` passaram a ser classificadas corretamente como vencidas em `02/09/2026`; os testes precisam controlar a data ou usar datas relativas antes de a suíte voltar a ficar integralmente verde;
+- `git diff --check` aprovado antes desta atualização documental.
+
+---
+
 ## 49. Protocolo de encerramento da sessão
 Frase-gatilho exata:
 ```text

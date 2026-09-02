@@ -46,7 +46,7 @@ type Options = {
   sources: Array<[string, string]>;
 };
 const field =
-  "h-10 rounded-xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-elevated)] px-3 text-sm";
+  "h-10 rounded-xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-elevated)] px-3 text-sm";
 export default function Operations() {
   const dialog = useAppDialog();
   const session = useSession();
@@ -145,7 +145,7 @@ export default function Operations() {
           ].map(([label, value]) => (
             <div
               key={label}
-              className="rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)] p-4"
+              className="rounded-2xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-primary)] p-4"
             >
               <p className="text-xs font-bold uppercase text-[var(--cfit-text-tertiary)]">
                 {label}
@@ -154,8 +154,8 @@ export default function Operations() {
             </div>
           ))}
         </div>
-        <section className="rounded-2xl border border-[var(--cfit-border)] bg-[var(--cfit-surface-primary)]">
-          <div className="grid gap-3 border-b border-[var(--cfit-border)] p-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="rounded-2xl border border-[var(--cfit-border-default)] bg-[var(--cfit-surface-primary)]">
+          <div className="grid gap-3 border-b border-[var(--cfit-border-default)] p-4 sm:grid-cols-2 xl:grid-cols-5">
             <label className="relative">
               <Search
                 size={16}
@@ -279,7 +279,7 @@ export default function Operations() {
               ))}
             </div>
           )}
-          <div className="flex items-center justify-between border-t border-[var(--cfit-border)] p-4 text-sm">
+          <div className="flex items-center justify-between border-t border-[var(--cfit-border-default)] p-4 text-sm">
             <span>{data.count} pendência(s)</span>
             <div className="flex gap-2">
               <button
