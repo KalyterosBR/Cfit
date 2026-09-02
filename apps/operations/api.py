@@ -16,8 +16,8 @@ from rest_framework.response import Response
 
 from apps.checkins.api.serializers import CheckInSerializer
 from apps.checkins.models import CheckIn
-from apps.operations.models import AccessDevice, CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, OperationalIssueHistory, PhysicalAssessment, StudentDocument
-from apps.operations.serializers import AccessDeviceSerializer, CampaignSegmentSerializer, ClassBookingSerializer, CommunicationCampaignSerializer, DeviceCommandSerializer, DeviceEventSerializer, GroupClassSerializer, LeadInteractionSerializer, LeadProposalSerializer, LeadSerializer, MessageDeliverySerializer, OnboardingProgressSerializer, OperationalIssueSerializer, PhysicalAssessmentSerializer, StudentDocumentSerializer
+from apps.operations.models import AccessConnector, AccessDevice, CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, OperationalIssueHistory, PhysicalAssessment, StudentDocument
+from apps.operations.serializers import AccessConnectorSerializer, AccessDeviceSerializer, CampaignSegmentSerializer, ClassBookingSerializer, CommunicationCampaignSerializer, DeviceCommandSerializer, DeviceEventSerializer, GroupClassSerializer, LeadInteractionSerializer, LeadProposalSerializer, LeadSerializer, MessageDeliverySerializer, OnboardingProgressSerializer, OperationalIssueSerializer, PhysicalAssessmentSerializer, StudentDocumentSerializer
 from apps.operations.services.issues import sync_operational_issues
 from apps.operations.providers import CommunicationAdapter, DeviceAdapter
 from apps.schedule.models import ScheduleEvent
@@ -25,6 +25,32 @@ from apps.students.models import Student
 from apps.students.selectors import get_student_health_score
 from apps.users.models import AdministrativeAudit
 from apps.users.permissions import ScopedCapability, get_active_membership, get_request_scope
+
+
+class AccessConnectorViewSet(viewsets.ModelViewSet):
+    serializer_class = AccessConnectorSerializer
+    permission_classes = [ScopedCapability]
+    read_capability = "checkins.view"
+    write_capability = "checkins.manage"
+
+    def get_queryset(self):
+        academy, unit = get_request_scope(self.request.user)
+        queryset = AccessConnector.objects.select_related("unit").filter(academy=academy).annotate(device_count=Count("devices")).order_by("name", "identifier")
+        return queryset.filter(unit=unit) if unit else queryset
+
+    def perform_create(self, serializer):
+        academy, _ = get_request_scope(self.request.user)
+        connector = serializer.save(academy=academy)
+        AdministrativeAudit.objects.create(academy=academy, actor=self.request.user, action="access_connector.created", entity_type="access_connector", entity_id=str(connector.pk), new_state={"name": connector.name, "identifier": connector.identifier})
+
+    @action(detail=True, methods=["post"], url_path="rotate-key")
+    def rotate_key(self, request, pk=None):
+        connector = self.get_object()
+        key = secrets.token_urlsafe(32)
+        connector.webhook_key_hash = make_password(key)
+        connector.save(update_fields=["webhook_key_hash", "updated_at"])
+        AdministrativeAudit.objects.create(academy=connector.academy, actor=request.user, action="access_connector.key_rotated", entity_type="access_connector", entity_id=str(connector.pk), new_state={"name": connector.name, "identifier": connector.identifier})
+        return Response({"connector_key": key, "detail": "Guarde esta chave: ela não será exibida novamente."})
 
 
 class AccessDeviceViewSet(viewsets.ModelViewSet):
@@ -35,7 +61,7 @@ class AccessDeviceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         academy, unit = get_request_scope(self.request.user)
-        queryset = AccessDevice.objects.select_related("unit").filter(academy=academy)
+        queryset = AccessDevice.objects.select_related("unit").filter(academy=academy).order_by("name", "identifier")
         return queryset.filter(unit=unit) if unit else queryset
 
     def perform_create(self, serializer):
@@ -178,9 +204,17 @@ class DeviceWebhookView(APIView):
 
 
 def authenticate_device(request, identifier):
-    key = request.headers.get("X-Cfit-Device-Key", "")
-    for device in AccessDevice.objects.filter(identifier=identifier, active=True).select_related("academy", "unit"):
+    key = request.headers.get("X-Cfit-Connector-Key") or request.headers.get("X-Cfit-Device-Key", "")
+    for device in AccessDevice.objects.filter(identifier=identifier, active=True).select_related("academy", "unit", "connector"):
         if device.webhook_key_hash and check_password(key, device.webhook_key_hash):
+            return device
+        connector = device.connector
+        if connector and connector.active and connector.webhook_key_hash and check_password(key, connector.webhook_key_hash):
+            connector.last_seen_at = timezone.now()
+            connector.status = "online"
+            connector.last_error = ""
+            connector.version = str(request.headers.get("X-Cfit-Connector-Version", connector.version))[:40]
+            connector.save(update_fields=["last_seen_at", "status", "last_error", "version", "updated_at"])
             return device
     return None
 

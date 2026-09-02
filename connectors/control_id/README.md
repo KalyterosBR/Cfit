@@ -2,6 +2,10 @@
 
 Agente local para equipamentos da linha de acesso Control iD. Ele busca comandos no Cfit usando somente conexões HTTPS de saída e conversa com a API REST do equipamento na rede local.
 
+O backend também aceita uma chave única por instalação do Cfit Connector. Para executar vários equipamentos Control iD no mesmo computador, copie `multi-connector-config.example.json`, proteja a chave em `CFIT_CONNECTOR_KEY`, configure uma variável de senha diferente para cada dispositivo e execute `python multi_connector.py`. Cada equipamento mantém cursor e diagnóstico independentes.
+
+Os provedores Topdata já podem ser cadastrados e vinculados ao mesmo conector no Cfit, mas o executável local os rejeita explicitamente enquanto a DLL EasyInner/SDK Facial e os equipamentos reais não forem homologados. Não trate esse cadastro como comunicação física concluída.
+
 ## Estado da integração
 
 Implementado:

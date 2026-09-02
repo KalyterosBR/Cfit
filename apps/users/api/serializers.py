@@ -151,6 +151,7 @@ class AdministrativeAuditSerializer(serializers.ModelSerializer):
         "unit.updated": "Unidade atualizada",
         "membership.invited": "Usuário convidado",
         "membership.updated": "Usuário e permissões alterados",
+        "membership.removed": "Acesso do usuário removido",
         "ownership.transferred": "Propriedade transferida",
         "charge.payment_registered": "Pagamento registrado",
         "charge.reconciled": "Cobrança conciliada",

@@ -1,7 +1,27 @@
 from rest_framework import serializers
 from django.utils import timezone
 
-from apps.operations.models import AccessDevice, CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, OperationalIssueHistory, PhysicalAssessment, StudentDocument
+from apps.operations.models import AccessConnector, AccessDevice, CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, OperationalIssueHistory, PhysicalAssessment, StudentDocument
+
+
+class AccessConnectorSerializer(serializers.ModelSerializer):
+    unit_name = serializers.CharField(source="unit.name", read_only=True)
+    device_count = serializers.IntegerField(read_only=True)
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = AccessConnector
+        fields = ["id", "unit", "unit_name", "name", "identifier", "active", "status", "status_label", "last_seen_at", "version", "last_error", "device_count"]
+        read_only_fields = ["status", "status_label", "last_seen_at", "version", "last_error", "device_count"]
+
+    def validate_unit(self, unit):
+        request = self.context.get("request")
+        if request:
+            from apps.users.permissions import get_request_scope
+            academy, active_unit = get_request_scope(request.user)
+            if unit.academy_id != getattr(academy, "id", None) or (active_unit and unit.id != active_unit.id):
+                raise serializers.ValidationError("A unidade não pertence ao contexto ativo.")
+        return unit
 
 
 class AccessDeviceSerializer(serializers.ModelSerializer):
@@ -11,7 +31,7 @@ class AccessDeviceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AccessDevice
-        fields = ["id", "unit", "unit_name", "name", "identifier", "kind", "provider", "credential_env_key", "active", "status", "status_label", "health", "last_seen_at", "last_latency_ms", "firmware_version", "last_error"]
+        fields = ["id", "unit", "unit_name", "name", "identifier", "kind", "provider", "connection_mode", "connector", "local_address", "local_port", "model_name", "credential_env_key", "active", "status", "status_label", "health", "last_seen_at", "last_latency_ms", "firmware_version", "last_error"]
         read_only_fields = ["last_seen_at", "status", "status_label", "health", "last_latency_ms", "firmware_version", "last_error"]
 
     def get_health(self, obj):
@@ -28,6 +48,21 @@ class AccessDeviceSerializer(serializers.ModelSerializer):
             if unit.academy_id != getattr(academy, "id", None) or (active_unit and unit.id != active_unit.id):
                 raise serializers.ValidationError("A unidade não pertence ao contexto ativo.")
         return unit
+
+    def validate(self, attrs):
+        unit = attrs.get("unit", getattr(self.instance, "unit", None))
+        connector = attrs.get("connector", getattr(self.instance, "connector", None))
+        mode = attrs.get("connection_mode", getattr(self.instance, "connection_mode", AccessDevice.ConnectionMode.LOCAL_CONNECTOR))
+        provider = attrs.get("provider", getattr(self.instance, "provider", AccessDevice.Provider.SIMULATOR))
+        if mode == AccessDevice.ConnectionMode.LOCAL_CONNECTOR and not connector and "connection_mode" in attrs:
+            raise serializers.ValidationError({"connector": "Selecione o conector local responsável pelo equipamento."})
+        if connector and (connector.academy_id != unit.academy_id or connector.unit_id != unit.id):
+            raise serializers.ValidationError({"connector": "O conector deve pertencer à mesma academia e unidade do equipamento."})
+        if mode == AccessDevice.ConnectionMode.DIRECT_CLOUD and provider != AccessDevice.Provider.CONTROL_ID:
+            raise serializers.ValidationError({"connection_mode": "A conexão direta está disponível somente para Control iD."})
+        if mode != AccessDevice.ConnectionMode.LOCAL_CONNECTOR:
+            attrs["connector"] = None
+        return attrs
 
 
 class CommunicationCampaignSerializer(serializers.ModelSerializer):

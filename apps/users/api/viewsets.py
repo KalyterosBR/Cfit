@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.db import models, transaction
-from rest_framework.generics import ListCreateAPIView, ListAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import ListCreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
@@ -601,7 +601,17 @@ class MembershipListView(AcademyScopedMixin, ListCreateAPIView):
         if self.request.query_params.get("role"): queryset = queryset.filter(role=self.request.query_params["role"])
         if self.request.query_params.get("active") in {"true", "false"}: queryset = queryset.filter(active=self.request.query_params["active"] == "true")
         if self.request.query_params.get("unit"): queryset = queryset.filter(active_unit_id=self.request.query_params["unit"])
-        return queryset
+        role_order = models.Case(
+            models.When(role=AcademyUser.Role.OWNER, then=0),
+            models.When(role=AcademyUser.Role.ADMIN, then=1),
+            models.When(role=AcademyUser.Role.MANAGER, then=2),
+            models.When(role=AcademyUser.Role.RECEPTION, then=3),
+            models.When(role=AcademyUser.Role.TRAINER, then=4),
+            models.When(role=AcademyUser.Role.FINANCIAL, then=5),
+            default=6,
+            output_field=models.IntegerField(),
+        )
+        return queryset.order_by(role_order, "user__first_name", "user__last_name", "user__email")
 
     def get_serializer_class(self):
         return MembershipInviteSerializer if self.request.method == "POST" else AcademyUserSerializer
@@ -633,11 +643,11 @@ class MembershipListView(AcademyScopedMixin, ListCreateAPIView):
         )
 
 
-class MembershipDetailView(AcademyScopedMixin, RetrieveUpdateAPIView):
+class MembershipDetailView(AcademyScopedMixin, RetrieveUpdateDestroyAPIView):
     serializer_class = AcademyUserSerializer
     permission_classes = [HasCapability]
     required_capability = "users.manage"
-    http_method_names = ["get", "patch", "head", "options"]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         academy = self.get_academy()
@@ -664,6 +674,31 @@ class MembershipDetailView(AcademyScopedMixin, RetrieveUpdateAPIView):
             previous_state=previous,
             new_state={"role": updated.role, "active": updated.active},
             reason=self.request.data.get("reason", ""),
+        )
+
+    @transaction.atomic
+    def perform_destroy(self, membership):
+        if membership.user_id == self.request.user.id:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"detail": "Você não pode remover o próprio acesso."})
+        if membership.role == AcademyUser.Role.OWNER:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"detail": "Transfira a propriedade antes de remover este acesso."})
+        previous = {"email": membership.user.email, "role": membership.role, "active": membership.active}
+        membership.active = False
+        membership.active_unit = None
+        membership.save(update_fields=["active", "active_unit", "updated_at"])
+        from apps.operations.models import LoginSession
+        LoginSession.objects.filter(user=membership.user, revoked_at__isnull=True).update(revoked_at=timezone.now())
+        AdministrativeAudit.objects.create(
+            academy=membership.academy,
+            actor=self.request.user,
+            action="membership.removed",
+            entity_type="academy_user",
+            entity_id=str(membership.pk),
+            previous_state=previous,
+            new_state={"email": membership.user.email, "role": membership.role, "active": False},
+            reason="Acesso removido nas configurações",
         )
 
 

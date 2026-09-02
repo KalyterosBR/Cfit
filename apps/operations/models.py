@@ -4,6 +4,22 @@ from django.db import models
 from apps.core.base.models import BaseModel
 
 
+class AccessConnector(BaseModel):
+    academy = models.ForeignKey("academy.Academy", on_delete=models.PROTECT, related_name="access_connectors")
+    unit = models.ForeignKey("academy.Unit", on_delete=models.PROTECT, related_name="access_connectors")
+    name = models.CharField(max_length=120)
+    identifier = models.CharField(max_length=80)
+    active = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=[("never_connected", "Nunca conectado"), ("online", "Online"), ("offline", "Offline"), ("error", "Com falha")], default="never_connected")
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    version = models.CharField(max_length=40, blank=True)
+    last_error = models.CharField(max_length=255, blank=True)
+    webhook_key_hash = models.CharField(max_length=128, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["academy", "identifier"], name="unique_connector_identifier_per_academy")]
+
+
 class AccessDevice(BaseModel):
     class Provider(models.TextChoices):
         SIMULATOR = "simulator", "Simulador Cfit"
@@ -16,6 +32,11 @@ class AccessDevice(BaseModel):
         READER = "reader", "Leitor"
         FACIAL = "facial", "Reconhecimento facial"
         SIMULATOR = "simulator", "Simulador"
+
+    class ConnectionMode(models.TextChoices):
+        LOCAL_CONNECTOR = "local_connector", "Conector local"
+        DIRECT_CLOUD = "direct_cloud", "Direta com o Cfit"
+        SIMULATOR = "simulator", "Simulação"
 
     academy = models.ForeignKey("academy.Academy", on_delete=models.PROTECT, related_name="access_devices")
     unit = models.ForeignKey("academy.Unit", on_delete=models.PROTECT, related_name="access_devices")
@@ -31,6 +52,11 @@ class AccessDevice(BaseModel):
     last_latency_ms = models.PositiveIntegerField(null=True, blank=True)
     firmware_version = models.CharField(max_length=80, blank=True)
     webhook_key_hash = models.CharField(max_length=128, blank=True)
+    connection_mode = models.CharField(max_length=24, choices=ConnectionMode.choices, default=ConnectionMode.LOCAL_CONNECTOR)
+    connector = models.ForeignKey(AccessConnector, on_delete=models.PROTECT, null=True, blank=True, related_name="devices")
+    local_address = models.CharField(max_length=255, blank=True)
+    local_port = models.PositiveIntegerField(null=True, blank=True)
+    model_name = models.CharField(max_length=100, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["academy", "identifier"], name="unique_device_identifier_per_academy")]

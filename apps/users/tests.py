@@ -78,6 +78,28 @@ class RolePermissionTests(APITestCase):
         self.assertEqual(audit.new_state["role"], AcademyUser.Role.FINANCIAL)
         self.assertEqual(audit.reason, "Mudança de função")
 
+    def test_admin_removes_access_without_deleting_user_history(self):
+        from apps.operations.models import LoginSession
+        membership = AcademyUser.objects.get(academy=self.academy, user=self.trainer)
+        session = LoginSession.objects.create(user=self.trainer, token_jti="trainer-access", refresh_jti="trainer-refresh")
+        self.client.force_authenticate(self.admin)
+        response = self.client.delete(f"/api/users/members/{membership.pk}/")
+        self.assertEqual(response.status_code, 204)
+        membership.refresh_from_db()
+        session.refresh_from_db()
+        self.assertFalse(membership.active)
+        self.assertIsNone(membership.active_unit)
+        self.assertIsNotNone(session.revoked_at)
+        self.assertTrue(User.objects.filter(pk=self.trainer.pk).exists())
+        self.assertTrue(AdministrativeAudit.objects.filter(action="membership.removed", entity_id=str(membership.pk)).exists())
+
+    def test_user_cannot_remove_own_access(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.delete(f"/api/users/members/{self.admin_membership.pk}/")
+        self.assertEqual(response.status_code, 400)
+        self.admin_membership.refresh_from_db()
+        self.assertTrue(self.admin_membership.active)
+
     def test_audit_translates_operational_goals_and_entities(self):
         audit = AdministrativeAudit.objects.create(
             academy=self.academy,

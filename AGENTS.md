@@ -3196,6 +3196,19 @@ Validação de retomada em 02/09/2026:
 
 ---
 
+## 48.16 Fundação do Cfit Connector multimarca — 02/09/2026
+
+- `operations.AccessConnector` representa uma instalação local por academia e unidade, com identificador, estado, versão, último contato e chave individual armazenada somente como hash;
+- um conector pode atender vários `AccessDevice`; cada equipamento escolhe `local_connector`, `direct_cloud` ou `simulator` e preserva marca, modelo, endereço e porta locais;
+- `direct_cloud` é aceito somente para Control iD; o protocolo Push físico ainda exige homologação específica antes de ser anunciado como concluído;
+- a mesma chave de conector autentica eventos e comandos de todos os dispositivos vinculados, sem remover a autenticação legada por equipamento;
+- `/checkins`, em **Acesso e equipamentos**, permite cadastrar conectores, gerar sua chave única e vincular dispositivos de diferentes marcas;
+- `connectors/control_id/multi_connector.py` executa vários equipamentos Control iD em um processo, com cursores independentes e uma chave compartilhada do conector;
+- Topdata Inner e Facial podem ser cadastrados e vinculados, mas o adaptador físico permanece bloqueado até inclusão da DLL EasyInner/SDK Facial e homologação com modelos e firmwares reais;
+- nunca apresentar o cadastro Topdata ou o modo direto Control iD como integração física homologada apenas pela existência dessa fundação.
+
+---
+
 ## 49. Protocolo de encerramento da sessão
 Frase-gatilho exata:
 ```text

@@ -14,6 +14,11 @@ type Device = {
   identifier: string;
   kind: string;
   provider: string;
+  connection_mode: string;
+  connector: string | null;
+  local_address: string;
+  local_port: number | null;
+  model_name: string;
   active: boolean;
   status: string;
   status_label: string;
@@ -21,6 +26,19 @@ type Device = {
   last_latency_ms: number | null;
   firmware_version: string;
   health: { detail: string };
+};
+type Connector = {
+  id: string;
+  unit: string;
+  unit_name: string;
+  name: string;
+  identifier: string;
+  active: boolean;
+  status: string;
+  status_label: string;
+  last_seen_at: string | null;
+  version: string;
+  device_count: number;
 };
 type Unit = { id: string; name: string };
 type Event = {
@@ -49,16 +67,19 @@ export default function DeviceManagement({
 }) {
   const dialog = useAppDialog();
   const [items, setItems] = useState<Device[]>([]),
-    [units, setUnits] = useState<Unit[]>([]);
+    [units, setUnits] = useState<Unit[]>([]),
+    [connectors, setConnectors] = useState<Connector[]>([]);
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(false),
-    [open, setOpen] = useState(false);
+    [open, setOpen] = useState(false),
+    [connectorOpen, setConnectorOpen] = useState(false);
   const [editing, setEditing] = useState<Device | null>(null),
     [details, setDetails] = useState<Device | null>(null);
   const [generatedKey, setGeneratedKey] = useState<{
     deviceName: string;
     value: string;
   } | null>(null);
+  const [connectorForm, setConnectorForm] = useState({ name: "", identifier: "", unit: "" });
   const [events, setEvents] = useState<Event[]>([]),
     [commands, setCommands] = useState<Command[]>([]);
   const [form, setForm] = useState({
@@ -67,17 +88,24 @@ export default function DeviceManagement({
     kind: "simulator",
     provider: "simulator",
     unit: "",
+    connection_mode: "simulator",
+    connector: "",
+    local_address: "",
+    local_port: "",
+    model_name: "",
   });
   const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(false);
-      const [a, b] = await Promise.all([
+      const [a, b, c] = await Promise.all([
         Api.get("/operations/devices/"),
         Api.get("/academies/units/"),
+        Api.get("/operations/connectors/"),
       ]);
       setItems(a.data.results);
       setUnits(b.data.results);
+      setConnectors(c.data.results);
     } catch {
       setError(true);
     } finally {
@@ -90,8 +118,9 @@ export default function DeviceManagement({
   async function save(e: FormEvent) {
     e.preventDefault();
     try {
-      if (editing) await Api.patch(`/operations/devices/${editing.id}/`, form);
-      else await Api.post("/operations/devices/", form);
+      const payload = { ...form, connector: form.connector || null, local_port: form.local_port ? Number(form.local_port) : null };
+      if (editing) await Api.patch(`/operations/devices/${editing.id}/`, payload);
+      else await Api.post("/operations/devices/", payload);
       toast.success(
         editing ? "Equipamento atualizado." : "Equipamento cadastrado.",
       );
@@ -100,6 +129,32 @@ export default function DeviceManagement({
       await load();
     } catch {
       toast.error("Não foi possível salvar o equipamento.");
+    }
+  }
+  async function saveConnector(e: FormEvent) {
+    e.preventDefault();
+    try {
+      await Api.post("/operations/connectors/", connectorForm);
+      toast.success("Conector local cadastrado.");
+      setConnectorOpen(false);
+      await load();
+    } catch {
+      toast.error("Não foi possível cadastrar o conector.");
+    }
+  }
+  async function rotateConnectorKey(item: Connector) {
+    const confirmed = await dialog.confirm({
+      title: "Gerar nova chave do conector",
+      description: `Todos os equipamentos ligados a “${item.name}” passarão a usar a nova chave. A anterior será invalidada imediatamente.`,
+      confirmLabel: "Gerar nova chave",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      const response = await Api.post<{ connector_key: string }>(`/operations/connectors/${item.id}/rotate-key/`);
+      setGeneratedKey({ deviceName: item.name, value: response.data.connector_key });
+    } catch {
+      toast.error("Não foi possível gerar a chave do conector.");
     }
   }
   async function detail(item: Device) {
@@ -174,6 +229,16 @@ export default function DeviceManagement({
           </a>
           <button
             onClick={() => {
+              setConnectorForm({ name: "", identifier: "", unit: units[0]?.id || "" });
+              setConnectorOpen(true);
+            }}
+            className="cfit-secondary-button"
+          >
+            <Plus size={16} />
+            Novo conector
+          </button>
+          <button
+            onClick={() => {
               setEditing(null);
               setForm({
                 name: "",
@@ -181,6 +246,11 @@ export default function DeviceManagement({
                 kind: "simulator",
                 provider: "simulator",
                 unit: units[0]?.id || "",
+                connection_mode: "simulator",
+                connector: "",
+                local_address: "",
+                local_port: "",
+                model_name: "",
               });
               setOpen(true);
             }}
@@ -189,6 +259,22 @@ export default function DeviceManagement({
             <Plus size={16} />
             Novo equipamento
           </button>
+        </div>
+      )}
+      {connectors.length > 0 && (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {connectors.map((connector) => (
+            <article key={connector.id} className="rounded-xl border border-[var(--cfit-border-subtle)] bg-[var(--cfit-surface-subtle)] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2"><Radio size={16} /><strong>{connector.name}</strong><span className="cfit-chip" data-tone={connector.status === "online" ? "success" : "warning"}>{connector.status_label}</span></div>
+                  <p className="mt-1 text-sm text-[var(--cfit-text-secondary)]">{connector.unit_name} · {connector.identifier} · {connector.device_count} equipamento(s)</p>
+                  <p className="mt-1 text-xs text-[var(--cfit-text-tertiary)]">Versão {connector.version || "não informada"} · último contato {connector.last_seen_at ? new Date(connector.last_seen_at).toLocaleString("pt-BR") : "nunca"}</p>
+                </div>
+                {canManage && <button type="button" onClick={() => void rotateConnectorKey(connector)} className="cfit-secondary-button"><KeyRound size={16} /> Gerar chave</button>}
+              </div>
+            </article>
+          ))}
         </div>
       )}
       {loading ? (
@@ -226,6 +312,10 @@ export default function DeviceManagement({
                 </div>
                 <p className="mt-1 text-sm text-[var(--cfit-text-secondary)]">
                   {item.unit_name} · {item.identifier} · {item.health.detail}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-[var(--cfit-text-secondary)]">
+                  {item.connection_mode === "direct_cloud" ? "Conexão direta com o Cfit" : item.connection_mode === "local_connector" ? "Conector local" : "Simulação"}
+                  {item.local_address ? ` · ${item.local_address}${item.local_port ? `:${item.local_port}` : ""}` : ""}
                 </p>
                 <p className="mt-1 text-xs text-[var(--cfit-text-tertiary)]">
                   Último contato:{" "}
@@ -272,6 +362,11 @@ export default function DeviceManagement({
                           kind: item.kind,
                           provider: item.provider,
                           unit: item.unit,
+                          connection_mode: item.connection_mode,
+                          connector: item.connector || "",
+                          local_address: item.local_address,
+                          local_port: item.local_port ? String(item.local_port) : "",
+                          model_name: item.model_name,
                         });
                         setOpen(true);
                       }}
@@ -292,6 +387,18 @@ export default function DeviceManagement({
           ))}
         </div>
       )}
+      <Modal open={connectorOpen} title="Novo conector local" onClose={() => setConnectorOpen(false)}>
+        <form onSubmit={saveConnector} className="grid gap-3 sm:grid-cols-2">
+          <input required placeholder="Nome do computador ou conector" value={connectorForm.name} onChange={(e) => setConnectorForm({ ...connectorForm, name: e.target.value })} className={field} />
+          <input required placeholder="Identificador único" value={connectorForm.identifier} onChange={(e) => setConnectorForm({ ...connectorForm, identifier: e.target.value })} className={field} />
+          <select required value={connectorForm.unit} onChange={(e) => setConnectorForm({ ...connectorForm, unit: e.target.value })} className={`${field} sm:col-span-2`}>
+            <option value="">Selecione a unidade</option>
+            {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+          </select>
+          <p className="text-sm leading-6 text-[var(--cfit-text-secondary)] sm:col-span-2">Um único Cfit Connector pode atender vários equipamentos e marcas acessíveis por este computador.</p>
+          <button className="cfit-primary-button sm:col-span-2">Cadastrar conector</button>
+        </form>
+      </Modal>
       <Modal
         open={Boolean(generatedKey)}
         title="Chave do conector"
@@ -372,10 +479,20 @@ export default function DeviceManagement({
             <option value="topdata_facial">Topdata Facial</option>
           </select>
           <select
+            value={form.connection_mode}
+            onChange={(e) => setForm({ ...form, connection_mode: e.target.value, connector: e.target.value === "local_connector" ? form.connector : "" })}
+            className={field}
+          >
+            <option value="simulator">Simulação</option>
+            <option value="local_connector">Conector local</option>
+            <option value="direct_cloud" disabled={form.provider !== "control_id"}>Direta com o Cfit (Control iD)</option>
+          </select>
+          <input placeholder="Modelo do equipamento" value={form.model_name} onChange={(e) => setForm({ ...form, model_name: e.target.value })} className={field} />
+          <select
             required
             value={form.unit}
             onChange={(e) => setForm({ ...form, unit: e.target.value })}
-            className={`${field} sm:col-span-2`}
+            className={field}
           >
             <option value="">Selecione a unidade</option>
             {units.map((x) => (
@@ -384,6 +501,17 @@ export default function DeviceManagement({
               </option>
             ))}
           </select>
+          {form.connection_mode === "local_connector" && (
+            <>
+              <select required value={form.connector} onChange={(e) => setForm({ ...form, connector: e.target.value })} className={field}>
+                <option value="">Selecione o conector</option>
+                {connectors.filter((connector) => connector.unit === form.unit).map((connector) => <option key={connector.id} value={connector.id}>{connector.name}</option>)}
+              </select>
+              <input required placeholder="IP ou endereço local" value={form.local_address} onChange={(e) => setForm({ ...form, local_address: e.target.value })} className={field} />
+              <input type="number" min="1" max="65535" placeholder="Porta (ex.: 3570)" value={form.local_port} onChange={(e) => setForm({ ...form, local_port: e.target.value })} className={field} />
+            </>
+          )}
+          {form.connection_mode === "direct_cloud" && <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800 sm:col-span-2">Após salvar e gerar a chave, configure o modo Push personalizado da Control iD com o endereço público do Cfit.</p>}
           <button className="cfit-primary-button sm:col-span-2">
             Salvar equipamento
           </button>

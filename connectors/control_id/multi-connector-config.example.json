@@ -1,0 +1,21 @@
+{
+  "cfit_url": "https://api.exemplo.com",
+  "devices": [
+    {
+      "identifier": "CID-ENTRADA-01",
+      "provider": "control_id",
+      "address": "http://192.168.0.129",
+      "login": "admin",
+      "password_env": "CONTROL_ID_01_PASSWORD",
+      "entry_direction": "clockwise",
+      "exit_direction": "anticlockwise"
+    },
+    {
+      "identifier": "CID-SAIDA-01",
+      "provider": "control_id",
+      "address": "http://192.168.0.130",
+      "login": "admin",
+      "password_env": "CONTROL_ID_02_PASSWORD"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 
 from apps.academy.models import Academy, Unit
 from apps.checkins.models import CheckIn
-from apps.operations.models import CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, PhysicalAssessment
+from apps.operations.models import AccessConnector, AccessDevice, CampaignSegment, ClassBooking, CommunicationCampaign, DeviceCommand, DeviceEvent, GroupClass, Lead, LeadInteraction, LeadProposal, MessageDelivery, OnboardingProgress, OperationalIssue, PhysicalAssessment
 from apps.schedule.models import ScheduleEvent
 from apps.students.models import Student
 from apps.users.models import AcademyUser, AdministrativeAudit
@@ -260,6 +260,41 @@ class OperationsApiTests(APITestCase):
         self.client.force_authenticate(user=None)
         response = self.client.get("/api/operations/device-commands/?device_identifier=TOP-01", HTTP_X_CFIT_DEVICE_KEY="invalid")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_one_connector_key_authenticates_multiple_local_devices(self):
+        connector = self.client.post(reverse("access-connector-list"), {
+            "unit": self.unit.id, "name": "Recepção Windows", "identifier": "CON-01",
+        }, format="json")
+        self.assertEqual(connector.status_code, status.HTTP_201_CREATED)
+        key = self.client.post(reverse("access-connector-rotate-key", args=[connector.data["id"]])).data["connector_key"]
+        for identifier, provider in (("CID-LOCAL", "control_id"), ("TOP-LOCAL", "topdata_inner")):
+            created = self.client.post(reverse("access-device-list"), {
+                "unit": self.unit.id, "name": identifier, "identifier": identifier,
+                "kind": "turnstile", "provider": provider, "connection_mode": "local_connector",
+                "connector": connector.data["id"], "local_address": "192.168.1.10",
+            }, format="json")
+            self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+
+        self.client.force_authenticate(user=None)
+        for identifier in ("CID-LOCAL", "TOP-LOCAL"):
+            response = self.client.get("/api/operations/device-commands/", {"device_identifier": identifier}, HTTP_X_CFIT_CONNECTOR_KEY=key, HTTP_X_CFIT_CONNECTOR_VERSION="1.0.0")
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+        stored = AccessConnector.objects.get(identifier="CON-01")
+        self.assertEqual(stored.status, "online")
+        self.assertEqual(stored.version, "1.0.0")
+
+    def test_direct_cloud_is_restricted_to_control_id(self):
+        rejected = self.client.post(reverse("access-device-list"), {
+            "unit": self.unit.id, "name": "Topdata direta", "identifier": "TOP-DIRECT",
+            "kind": "turnstile", "provider": "topdata_inner", "connection_mode": "direct_cloud",
+        }, format="json")
+        accepted = self.client.post(reverse("access-device-list"), {
+            "unit": self.unit.id, "name": "Control iD direta", "identifier": "CID-DIRECT",
+            "kind": "facial", "provider": "control_id", "connection_mode": "direct_cloud",
+        }, format="json")
+        self.assertEqual(rejected.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(accepted.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(AccessDevice.objects.get(identifier="CID-DIRECT").connection_mode, "direct_cloud")
 
     def test_student_portal_cannot_inherit_administrative_access(self):
         created = self.client.post(f"/api/users/portal/students/{self.student.id}/access/", {"email": "aluno@cfit.test", "password": "initial-pass"}, format="json")

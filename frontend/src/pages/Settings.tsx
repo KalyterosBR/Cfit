@@ -6,6 +6,7 @@ import {
   Search,
   Settings2,
   Shield,
+  Trash2,
   Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -23,6 +24,7 @@ type Academy = {
   email: string;
 };
 type Me = {
+  email: string;
   role: string;
   role_label: string | null;
   capabilities: string[];
@@ -81,6 +83,7 @@ const roles = [
   ["TRAINER", "Professor"],
   ["FINANCIAL", "Financeiro"],
 ];
+const roleOrder = new Map(roles.map(([role], index) => [role, index]));
 const emptyInvite = () => ({
   name: "",
   email: "",
@@ -141,6 +144,7 @@ export default function Settings() {
   const [academies, setAcademies] = useState<Academy[]>([]);
   const [me, setMe] = useState<Me | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [audits, setAudits] = useState<Audit[]>([]);
   const [auditOpen, setAuditOpen] = useState(false);
   const canAdmin = Boolean(
@@ -152,6 +156,7 @@ export default function Settings() {
     null,
   );
   const [sessions, setSessions] = useState<LoginSession[]>([]);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
   const [savedAcademySnapshot, setSavedAcademySnapshot] = useState("");
   const [savedOperationalSnapshot, setSavedOperationalSnapshot] = useState("");
   useEffect(() => {
@@ -218,6 +223,7 @@ export default function Settings() {
   }, [dialog, hasUnsavedChanges]);
   useEffect(() => {
     if (!section) return;
+    if (section === "users") setMembersOpen(true);
     const timer = window.setTimeout(() => document.getElementById(section)?.scrollIntoView({ block: "start" }), 0);
     return () => window.clearTimeout(timer);
   }, [section]);
@@ -245,6 +251,13 @@ export default function Settings() {
       ),
     [search],
   );
+  const orderedMembers = useMemo(
+    () => [...members].sort((left, right) =>
+      (roleOrder.get(left.role) ?? roles.length) - (roleOrder.get(right.role) ?? roles.length) ||
+      left.name.localeCompare(right.name, "pt-BR"),
+    ),
+    [members],
+  );
   async function updateMember(member: Member, changes: Partial<Member>) {
     try {
       const response = await Api.patch<Member>(`/users/members/${member.id}/`, {
@@ -258,6 +271,23 @@ export default function Settings() {
       toast.success("Permissão atualizada e auditada.");
     } catch {
       toast.error("Não foi possível atualizar a permissão.");
+    }
+  }
+  async function removeMember(member: Member) {
+    const confirmed = await dialog.confirm({
+      title: "Remover conta de acesso",
+      description: `O acesso de ${member.email} será removido e todas as sessões abertas serão encerradas. O histórico administrativo será preservado.`,
+      confirmLabel: "Remover acesso",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      await Api.delete(`/users/members/${member.id}/`);
+      setMembers((current) => current.filter((item) => item.id !== member.id));
+      setAudits((await Api.get<Page<Audit>>("/users/audits/")).data.results);
+      toast.success("Conta de acesso removida e sessões encerradas.");
+    } catch {
+      toast.error("Não foi possível remover esta conta de acesso.");
     }
   }
   async function saveAcademy() {
@@ -575,72 +605,32 @@ export default function Settings() {
       )}
       {(!section || section === "users") && canAdmin && (
         <section id="users" className="mt-6 scroll-mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-black text-slate-950">Usuários e permissões</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Crie acessos, defina o perfil e a unidade operacional de cada
-            pessoa.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-black text-slate-950">Usuários e permissões</h2>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700">{members.length} {members.length === 1 ? "acesso" : "acessos"}</span>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">Crie acessos, defina o perfil e a unidade operacional de cada pessoa.</p>
+            </div>
+            <button
+              type="button"
+              aria-expanded={membersOpen}
+              aria-controls="users-permissions-content"
+              onClick={() => setMembersOpen((current) => !current)}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:text-blue-700"
+            >
+              {membersOpen ? "Ocultar acessos" : "Gerenciar acessos"}
+              <ChevronDown className={`h-4 w-4 transition-transform ${membersOpen ? "rotate-180" : ""}`} />
+            </button>
+          </div>
+          {membersOpen && <div id="users-permissions-content">
           <div className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 md:grid-cols-2 xl:grid-cols-5">
-            <input
-              value={invite.name}
-              onChange={(e) =>
-                setInvite((current) => ({ ...current, name: e.target.value }))
-              }
-              placeholder="Nome completo"
-              className="h-10 rounded-xl border px-3 text-sm"
-            />
-            <input
-              type="email"
-              value={invite.email}
-              onChange={(e) =>
-                setInvite((current) => ({ ...current, email: e.target.value }))
-              }
-              onBlur={(e) => setInvite((current) => ({ ...current, email: normalizeEmail(e.target.value) }))}
-              placeholder="E-mail"
-              className="h-10 rounded-xl border px-3 text-sm"
-            />
-            <input
-              type="password"
-              value={invite.password}
-              onChange={(e) =>
-                setInvite((current) => ({
-                  ...current,
-                  password: e.target.value,
-                }))
-              }
-              placeholder="Senha inicial (8+ caracteres)"
-              className="h-10 rounded-xl border px-3 text-sm"
-            />
-            <select
-              value={invite.role}
-              onChange={(e) =>
-                setInvite((current) => ({ ...current, role: e.target.value }))
-              }
-              className="h-10 rounded-xl border px-3 text-sm"
-            >
-              {roles.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={invite.active_unit}
-              onChange={(e) =>
-                setInvite((current) => ({
-                  ...current,
-                  active_unit: e.target.value,
-                }))
-              }
-              className="h-10 rounded-xl border px-3 text-sm"
-            >
-              <option value="">Sem unidade definida</option>
-              {me?.units.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
-                </option>
-              ))}
-            </select>
+            <label className="grid gap-1"><span className="text-xs font-bold text-slate-600">Nome da pessoa</span><input value={invite.name} onChange={(e) => setInvite((current) => ({ ...current, name: e.target.value }))} placeholder="Nome completo" className="h-10 rounded-xl border px-3 text-sm" /></label>
+            <label className="grid gap-1"><span className="text-xs font-bold text-slate-600">E-mail de acesso</span><input type="email" value={invite.email} onChange={(e) => setInvite((current) => ({ ...current, email: e.target.value }))} onBlur={(e) => setInvite((current) => ({ ...current, email: normalizeEmail(e.target.value) }))} placeholder="pessoa@academia.com" className="h-10 rounded-xl border px-3 text-sm" /></label>
+            <label className="grid gap-1"><span className="text-xs font-bold text-slate-600">Senha temporária</span><input type="password" value={invite.password} onChange={(e) => setInvite((current) => ({ ...current, password: e.target.value }))} placeholder="Mínimo de 8 caracteres" className="h-10 rounded-xl border px-3 text-sm" /></label>
+            <label className="grid gap-1"><span className="text-xs font-bold text-slate-600">Cargo de acesso</span><select value={invite.role} onChange={(e) => setInvite((current) => ({ ...current, role: e.target.value }))} className="h-10 rounded-xl border px-3 text-sm">{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label className="grid gap-1"><span className="text-xs font-bold text-slate-600">Unidade vinculada</span><select value={invite.active_unit} onChange={(e) => setInvite((current) => ({ ...current, active_unit: e.target.value }))} className="h-10 rounded-xl border px-3 text-sm"><option value="">Todas / sem unidade fixa</option>{me?.units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}</select></label>
             <button
               type="button"
               onClick={inviteMember}
@@ -653,7 +643,7 @@ export default function Settings() {
             </button>
           </div>
           <div className="cfit-record-list mt-5">
-            {members.map((member) => (
+            {orderedMembers.map((member) => (
               <div
                 key={member.id}
                 className="flex flex-col gap-3 py-4 lg:flex-row lg:items-center"
@@ -666,44 +656,52 @@ export default function Settings() {
                     {member.email}
                   </p>
                 </div>
-                <select
-                  value={member.active_unit ?? ""}
-                  onChange={(e) =>
-                    updateMember(member, {
-                      active_unit: e.target.value || null,
-                    })
-                  }
-                  className="h-10 rounded-xl border px-3 text-sm"
-                >
-                  <option value="">Sem unidade definida</option>
-                  {me?.units.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={member.role}
-                  onChange={(e) =>
-                    updateMember(member, { role: e.target.value })
-                  }
-                  className="h-10 rounded-xl border border-slate-200 px-3 text-sm"
-                >
-                  {roles.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateMember(member, { active: !member.active })
-                  }
-                  className={`h-10 rounded-xl px-4 text-sm font-bold ${member.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
-                >
-                  {member.active ? "Ativo" : "Inativo"}
-                </button>
+                <label className="grid gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Unidade vinculada</span>
+                  <select
+                    value={member.active_unit ?? ""}
+                    onChange={(e) => updateMember(member, { active_unit: e.target.value || null })}
+                    className="h-10 rounded-xl border px-3 text-sm"
+                  >
+                    <option value="">Todas / sem unidade fixa</option>
+                    {me?.units.map((unit) => (
+                      <option key={unit.id} value={unit.id}>{unit.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Cargo de acesso</span>
+                  <select
+                    value={member.role}
+                    onChange={(e) => updateMember(member, { role: e.target.value })}
+                    className="h-10 rounded-xl border border-slate-200 px-3 text-sm"
+                  >
+                    {roles.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="grid gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Situação da conta</span>
+                  <button
+                    type="button"
+                    onClick={() => updateMember(member, { active: !member.active })}
+                    className={`h-10 rounded-xl px-4 text-sm font-bold ${member.active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
+                  >
+                    {member.active ? "Ativo" : "Inativo"}
+                  </button>
+                </div>
+                {member.email !== me?.email && member.role !== "OWNER" && (
+                  <button
+                    type="button"
+                    onClick={() => void removeMember(member)}
+                    aria-label={`Remover acesso de ${member.name}`}
+                    title="Remover acesso"
+                    className="mt-auto inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 transition hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -712,6 +710,7 @@ export default function Settings() {
               Nenhum usuário vinculado à academia.
             </p>
           )}
+          </div>}
         </section>
       )}
       {(!section || section === "security") && canAdmin && (
@@ -831,7 +830,23 @@ export default function Settings() {
             {me?.two_factor_enabled ? "2FA ativado" : "Ativar 2FA"}
           </button>
         </div>
-        <div className="cfit-record-list mt-4">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <div>
+            <h3 className="text-sm font-black text-slate-900">Sessões ativas</h3>
+            <p className="mt-1 text-xs text-slate-500">{sessions.filter((session) => !session.revoked_at).length} sessão(ões) em uso</p>
+          </div>
+          <button
+            type="button"
+            aria-expanded={sessionsOpen}
+            aria-controls="active-sessions"
+            onClick={() => setSessionsOpen((current) => !current)}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700"
+          >
+            {sessionsOpen ? "Ocultar sessões" : "Exibir sessões"}
+            <ChevronDown className={`h-4 w-4 transition-transform ${sessionsOpen ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+        {sessionsOpen && <div id="active-sessions" className="cfit-record-list mt-3">
           {sessions.map((session) => (
             <div
               key={session.id}
@@ -859,7 +874,7 @@ export default function Settings() {
               )}
             </div>
           ))}
-        </div>
+        </div>}
       </section>}
       {(!section || section === "users" || section === "security") && me?.role === "OWNER" && (
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-6">

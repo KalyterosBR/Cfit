@@ -51,6 +51,8 @@ class CfitClient:
         self.settings = settings
         self.session = requests.Session()
         self.session.headers["X-Cfit-Device-Key"] = settings.device_key
+        self.session.headers["X-Cfit-Connector-Key"] = settings.device_key
+        self.session.headers["X-Cfit-Connector-Version"] = "1.1.0"
 
     def pull_commands(self):
         response = self.session.get(
@@ -176,12 +178,12 @@ class CursorStore:
 
 
 class Connector:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, state_path: Path | None = None):
         self.settings = settings
         self.cfit = CfitClient(settings)
         self.device = ControlIdClient(settings)
-        state_path = Path(os.getenv("CFIT_STATE_FILE", Path(__file__).with_name("connector-state.json")))
-        self.cursor = CursorStore(state_path)
+        resolved_state_path = state_path or Path(os.getenv("CFIT_STATE_FILE", Path(__file__).with_name("connector-state.json")))
+        self.cursor = CursorStore(resolved_state_path)
         self.user_cache: dict[int, str] = {}
 
     def execute(self, command):
