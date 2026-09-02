@@ -69,6 +69,8 @@ class StudentSerializer(serializers.ModelSerializer):
         return value
 
     def validate_emergency_phone(self, value):
+        if not value:
+            return value
         return self.validate_phone(value)
 
     def validate_cep(self, value):

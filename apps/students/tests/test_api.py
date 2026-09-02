@@ -81,6 +81,23 @@ class StudentApiTests(APITestCase):
         self.assertEqual(response.data["event_net_change"], -1)
         self.assertEqual(response.data["data_quality"], "complete")
 
+    def test_create_student_accepts_empty_optional_emergency_phone(self):
+        response = self.client.post(
+            reverse("students-list"),
+            {
+                "name": "Aluno sem contato de emergência",
+                "cpf": "123.456.789-01",
+                "phone": "(11) 99999-9999",
+                "birth_date": "2000-01-01",
+                "email": self.user.email,
+                "emergency_phone": None,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(response.data["emergency_phone"])
+
     def test_monthly_active_student_goal_is_created_and_updated(self):
         url = reverse("students-monthly-goal")
         created = self.client.post(
