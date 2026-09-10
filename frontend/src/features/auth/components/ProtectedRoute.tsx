@@ -33,6 +33,8 @@ export default function ProtectedRoute() {
 
     if (!profile) return <ThemeProvider><AppBootSkeleton /></ThemeProvider>;
     if (profile.must_change_password && location.pathname !== "/change-password") return <Navigate to="/change-password" replace />;
+    if (!profile.must_change_password && profile.terms_pending && location.pathname !== "/terms-access") return <Navigate to="/terms-access" replace />;
+    if (!profile.terms_pending && location.pathname === "/terms-access") return <Navigate to="/dashboard" replace />;
     const canConfigureAcademy = profile.capabilities.includes("*") || profile.capabilities.includes("settings.manage");
     if (!profile.onboarding_completed && canConfigureAcademy && location.pathname !== "/onboarding") return <Navigate to="/onboarding" replace />;
     if (profile.onboarding_completed && location.pathname === "/onboarding") return <Navigate to="/dashboard" replace />;
@@ -40,7 +42,7 @@ export default function ProtectedRoute() {
     if (profile.role !== "STUDENT" && location.pathname === "/portal") return <Navigate to="/dashboard" replace />;
     const skeletonVariant = location.pathname.startsWith("/students/")
         ? "details"
-        : ["/change-password", "/onboarding"].includes(location.pathname)
+        : ["/change-password", "/terms-access", "/onboarding"].includes(location.pathname)
             ? "form"
             : "module";
 

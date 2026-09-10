@@ -5,4 +5,6 @@ from .academy_user import (
     DashboardPreference,
     OperationalNotificationState,
     SavedReportView,
+    LegalTerm,
+    LegalTermAcceptance,
 )

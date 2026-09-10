@@ -75,6 +75,18 @@ type LoginSession = {
   user_agent?: string;
   ip_address?: string | null;
 };
+type LegalTerm = { id: string; version: number; title: string; content: string; active: boolean; published_at: string | null; acceptance_count: number };
+type TermAcceptance = { id: string; user_name: string; user_email: string; version: number; accepted_at: string };
+const defaultTermContent = `Este documento estabelece as responsabilidades para utilização do Cfit.
+
+1. A conta é pessoal e não deve ser compartilhada.
+2. O usuário deve proteger sua senha e encerrar sessões em dispositivos não autorizados.
+3. Dados de alunos devem ser acessados somente para finalidades profissionais autorizadas pela academia.
+4. Ações administrativas, sessões, endereço IP e informações do navegador podem ser registrados para segurança e auditoria.
+5. É proibido copiar, divulgar ou utilizar dados pessoais fora das finalidades definidas pela academia.
+6. Incidentes ou suspeitas de acesso indevido devem ser comunicados imediatamente ao responsável pela academia.
+
+Texto operacional sujeito à revisão jurídica da academia.`;
 const roles = [
   ["OWNER", "Proprietário"],
   ["ADMIN", "Administrador"],
@@ -157,6 +169,10 @@ export default function Settings() {
   );
   const [sessions, setSessions] = useState<LoginSession[]>([]);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [terms, setTerms] = useState<LegalTerm[]>([]);
+  const [termAcceptances, setTermAcceptances] = useState<TermAcceptance[]>([]);
+  const [termDraft, setTermDraft] = useState({ title: "Termo de uso e privacidade para usuários do Cfit", content: defaultTermContent });
   const [savedAcademySnapshot, setSavedAcademySnapshot] = useState("");
   const [savedOperationalSnapshot, setSavedOperationalSnapshot] = useState("");
   useEffect(() => {
@@ -233,10 +249,13 @@ export default function Settings() {
     Promise.all([
       Api.get<Page<Member>>("/users/members/"),
       Api.get<Page<Audit>>("/users/audits/"),
+      Api.get<{ terms: LegalTerm[]; acceptances: TermAcceptance[] }>("/users/terms/"),
     ])
-      .then(([m, a]) => {
+      .then(([m, a, legal]) => {
         setMembers(m.data.results);
         setAudits(a.data.results);
+        setTerms(legal.data.terms);
+        setTermAcceptances(legal.data.acceptances);
       })
       .catch(() =>
         toast.error("Não foi possível carregar permissões e auditoria."),
@@ -386,6 +405,16 @@ export default function Settings() {
     } catch {
       toast.error("Não foi possível transferir a propriedade.");
     }
+  }
+  async function publishTerm() {
+    if (!termDraft.title.trim() || !termDraft.content.trim()) return;
+    const confirmed = await dialog.confirm({ title: "Publicar nova versão", description: "Todos os usuários administrativos precisarão aceitar esta nova versão antes de voltar aos módulos do Cfit.", confirmLabel: "Publicar termo", tone: "danger" });
+    if (!confirmed) return;
+    try {
+      await Api.post<LegalTerm>("/users/terms/", termDraft);
+      toast.success("Nova versão publicada e registrada na auditoria.");
+      window.location.assign("/terms-access");
+    } catch { toast.error("Não foi possível publicar o termo."); }
   }
   return (
     <DashboardLayout>
@@ -874,6 +903,16 @@ export default function Settings() {
               )}
             </div>
           ))}
+        </div>}
+      </section>}
+      {(!section || section === "security") && canAdmin && <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div><div className="flex flex-wrap items-center gap-2"><h2 className="font-black text-slate-950">Termos e privacidade</h2>{terms[0] && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700">Versão {terms[0].version}</span>}</div><p className="mt-1 text-sm text-slate-500">Publique versões e acompanhe os aceites das contas administrativas.</p></div>
+          <button type="button" aria-expanded={termsOpen} onClick={() => setTermsOpen((current) => !current)} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700">{termsOpen ? "Ocultar termos" : "Gerenciar termos"}<ChevronDown className={`h-4 w-4 transition-transform ${termsOpen ? "rotate-180" : ""}`} /></button>
+        </div>
+        {termsOpen && <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
+          <div className="rounded-2xl bg-slate-50 p-4"><label className="block text-xs font-bold text-slate-700">Título<input value={termDraft.title} onChange={(event) => setTermDraft({ ...termDraft, title: event.target.value })} className="mt-2 h-10 w-full rounded-xl border px-3 text-sm" /></label><label className="mt-4 block text-xs font-bold text-slate-700">Conteúdo<textarea value={termDraft.content} onChange={(event) => setTermDraft({ ...termDraft, content: event.target.value })} className="mt-2 min-h-72 w-full rounded-xl border p-3 text-sm leading-6" /></label><p className="mt-3 text-xs leading-5 text-amber-700">Modelo operacional: revise juridicamente antes de publicar em produção.</p><button type="button" onClick={() => void publishTerm()} className="mt-4 h-10 rounded-xl bg-blue-600 px-4 text-sm font-bold text-white">Publicar nova versão</button></div>
+          <div><h3 className="text-sm font-black text-slate-900">Aceites recentes</h3><div className="mt-3 cfit-record-list">{termAcceptances.slice(0, 20).map((acceptance) => <div key={acceptance.id} className="py-3 text-sm"><strong>{acceptance.user_name}</strong><span className="block text-xs text-slate-500">Versão {acceptance.version} · {new Date(acceptance.accepted_at).toLocaleString("pt-BR")}</span></div>)}</div>{termAcceptances.length === 0 && <p className="mt-3 text-sm text-slate-500">Nenhum aceite registrado.</p>}</div>
         </div>}
       </section>}
       {(!section || section === "users" || section === "security") && me?.role === "OWNER" && (

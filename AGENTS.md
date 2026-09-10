@@ -499,6 +499,7 @@ O interceptor HTTP adiciona o access token às requisições privadas. Em respos
 /operations        Central operacional
 /onboarding        Configuração inicial da academia
 /password-access   Primeiro acesso e troca obrigatória de senha
+/terms-access      Aceite obrigatório do termo de uso e aviso de privacidade
 /portal            Portal do aluno
 ```
 
@@ -3206,6 +3207,22 @@ Validação de retomada em 02/09/2026:
 - `connectors/control_id/multi_connector.py` executa vários equipamentos Control iD em um processo, com cursores independentes e uma chave compartilhada do conector;
 - Topdata Inner e Facial podem ser cadastrados e vinculados, mas o adaptador físico permanece bloqueado até inclusão da DLL EasyInner/SDK Facial e homologação com modelos e firmwares reais;
 - nunca apresentar o cadastro Topdata ou o modo direto Control iD como integração física homologada apenas pela existência dessa fundação.
+
+---
+
+## 48.17 Termos de uso e privacidade para contas administrativas — 02/09/2026
+
+- Proprietário e Administrador podem publicar versões do termo em **Configurações → Segurança → Termos e privacidade**;
+- cada publicação recebe versão sequencial por academia, desativa a versão anterior e exige novo aceite de todas as contas administrativas ativas;
+- o texto inicial oferecido na interface é somente um modelo operacional e deve passar por revisão jurídica antes da publicação em produção;
+- o aceite registra usuário, versão, data, endereço IP e identificação do navegador, sem permitir edição ou exclusão do histórico;
+- publicação e aceite alimentam `AdministrativeAudit`;
+- enquanto o termo vigente estiver pendente, o frontend direciona o usuário para `/terms-access` e a autenticação do backend bloqueia os demais endpoints privados;
+- `/terms-access` apresenta o documento como modal obrigatório sobre uma representação desfocada e não interativa do Dashboard; o fundo não consulta nem expõe dados protegidos antes do aceite;
+- durante o bloqueio permanecem acessíveis somente o perfil da sessão, a troca obrigatória de senha e a consulta/aceite do termo;
+- a troca obrigatória da senha inicial tem precedência sobre o termo;
+- contas do portal do aluno não participam deste fluxo nesta etapa; qualquer termo destinado ao aluno ou responsável legal deve ser implementado como fluxo próprio;
+- o documento não deve ser apresentado como consentimento genérico para todo tratamento de dados: bases legais, políticas públicas, direitos do titular e contratos continuam exigindo definição jurídica e operacional própria.
 
 ---
 

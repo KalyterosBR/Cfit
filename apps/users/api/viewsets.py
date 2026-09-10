@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.db import models, transaction
+from django.db.models import Max, Count
 from rest_framework.generics import ListCreateAPIView, ListAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
@@ -20,8 +21,8 @@ from django.conf import settings
 import secrets
 
 from apps.users.api.turnstile import validate_turnstile
-from apps.users.api.serializers import AcademyUserSerializer, AdministrativeAuditSerializer, DashboardPreferenceSerializer, MembershipInviteSerializer, PasswordChangeSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, SavedReportViewSerializer
-from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, OperationalNotificationState, SavedReportView, User
+from apps.users.api.serializers import AcademyUserSerializer, AdministrativeAuditSerializer, DashboardPreferenceSerializer, LegalTermAcceptanceSerializer, LegalTermSerializer, MembershipInviteSerializer, PasswordChangeSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer, SavedReportViewSerializer
+from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, LegalTerm, LegalTermAcceptance, OperationalNotificationState, SavedReportView, User
 from apps.users.permissions import ROLE_CAPABILITIES, HasCapability, get_active_membership, user_has_capability
 from apps.academy.models import Academy
 from apps.academy.models import Unit
@@ -151,6 +152,8 @@ class CurrentUserView(APIView):
             membership.role if membership else AcademyUser.Role.ADMIN
         )
         capabilities = ROLE_CAPABILITIES.get(role, set())
+        active_term = LegalTerm.objects.filter(academy=membership.academy, active=True).first() if membership else None
+        terms_pending = bool(active_term and not LegalTermAcceptance.objects.filter(term=active_term, user=request.user).exists())
         return Response({
             "email": request.user.email,
             "name": request.user.get_full_name() or request.user.email,
@@ -163,7 +166,59 @@ class CurrentUserView(APIView):
             "must_change_password": request.user.must_change_password,
             "two_factor_enabled": request.user.two_factor_enabled,
             "onboarding_completed": bool(membership.academy.onboarding_completed_at) if membership else True,
+            "terms_pending": terms_pending,
+            "current_term_version": active_term.version if active_term else None,
         })
+
+
+class CurrentLegalTermView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        membership = get_active_membership(request.user)
+        if not membership or request.user.is_student_portal:
+            return Response({"pending": False, "term": None})
+        term = LegalTerm.objects.filter(academy=membership.academy, active=True).first()
+        if not term:
+            return Response({"pending": False, "term": None})
+        accepted = LegalTermAcceptance.objects.filter(term=term, user=request.user).exists()
+        return Response({"pending": not accepted, "term": LegalTermSerializer(term).data})
+
+    def post(self, request):
+        membership = get_active_membership(request.user)
+        term = LegalTerm.objects.filter(academy=membership.academy, active=True).first() if membership else None
+        if not term:
+            return Response({"detail": "Nenhum termo ativo para aceite."}, status=status.HTTP_400_BAD_REQUEST)
+        acceptance, created = LegalTermAcceptance.objects.get_or_create(
+            term=term,
+            user=request.user,
+            defaults={"ip_address": request.META.get("REMOTE_ADDR"), "user_agent": request.headers.get("User-Agent", "")[:255]},
+        )
+        if created:
+            AdministrativeAudit.objects.create(academy=membership.academy, actor=request.user, action="legal_term.accepted", entity_type="legal_term", entity_id=str(term.pk), new_state={"version": term.version})
+        return Response({"accepted": True, "accepted_at": acceptance.accepted_at})
+
+
+class LegalTermManagementView(APIView):
+    permission_classes = [HasCapability]
+    required_capability = "users.manage"
+
+    def get(self, request):
+        membership = get_active_membership(request.user)
+        terms = LegalTerm.objects.filter(academy=membership.academy).annotate(acceptance_count=Count("acceptances"))
+        acceptances = LegalTermAcceptance.objects.filter(term__academy=membership.academy).select_related("term", "user")[:100]
+        return Response({"terms": LegalTermSerializer(terms, many=True).data, "acceptances": LegalTermAcceptanceSerializer(acceptances, many=True).data})
+
+    @transaction.atomic
+    def post(self, request):
+        membership = get_active_membership(request.user)
+        serializer = LegalTermSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        version = (LegalTerm.objects.filter(academy=membership.academy).aggregate(value=Max("version"))["value"] or 0) + 1
+        LegalTerm.objects.filter(academy=membership.academy, active=True).update(active=False)
+        term = serializer.save(academy=membership.academy, version=version, active=True, published_at=timezone.now(), created_by=request.user)
+        AdministrativeAudit.objects.create(academy=membership.academy, actor=request.user, action="legal_term.published", entity_type="legal_term", entity_id=str(term.pk), new_state={"version": version, "title": term.title})
+        return Response(LegalTermSerializer(term).data, status=status.HTTP_201_CREATED)
 
 
 class PasswordChangeView(APIView):

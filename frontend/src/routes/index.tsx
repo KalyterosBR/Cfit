@@ -32,6 +32,7 @@ const Relationship = lazy(() => import("../pages/Relationship"));
 const Portal = lazy(() => import("../pages/Portal"));
 const Documents = lazy(() => import("../pages/Documents"));
 const Onboarding = lazy(() => import("../pages/Onboarding"));
+const TermsAccess = lazy(() => import("../pages/TermsAccess"));
 const StudentsListPage = lazy(() => import("../features/students/pages/StudentsListPage"));
 const StudentDetailsPage = lazy(() => import("../features/students/pages/StudentDetailsPage"));
 
@@ -59,6 +60,7 @@ const routeTitles: Record<string, string> = {
     "/documents": "Documentos e portal",
     "/change-password": "Alterar senha",
     "/onboarding": "Configuração inicial",
+    "/terms-access": "Termos de uso e privacidade",
 };
 
 
@@ -98,6 +100,7 @@ export default function AppRoutes() {
                 <Route element={<ProtectedRoute />}>
                     <Route path="/change-password" element={<ChangePassword />} />
                     <Route path="/onboarding" element={<Onboarding />} />
+                    <Route path="/terms-access" element={<TermsAccess />} />
                     <Route
                         path="/dashboard"
                         element={<Dashboard />}

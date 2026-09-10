@@ -2,7 +2,7 @@ from rest_framework.test import APITestCase
 
 from apps.academy.models import Academy, Unit
 from apps.students.models import Student
-from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, OperationalNotificationState, SavedReportView, User
+from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, LegalTerm, LegalTermAcceptance, OperationalNotificationState, SavedReportView, User
 from apps.users.permissions import ROLE_CAPABILITIES
 from unittest.mock import patch
 from django.contrib.auth.tokens import default_token_generator
@@ -11,6 +11,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.core.cache import cache
 from django.core import mail
 from django.test import override_settings
+from rest_framework_simplejwt.tokens import AccessToken
 
 
 class RolePermissionTests(APITestCase):
@@ -31,6 +32,74 @@ class RolePermissionTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["role"], AcademyUser.Role.ADMIN)
         self.assertEqual(response.data["capabilities"], ["*"])
+
+    def test_admin_publishes_and_accepts_versioned_legal_term(self):
+        self.client.force_authenticate(self.admin)
+        published = self.client.post(
+            "/api/users/terms/",
+            {"title": "Termo de uso e privacidade", "content": "Conteúdo da versão vigente."},
+            format="json",
+        )
+        self.assertEqual(published.status_code, 201)
+        self.assertEqual(published.data["version"], 1)
+        self.assertTrue(published.data["active"])
+        self.assertTrue(self.client.get("/api/users/me/").data["terms_pending"])
+
+        accepted = self.client.post(
+            "/api/users/terms/current/",
+            HTTP_USER_AGENT="Cfit test browser",
+            REMOTE_ADDR="192.0.2.10",
+        )
+        self.assertEqual(accepted.status_code, 200)
+        acceptance = LegalTermAcceptance.objects.get(user=self.admin)
+        self.assertEqual(str(acceptance.ip_address), "192.0.2.10")
+        self.assertEqual(acceptance.user_agent, "Cfit test browser")
+        self.assertFalse(self.client.get("/api/users/me/").data["terms_pending"])
+        self.assertTrue(AdministrativeAudit.objects.filter(action="legal_term.published").exists())
+        self.assertTrue(AdministrativeAudit.objects.filter(action="legal_term.accepted").exists())
+
+    def test_new_legal_term_version_requires_a_new_acceptance(self):
+        first = LegalTerm.objects.create(
+            academy=self.academy,
+            version=1,
+            title="Versão 1",
+            content="Primeira versão.",
+            active=True,
+            created_by=self.admin,
+        )
+        LegalTermAcceptance.objects.create(term=first, user=self.admin)
+        self.client.force_authenticate(self.admin)
+
+        published = self.client.post(
+            "/api/users/terms/",
+            {"title": "Versão 2", "content": "Segunda versão."},
+            format="json",
+        )
+
+        self.assertEqual(published.status_code, 201)
+        first.refresh_from_db()
+        self.assertFalse(first.active)
+        self.assertEqual(published.data["version"], 2)
+        self.assertTrue(self.client.get("/api/users/me/").data["terms_pending"])
+
+    def test_pending_legal_term_blocks_private_api_until_acceptance(self):
+        LegalTerm.objects.create(
+            academy=self.academy,
+            version=1,
+            title="Termo vigente",
+            content="Conteúdo.",
+            active=True,
+            created_by=self.admin,
+        )
+        self.client.force_authenticate(user=None)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.admin)}")
+
+        blocked = self.client.get("/api/students/")
+        self.assertEqual(blocked.status_code, 403)
+        self.assertEqual(blocked.data["code"], "legal_terms_pending")
+        self.assertEqual(self.client.get("/api/users/terms/current/").status_code, 200)
+        self.assertEqual(self.client.post("/api/users/terms/current/").status_code, 200)
+        self.assertEqual(self.client.get("/api/students/").status_code, 200)
 
     def test_role_capability_matrix_preserves_operational_boundaries(self):
         self.assertIn("*", ROLE_CAPABILITIES[AcademyUser.Role.OWNER])

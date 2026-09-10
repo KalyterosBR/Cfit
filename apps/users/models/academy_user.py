@@ -129,3 +129,29 @@ class OperationalNotificationState(BaseModel):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["user", "notification_key"], name="unique_user_notification_state")]
+
+
+class LegalTerm(BaseModel):
+    academy = models.ForeignKey(Academy, on_delete=models.PROTECT, related_name="legal_terms")
+    version = models.PositiveIntegerField()
+    title = models.CharField(max_length=160)
+    content = models.TextField()
+    active = models.BooleanField(default=False)
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="created_legal_terms")
+
+    class Meta:
+        ordering = ["-version"]
+        constraints = [models.UniqueConstraint(fields=["academy", "version"], name="unique_legal_term_version_per_academy")]
+
+
+class LegalTermAcceptance(BaseModel):
+    term = models.ForeignKey(LegalTerm, on_delete=models.PROTECT, related_name="acceptances")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="legal_term_acceptances")
+    accepted_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-accepted_at"]
+        constraints = [models.UniqueConstraint(fields=["term", "user"], name="unique_legal_term_acceptance")]

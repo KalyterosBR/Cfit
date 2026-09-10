@@ -18,6 +18,8 @@ from apps.users.api.viewsets import (
     DashboardPreferenceView,
     SavedReportViewDetail,
     SavedReportViewList,
+    CurrentLegalTermView,
+    LegalTermManagementView,
 )
 
 urlpatterns = [
@@ -38,4 +40,6 @@ urlpatterns = [
     path("me/sessions/", ActiveSessionView.as_view()),
     path("me/two-factor/", TwoFactorSettingsView.as_view()),
     path("ownership/transfer/", OwnershipTransferView.as_view()),
+    path("terms/current/", CurrentLegalTermView.as_view()),
+    path("terms/", LegalTermManagementView.as_view()),
 ]

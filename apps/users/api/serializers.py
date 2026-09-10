@@ -4,7 +4,29 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 import re
 
 from apps.academy.models import Unit
-from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, SavedReportView, User
+from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, LegalTerm, LegalTermAcceptance, SavedReportView, User
+
+
+class LegalTermSerializer(serializers.ModelSerializer):
+    acceptance_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = LegalTerm
+        fields = ["id", "version", "title", "content", "active", "published_at", "acceptance_count", "created_at"]
+        read_only_fields = ["id", "version", "published_at", "acceptance_count", "created_at"]
+
+
+class LegalTermAcceptanceSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    version = serializers.IntegerField(source="term.version", read_only=True)
+
+    class Meta:
+        model = LegalTermAcceptance
+        fields = ["id", "user_name", "user_email", "version", "accepted_at"]
+
+    def get_user_name(self, obj):
+        return obj.user.get_full_name() or obj.user.email
 
 
 class DashboardPreferenceSerializer(serializers.ModelSerializer):
@@ -205,6 +227,8 @@ class AdministrativeAuditSerializer(serializers.ModelSerializer):
         "report_view.created": "Visão de relatório criada",
         "report_view.deleted": "Visão de relatório excluída",
         "dashboard_preference.updated": "Padrão do Dashboard atualizado",
+        "legal_term.published": "Termo de uso e privacidade publicado",
+        "legal_term.accepted": "Termo de uso e privacidade aceito",
     }
     ENTITY_LABELS = {
         "academy": "Academia", "academy_user": "Usuário", "charge": "Cobrança",
@@ -220,6 +244,7 @@ class AdministrativeAuditSerializer(serializers.ModelSerializer):
         "automation_execution": "Execução da automação",
         "campaign_segment": "Segmento de campanha",
         "class_booking": "Inscrição em turma",
+        "legal_term": "Termo de uso e privacidade",
         "group_class": "Turma",
         "lead_interaction": "Interação comercial",
         "lead_proposal": "Proposta comercial",
