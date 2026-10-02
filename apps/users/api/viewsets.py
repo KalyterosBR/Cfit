@@ -83,13 +83,8 @@ class TurnstileTokenObtainPairView(
         )
         if response.status_code == 200 and response.data.get("access"):
             cache.delete(attempt_key)
-            from apps.operations.models import LoginSession
-            token = AccessToken(response.data["access"])
-            refresh = RefreshToken(response.data["refresh"])
-            LoginSession.objects.update_or_create(
-                token_jti=str(token["jti"]),
-                defaults={"user": user, "refresh_jti": str(refresh["jti"]), "user_agent": request.headers.get("User-Agent", "")[:255], "ip_address": request.META.get("REMOTE_ADDR")},
-            )
+            from apps.users.api.login_session import record_login_session
+            record_login_session(request, user, response.data)
         elif response.status_code == 401:
             try:
                 cache.incr(attempt_key)

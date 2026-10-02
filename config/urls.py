@@ -7,6 +7,7 @@ from apps.users.api.viewsets import (
 )
 from apps.core.reports import ManagementReportView, UnitComparisonReportView
 from apps.core.health import HealthView
+from apps.users.api.mobile_login import MobileTokenObtainPairView
 
 
 urlpatterns = [
@@ -54,6 +55,7 @@ urlpatterns = [
     path("api/schedule/", include("apps.schedule.api.urls")),
     path("api/automations/", include("apps.automations.urls")),
     path("api/operations/", include("apps.operations.urls")),
+    path("api/auth/mobile/login/", MobileTokenObtainPairView.as_view()),
     # Autenticação
     path(
         "api/auth/login/",
