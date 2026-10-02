@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import Logo from '../components/Logo';
 import { useAuth } from '../features/auth/AuthProvider';
 import { api } from '../services/api';
 export default function PasswordAccess() {
@@ -20,12 +22,39 @@ export default function PasswordAccess() {
     catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível trocar a senha.'); }
     finally { working.current = false; setBusy(false); }
   }
-  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: '#f4f7fb' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24, gap: 16 }}>
-    <Text style={{ fontSize: 28, fontWeight: '800', color: '#14243c' }}>Prepare seu acesso.</Text>
-    <Text>Troque sua senha inicial para continuar. Use pelo menos oito caracteres, letras maiúsculas e minúsculas, número e símbolo. Depois, entre com a nova senha.</Text>
-    {([['Senha atual', current, setCurrent], ['Nova senha', next, setNext], ['Confirmar nova senha', confirmation, setConfirmation]] as const).map(([label, value, setter]) => <TextInput key={label} accessibilityLabel={label} placeholder={label} value={value} onChangeText={setter} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} style={{ minHeight: 52, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 12, padding: 14 }} />)}
-    {error ? <Text accessibilityRole="alert" style={{ color: '#b91c1c' }}>{error}</Text> : null}
-    <Pressable disabled={busy} onPress={submit} style={{ backgroundColor: '#2563eb', padding: 18, borderRadius: 12 }}><Text style={{ color: '#fff', fontWeight: '700' }}>{busy ? 'Salvando…' : 'Salvar nova senha e entrar novamente'}</Text></Pressable>
-    <Pressable disabled={busy} onPress={() => { void logout().catch(() => setError('Não foi possível limpar a sessão. Tente novamente.')); }} style={{ padding: 16 }}><Text>Voltar ao login</Text></Pressable>
-  </ScrollView></KeyboardAvoidingView>;
+  return <KeyboardAvoidingView style={s.page} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <StatusBar style="dark" />
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 24 }]}>
+      <View style={s.brand}><Logo width={112} /></View>
+      <View style={s.card}>
+        <Text style={s.eyebrow}>PRIMEIRO ACESSO</Text>
+        <Text style={s.title}>Prepare seu acesso.</Text>
+        <Text style={s.description}>Troque sua senha inicial para continuar. Use pelo menos oito caracteres, letras maiúsculas e minúsculas, número e símbolo. Depois, entre com a nova senha.</Text>
+        {([['Senha atual', current, setCurrent], ['Nova senha', next, setNext], ['Confirmar nova senha', confirmation, setConfirmation]] as const).map(([label, value, setter]) => <View key={label} style={s.field}><Text style={s.label}>{label}</Text><TextInput accessibilityLabel={label} placeholder={label} placeholderTextColor="#66768b" value={value} onChangeText={setter} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} style={s.input} /></View>)}
+        {error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}
+        <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={[s.button, busy ? s.disabled : null]}><Text style={s.buttonText}>{busy ? 'Salvando…' : 'Salvar nova senha'}</Text></Pressable>
+        <Text style={s.caption}>Você entrará novamente com a senha atualizada.</Text>
+      </View>
+      <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void logout().catch(() => setError('Não foi possível limpar a sessão. Tente novamente.')); }} style={s.back}><Text style={s.backText}>Voltar ao login</Text></Pressable>
+    </ScrollView>
+  </KeyboardAvoidingView>;
 }
+const s = StyleSheet.create({
+  page: { flex: 1, backgroundColor: '#f4f7fb' },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20, width: '100%', maxWidth: 480, alignSelf: 'center' },
+  brand: { alignItems: 'center', marginBottom: 24 },
+  card: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce4ef', borderRadius: 22, padding: 22 },
+  eyebrow: { color: '#2266db', fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
+  title: { color: '#14243c', fontSize: 26, lineHeight: 34, fontWeight: '800', letterSpacing: -0.6, marginTop: 10 },
+  description: { color: '#586980', fontSize: 14, lineHeight: 22, marginTop: 12, marginBottom: 6 },
+  field: { marginTop: 16, gap: 8 },
+  label: { color: '#40536d', fontSize: 12, fontWeight: '700' },
+  input: { minHeight: 52, backgroundColor: '#f4f7fb', borderWidth: 1, borderColor: '#dce4ef', borderRadius: 12, padding: 14, color: '#14243c', fontSize: 14 },
+  error: { color: '#b91c1c', fontSize: 13, lineHeight: 21, marginTop: 16 },
+  button: { backgroundColor: '#2563eb', minHeight: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 22, padding: 14 },
+  buttonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  caption: { color: '#66768b', fontSize: 11, lineHeight: 18, textAlign: 'center', marginTop: 12 },
+  back: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  backText: { color: '#2266db', fontSize: 13, fontWeight: '700' },
+  disabled: { opacity: 0.55 },
+});

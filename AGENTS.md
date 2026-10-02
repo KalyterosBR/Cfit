@@ -3226,6 +3226,48 @@ Validação de retomada em 02/09/2026:
 
 ---
 
+## 48.18 Aplicativo do aluno e refinação visual — encerramento de 02/10/2026
+
+Estado consolidado para retomada:
+- o aplicativo está em `mobile/`, com React Native, Expo 57, TypeScript e Expo Router; ler também `mobile/AGENTS.md` antes de alterar o app;
+- a integração usa a API Django `https://cfit-api.vercel.app/api`, publicada no Vercel e conectada ao Neon; o aplicativo recebe somente URLs públicas, nunca credenciais de banco;
+- o login nativo exclusivo de aluno usa `/api/auth/mobile/login/`, sem Turnstile por decisão explícita do usuário; o login web mantém Turnstile;
+- persistência opcional usa SecureStore; primeiro acesso exige troca de senha, renovação JWT coordena requisições concorrentes e logout limpa a sessão;
+- Início, Treinos, Agenda e Perfil consultam dados reais do portal; reservas, aceite de documentos e alterações cadastrais continuam no portal web;
+- os commits `4f093e5`, `041a1b9` e `bfec501` já consolidam o aplicativo, a correção das datas dos testes financeiros e o modo de treino com histórico; esta entrega acrescenta a refinação visual e este registro.
+
+Modo de treino entregue:
+- ficha própria em `/api/users/portal/workouts/<workout_id>/`, com exercícios, marcação de séries, carga realizada, descanso e conclusão auditada;
+- carga realizada e resultados são snapshots da sessão e não alteram a prescrição do professor;
+- reenvio usa identificador idempotente, respeita a regra de uma sessão por ficha/data e valida a prescrição atual no backend;
+- sessões concluídas ficam no banco; sessões em andamento ficam somente em memória e podem ser retomadas entre telas enquanto o processo estiver aberto;
+- encerrar o processo perde o treino ainda não enviado; não apresentar persistência offline como implementada.
+
+Refinação visual desta entrega:
+- cabeçalho claro e compacto com logo oficial, academia e acesso ao perfil; o destaque do treino mantém azul quase preto e assinatura ciano;
+- hierarquia de títulos, espaçamento, bordas e botões harmonizados entre as telas;
+- navegação inferior destaca a aba selecionada com ícone preenchido e fundo azul suave;
+- Perfil identifica e-mail, telefone e unidade, organiza matrículas com status e reúne históricos em uma lista contínua expansível;
+- ficha usa a ação `Abrir treino`, preservando o acesso à sessão e ao histórico; a execução do treino acompanha o cabeçalho claro;
+- login preserva o card escuro do Cfit web; primeiro acesso recebeu logo, campos identificados e composição consistente.
+
+Validações confirmadas:
+- lint mobile, TypeScript sem emissão, 14 testes mobile e `git diff --check` aprovados;
+- Início, Treinos, Agenda, Perfil e abertura da ficha inspecionados no emulador Android; login e primeiro acesso receberam alterações visuais, sem nova inspeção autenticada desses fluxos nesta refinação;
+- antes desta refinação, a entrega funcional passou por 168 testes Django, verificação de migrations e exportação Android; essas verificações do backend não foram repetidas para mudanças exclusivamente visuais;
+- a API publicada respondeu ao acesso real à ficha após o deploy funcional; nenhum treino fictício foi inserido no banco para a validação visual.
+
+Ponto de retomada e limites reais:
+- cadastrar exercícios e séries em uma ficha real pelo web para validar uma sessão completa de ponta a ponta com dados reais; a ficha usada na inspeção estava sem exercícios;
+- preparar uma development build própria antes da distribuição; o ambiente atual usa Expo Go;
+- revisar os avisos de dependências antes da distribuição e ampliar a validação visual para outros tamanhos de tela e para login/primeiro acesso;
+- o ambiente Android utiliza o SDK do Windows e servidor Expo no WSL; `mobile/scripts/open-android.ps1` restaura `adb reverse` da porta 8081 e abre o app;
+- após reiniciar o emulador, restaurar esse encaminhamento se aparecer `Something went wrong`; renderização por software resolveu a tela preta observada no ambiente atual;
+- o botão flutuante de engrenagem visto nas capturas pertence ao Expo Go, não ao aplicativo;
+- manter a identidade do Cfit web e evoluir funções em etapas pequenas, preservando autenticação, isolamento e histórico.
+
+---
+
 ## 49. Protocolo de encerramento da sessão
 Frase-gatilho exata:
 ```text

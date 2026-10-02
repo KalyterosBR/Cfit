@@ -86,9 +86,9 @@ export default function TrainingScreen({ workoutId, client = api }: { workoutId:
   const ready = workout?.status === 'active' && !!workout.exercises.length && workout.exercises.every(item => item.sets > 0);
 
   return <View style={s.page}>
-    <StatusBar style="light" />
+    <StatusBar style="dark" />
     <View style={[s.header, { paddingTop: insets.top + 8 }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={active ? 'Pausar e voltar' : 'Voltar aos treinos'} disabled={saving} style={s.back} onPress={() => router.canGoBack() ? router.back() : router.replace('/(app)/treinos')}><Ionicons name="chevron-back" size={22} color="#fff" /><Text style={s.headerAction}>{active ? 'Voltar' : 'Treinos'}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={active ? 'Pausar e voltar' : 'Voltar aos treinos'} disabled={saving} style={s.back} onPress={() => router.canGoBack() ? router.back() : router.replace('/(app)/treinos')}><Ionicons name="chevron-back" size={22} color="#2266db" /><Text style={s.headerAction}>{active ? 'Voltar' : 'Treinos'}</Text></Pressable>
       <Text style={s.headerLabel}>TREINAR AGORA</Text>
     </View>
     <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 28 }]}>
@@ -122,16 +122,16 @@ export default function TrainingScreen({ workoutId, client = api }: { workoutId:
 }
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#f4f7fb' },
-  header: { backgroundColor: '#101f36', paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  back: { minHeight: 44, flexDirection: 'row', gap: 5, alignItems: 'center', paddingRight: 12 }, headerAction: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  headerLabel: { color: '#67e8f9', fontSize: 10, letterSpacing: 2, fontWeight: '800' },
-  content: { padding: 24, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  header: { backgroundColor: '#f4f7fb', borderBottomWidth: 1, borderBottomColor: '#e3eaf4', paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  back: { minHeight: 44, flexDirection: 'row', gap: 5, alignItems: 'center', paddingRight: 12 }, headerAction: { color: '#2266db', fontWeight: '700', fontSize: 14 },
+  headerLabel: { color: '#66768b', fontSize: 10, letterSpacing: 2, fontWeight: '800' },
+  content: { padding: 20, maxWidth: 640, width: '100%', alignSelf: 'center' },
   eyebrow: { color: '#2266db', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 12 },
-  title: { color: '#14243c', fontSize: 28, fontWeight: '800', lineHeight: 36, marginTop: 16 },
+  title: { color: '#14243c', fontSize: 26, fontWeight: '800', lineHeight: 34, marginTop: 12 },
   body: { color: '#586980', fontSize: 14, lineHeight: 23, marginTop: 12 },
   muted: { color: '#66768b', fontSize: 12, lineHeight: 20, marginTop: 8 },
   section: { color: '#14243c', fontWeight: '800', fontSize: 18, marginTop: 24 },
-  card: { backgroundColor: '#fff', borderColor: '#dce4ef', borderWidth: 1, borderRadius: 20, padding: 20, marginTop: 20 },
+  card: { backgroundColor: '#fff', borderColor: '#dce4ef', borderWidth: 1, borderRadius: 18, padding: 18, marginTop: 20 },
   button: { backgroundColor: '#2266db', borderRadius: 14, minHeight: 52, padding: 14, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
   buttonText: { color: '#fff', fontWeight: '800', fontSize: 14 }, disabled: { opacity: 0.45 },
   progressHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }, progressCount: { color: '#2266db', fontSize: 12, fontWeight: '800' },
@@ -142,7 +142,7 @@ const s = StyleSheet.create({
   sets: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
   set: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 52, padding: 14, borderColor: '#dce4ef', borderWidth: 1, borderRadius: 14, backgroundColor: '#fff' },
   setDone: { backgroundColor: '#2266db', borderColor: '#2266db' }, setText: { color: '#14243c', fontWeight: '700', fontSize: 13 }, setTextDone: { color: '#fff' },
-  rest: { backgroundColor: '#14243c', borderRadius: 20, padding: 20, marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  rest: { backgroundColor: '#14243c', borderRadius: 18, padding: 18, marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   restLabel: { color: '#67e8f9', fontSize: 10, letterSpacing: 2, fontWeight: '800' }, restTime: { color: '#fff', fontSize: 32, fontWeight: '800', marginTop: 8, fontVariant: ['tabular-nums'] },
   skip: { minHeight: 44, justifyContent: 'center' }, skipText: { color: '#cbd5e1', fontSize: 12, fontWeight: '700' },
   ready: { color: '#047857', fontSize: 13, marginTop: 20, lineHeight: 21 },
