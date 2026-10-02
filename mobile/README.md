@@ -6,7 +6,7 @@ Aplicativo do aluno com React Native, Expo 57 e TypeScript, mantendo logos, card
 
 O app usa `https://cfit-api.vercel.app/api`. A API Django publicada no Vercel acessa o Neon e continua responsável por isolamento de academia/aluno, permissões e regras de negócio. Nunca colocar `DATABASE_URL`, senha de banco ou outros secrets no app.
 
-O login nativo usa `POST /api/auth/mobile/login/`, sem Turnstile por decisão do usuário. O login web continua protegido por Turnstile em `/api/auth/login/`. A nova rota precisa ser publicada no backend antes do login real no aplicativo.
+O login nativo usa `POST /api/auth/mobile/login/`, sem Turnstile por decisão do usuário. O login web continua protegido por Turnstile em `/api/auth/login/`. A rota foi publicada no backend de produção em 02/10/2026. Novos ambientes também precisam receber a migration `users/0009` antes do uso.
 
 O endpoint nativo aceita e-mail, senha e, quando exigido, `two_factor_code`. Limites persistentes: 30 requisições por IP e 10 por conta a cada janela de 15 minutos, incluindo tentativas de segundo fator. Contadores são transacionais no banco, sem depender do cache de uma instância do Vercel. Códigos de segundo fator expiram em cinco minutos, são armazenados com hash, têm uso único e envio limitado a uma vez por minuto. O endpoint aceita exclusivamente contas vinculadas ao portal do aluno; administradores continuam usando o web. Limites também se aplicam a chamadas feitas fora do aplicativo.
 
@@ -41,4 +41,4 @@ A migration `users/0009` cria contadores e desafios de login nativo. O build de 
 
 Rotas em `src/app/` com Expo Router. O React Native DevTools desktop pode exigir bibliotecas adicionais no WSL (`libnspr4`); isso não impede a execução no Android. As dependências iniciais têm avisos do npm audit, que devem ser revisados antes da distribuição.
 
-Próximas etapas: publicar o novo endpoint, validar com uma conta real de aluno e preparar uma development build própria.
+Próximas etapas: validar com uma conta real de aluno e preparar uma development build própria.

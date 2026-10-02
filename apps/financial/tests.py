@@ -57,18 +57,19 @@ class ChargeApiTests(APITestCase):
             start_date=date(2026, 8, 1),
             due_date=date(2026, 9, 1),
         )
+        today = timezone.localdate()
         self.pending_charge = Charge.objects.create(
             enrollment=self.enrollment,
             description="Mensalidade setembro",
             amount="100.00",
-            due_date=date(2026, 9, 1),
+            due_date=today + timedelta(days=7),
             competence_date=date(2026, 9, 1),
         )
         self.overdue_charge = Charge.objects.create(
             enrollment=self.enrollment,
             description="Mensalidade agosto",
             amount="80.00",
-            due_date=date(2026, 8, 1),
+            due_date=today - timedelta(days=7),
             competence_date=date(2026, 8, 1),
             status=Charge.Status.OVERDUE,
         )
@@ -76,7 +77,7 @@ class ChargeApiTests(APITestCase):
             enrollment=other_enrollment,
             description="Mensalidade externa",
             amount="120.00",
-            due_date=date(2026, 9, 1),
+            due_date=today + timedelta(days=7),
             competence_date=date(2026, 9, 1),
         )
         self.list_url = reverse("charge-list")
