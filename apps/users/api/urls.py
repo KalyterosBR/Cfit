@@ -1,5 +1,7 @@
 from django.urls import path
 
+from apps.workouts.api.student import StudentWorkoutView
+
 from apps.users.api.viewsets import (
     AdministrativeAuditListView,
     CurrentUserView,
@@ -35,6 +37,7 @@ urlpatterns = [
     path("password/change/", PasswordChangeView.as_view()),
     path("password/reset/", PasswordResetRequestView.as_view()),
     path("password/reset/confirm/", PasswordResetConfirmView.as_view()),
+    path("portal/workouts/<uuid:workout_id>/", StudentWorkoutView.as_view(), name="student-workout"),
     path("portal/me/", StudentPortalView.as_view()),
     path("portal/students/<uuid:student_id>/access/", StudentPortalAccessView.as_view()),
     path("me/sessions/", ActiveSessionView.as_view()),

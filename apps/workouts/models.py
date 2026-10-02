@@ -175,6 +175,8 @@ class WorkoutSession(BaseModel):
         SKIPPED = "skipped", "Não realizada"
 
     workout = models.ForeignKey(WorkoutPlan, on_delete=models.PROTECT, related_name="sessions")
+    submission_id = models.UUIDField(null=True, blank=True, unique=True)
+    exercise_results = models.JSONField(default=list, blank=True)
     scheduled_for = models.DateField(db_index=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
