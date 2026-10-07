@@ -33,6 +33,21 @@ test('2FA response does not save tokens', async () => {
   await assert.rejects(fixture.client.login(credentials, true), e => e instanceof ApiError && e.status === 428);
   assert.equal(fixture.read(), null);
 });
+test('contact PATCH preserves its method and payload when renewing an expired session', async () => {
+  const calls = [];
+  const payload = { phone: '11999991234', emergency_contact: 'Contato' };
+  const fixture = setup(async (url, options) => {
+    if (url.endsWith('/mobile/login/')) return ok(tokens);
+    if (url.endsWith('/users/me/')) return ok(profile);
+    if (url.endsWith('/auth/refresh/')) return ok({ access: 'access-2', refresh: 'refresh-2' });
+    calls.push(options);
+    return options.headers.Authorization === 'Bearer access-1' ? unauthorized() : ok({ detail: 'Dados atualizados.' });
+  });
+  await fixture.client.login(credentials, true);
+  await fixture.client.authenticated('/users/portal/me/', payload, 'PATCH');
+  assert.equal(calls.length, 2);
+  for (const call of calls) { assert.equal(call.method, 'PATCH'); assert.deepEqual(JSON.parse(call.body), payload); }
+});
 test('parallel unauthorized requests share refresh and preserve rotated credentials', async () => {
   let refreshes = 0;
   const fixture = setup(async (url, options) => {

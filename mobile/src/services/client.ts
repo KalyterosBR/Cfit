@@ -19,12 +19,12 @@ export function createClient(baseUrl: string, storage: SessionStorage, request: 
     persistence = result.catch(() => {});
     return result;
   };
-  async function send<T>(path: string, body?: unknown, access?: string): Promise<T> {
+  async function send<T>(path: string, body?: unknown, access?: string, method?: 'PATCH'): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 25000);
     try {
       const response = await request(`${baseUrl}${path}`, {
-        method: body === undefined ? 'GET' : 'POST', signal: controller.signal,
+        method: method || (body === undefined ? 'GET' : 'POST'), signal: controller.signal,
         headers: { 'Content-Type': 'application/json', ...(access ? { Authorization: `Bearer ${access}` } : {}) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
@@ -64,17 +64,17 @@ export function createClient(baseUrl: string, storage: SessionStorage, request: 
     refreshing = pending;
     try { await pending; } finally { if (refreshing === pending) refreshing = null; }
   }
-  async function authenticated<T>(path: string, body?: unknown): Promise<T> {
+  async function authenticated<T>(path: string, body?: unknown, method?: 'PATCH'): Promise<T> {
     if (!tokens) throw new Error('Entre novamente para continuar.');
     const version = generation;
     const sentAccess = tokens.access;
     let result: T;
-    try { result = await send<T>(path, body, sentAccess); }
+    try { result = await send<T>(path, body, sentAccess, method); }
     catch (error) {
       if (!(error instanceof ApiError) || error.status !== 401 || version !== generation) throw error;
       if (tokens?.access === sentAccess) await refresh();
       if (!tokens || version !== generation) throw new Error('A sessão foi encerrada.');
-      try { result = await send<T>(path, body, tokens.access); }
+      try { result = await send<T>(path, body, tokens.access, method); }
       catch (retryError) {
         if (retryError instanceof ApiError && retryError.status === 401 && version === generation) { await clear(); onExpired(); }
         throw retryError;

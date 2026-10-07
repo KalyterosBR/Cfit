@@ -1,0 +1,25 @@
+# O deploy da raiz publica somente a API Django.
+.env
+.env.*
+**/.env
+**/.env.*
+.git
+.vercel
+.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+frontend
+mobile
+connectors
+backups
+media
+staticfiles
+.codex
+.agents
+.aws
+.vscode
+estrutura*.txt
+estrutura*.zip
+*_tree.txt
+*_tree.zip

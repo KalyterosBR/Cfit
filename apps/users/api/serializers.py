@@ -7,6 +7,23 @@ from apps.academy.models import Unit
 from apps.users.models import AcademyUser, AdministrativeAudit, DashboardPreference, LegalTerm, LegalTermAcceptance, SavedReportView, User
 
 
+class PortalContactSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=20, allow_blank=True, required=False)
+    emergency_contact = serializers.CharField(max_length=100, allow_blank=True, required=False)
+    emergency_phone = serializers.CharField(max_length=20, allow_blank=True, required=False)
+
+    def validate(self, attrs):
+        for key in ("phone", "emergency_phone"):
+            value = attrs.get(key, "")
+            if value and (not re.fullmatch(r"[+\d\s().-]+", value) or len(re.sub(r"\D", "", value)) not in {10, 11}):
+                raise serializers.ValidationError({key: "Informe um telefone com DDD, com 10 ou 11 dígitos."})
+        if set(self.initial_data) - set(self.fields):
+            raise serializers.ValidationError("Somente telefone e contatos de emergência podem ser alterados aqui.")
+        if not attrs:
+            raise serializers.ValidationError("Informe os contatos que deseja atualizar.")
+        return attrs
+
+
 class LegalTermSerializer(serializers.ModelSerializer):
     acceptance_count = serializers.IntegerField(read_only=True)
 

@@ -1,6 +1,6 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export type PortalHistoryData = {
   charges: { id: string; description: string; amount: string; due_date: string; status: string; operational_category: string }[];
@@ -12,26 +12,31 @@ const calendarDate = (value: string) => new Date(value.length === 10 ? value + '
 const categories: Record<string, string> = { overdue: 'Vencida', upcoming: 'A vencer', future: 'Futura', paid: 'Paga', canceled: 'Cancelada', inconsistent: 'Em análise', pending: 'Pendente' };
 const money = (value: string) => Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-function Section({ title, icon, children, count, note }: { title: string; icon: ComponentProps<typeof Ionicons>['name']; children: ReactNode; count: number; note?: string }) {
-  const [open, setOpen] = useState(false);
+function Section({ title, icon, children, count, note, initiallyOpen = false }: { title: string; icon: ComponentProps<typeof Ionicons>['name']; children: ReactNode; count: number; note?: string; initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen);
   return <View style={s.section}>
     <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(value => !value)} style={s.heading}>
       <View style={s.icon}><Ionicons name={icon} size={20} color="#2266db" /></View>
       <View style={s.grow}><Text style={s.title}>{title}</Text><Text style={s.muted}>{count ? `${count} registro${count === 1 ? '' : 's'} disponível${count === 1 ? '' : 's'}` : 'Nenhum registro disponível'}</Text></View>
       <Ionicons name={open ? 'chevron-up' : 'chevron-down'} color="#66768b" size={18} />
     </Pressable>
-    {open ? <View style={s.body}>{note ? <Text style={s.note}>{note}</Text> : null}{count ? children : <Text style={s.empty}>Sua academia ainda não disponibilizou registros aqui.</Text>}</View> : null}
+    {open ? <View style={s.body}>{note ? <Text style={s.note}>{note}</Text> : null}{count ? children : <Text style={s.empty}>Nenhum registro disponível para esta consulta.</Text>}</View> : null}
   </View>;
 }
 
-export default function PortalHistory({ data }: { data: PortalHistoryData }) {
+export default function PortalHistory({ data, section }: { data: PortalHistoryData; section: 'financeiro' | 'acessos' | 'avaliacoes' | 'documentos' }) {
   const [openedDocuments, setOpenedDocuments] = useState<Record<string, boolean>>({});
+  const [query, setQuery] = useState('');
+  const normalized = query.trim().toLocaleLowerCase('pt-BR');
+  const matches = (value: string) => value.toLocaleLowerCase('pt-BR').includes(normalized);
+  const [documentFilter, setDocumentFilter] = useState<'all' | 'pending' | 'accepted'>('all');
+  const documents = data.documents.filter(item => matches(item.title + ' ' + item.version) && (documentFilter === 'all' || (documentFilter === 'accepted' ? !!item.accepted_at : item.requires_acceptance && !item.accepted_at)));
   const [chargeFilter, setChargeFilter] = useState<'all' | 'open' | 'paid'>('all');
-  const charges = data.charges.filter(item => chargeFilter === 'all' || (chargeFilter === 'paid' ? item.status === 'paid' : ['pending', 'overdue'].includes(item.status)));
+  const charges = data.charges.filter(item => matches(item.description) && (chargeFilter === 'all' || (chargeFilter === 'paid' ? item.status === 'paid' : ['pending', 'overdue'].includes(item.status))));
   return <View style={s.container}>
-    <Text style={s.eyebrow}>MEU ACOMPANHAMENTO</Text>
+    <View style={s.search}><Ionicons name="search-outline" size={18} color="#66768b" /><TextInput value={query} onChangeText={setQuery} placeholder="Buscar nos meus registros" placeholderTextColor="#66768b" accessibilityLabel="Buscar nos meus registros" style={s.searchInput} autoCorrect={false} />{query ? <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca nos registros" onPress={() => setQuery('')} style={s.clear}><Ionicons name="close-circle" size={20} color="#66768b" /></Pressable> : null}</View>
     <View style={s.historyPanel}>
-    <Section title="Financeiro" icon="wallet-outline" count={data.charges.length} note="Últimas 20 cobranças disponibilizadas pela academia.">
+    {section === 'financeiro' ? <Section initiallyOpen key={'financeiro-' + (normalized ? 'search' : 'browse')} title="Financeiro" icon="wallet-outline" count={data.charges.filter(item => matches(item.description)).length} note="Últimas 20 cobranças disponibilizadas pela academia.">
       <View style={s.filters}>{([['all', 'Todas'], ['open', 'Em aberto'], ['paid', 'Pagas']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: chargeFilter === value }} style={[s.filter, chargeFilter === value ? s.filterActive : null]} onPress={() => setChargeFilter(value)}><Text style={[s.filterText, chargeFilter === value ? s.filterTextActive : null]}>{label}</Text></Pressable>)}</View>
       {!charges.length ? <Text style={s.empty}>Nenhuma cobrança neste filtro.</Text> : null}
       {charges.map(item => <View style={s.row} key={item.id}>
@@ -39,12 +44,12 @@ export default function PortalHistory({ data }: { data: PortalHistoryData }) {
         <Text style={s.muted}>Vencimento: {calendarDate(item.due_date)}</Text>
         <Text style={[s.status, item.operational_category === 'overdue' ? s.danger : item.status === 'paid' ? s.success : null]}>{categories[item.operational_category] || categories[item.status] || item.status}</Text>
       </View>)}
-    </Section>
-    <Section title="Histórico de acessos" icon="footsteps-outline" count={data.checkins.length} note="Últimos 20 acessos registrados.">
-      {data.checkins.map(item => <View style={s.row} key={item.id}><Text style={s.rowTitle}>{new Date(item.checked_in_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</Text><Text style={s.muted}>{item.source_label} · {item.access_result_label}</Text></View>)}
-    </Section>
-    <Section title="Avaliações" icon="fitness-outline" count={data.assessments.length} note="Últimas 10 avaliações disponibilizadas.">
-      {data.assessments.map(item => <View style={s.row} key={item.id}>
+    </Section> : null}
+    {section === 'acessos' ? <Section initiallyOpen key={'acessos-' + (normalized ? 'search' : 'browse')} title="Histórico de acessos" icon="footsteps-outline" count={data.checkins.filter(item => matches(item.source_label + ' ' + item.access_result_label + ' ' + new Date(item.checked_in_at).toLocaleDateString('pt-BR'))).length} note="Últimos 20 acessos registrados.">
+      {data.checkins.filter(item => matches(item.source_label + ' ' + item.access_result_label + ' ' + new Date(item.checked_in_at).toLocaleDateString('pt-BR'))).map(item => <View style={s.row} key={item.id}><Text style={s.rowTitle}>{new Date(item.checked_in_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</Text><Text style={s.muted}>{item.source_label} · {item.access_result_label}</Text></View>)}
+    </Section> : null}
+    {section === 'avaliacoes' ? <Section initiallyOpen key={'avaliacoes-' + (normalized ? 'search' : 'browse')} title="Avaliações" icon="fitness-outline" count={data.assessments.filter(item => matches(item.goal + ' ' + item.notes + ' ' + calendarDate(item.assessed_at))).length} note="Últimas 10 avaliações disponibilizadas.">
+      {data.assessments.filter(item => matches(item.goal + ' ' + item.notes + ' ' + calendarDate(item.assessed_at))).map(item => <View style={s.row} key={item.id}>
         <Text style={s.rowTitle}>Avaliação de {calendarDate(item.assessed_at)}</Text>
         {item.goal ? <Text style={s.muted}>Objetivo: {item.goal}</Text> : null}
         {item.weight_kg !== null ? <Text style={s.muted}>Peso: {item.weight_kg} kg</Text> : null}
@@ -52,20 +57,24 @@ export default function PortalHistory({ data }: { data: PortalHistoryData }) {
         {item.next_assessment_at ? <Text style={s.status}>Próxima avaliação: {calendarDate(item.next_assessment_at)}</Text> : null}
         {item.notes ? <Text style={s.muted}>{item.notes}</Text> : null}
       </View>)}
-    </Section>
-    <Section title="Documentos" icon="document-text-outline" count={data.documents.length} note="Últimos 20 documentos disponibilizados.">
-      {data.documents.map(item => <View style={s.row} key={item.id}>
+    </Section> : null}
+    {section === 'documentos' ? <Section initiallyOpen key={'documentos-' + (normalized ? 'search' : 'browse')} title="Documentos" icon="document-text-outline" count={data.documents.filter(item => matches(item.title + ' ' + item.version)).length} note="Últimos 20 documentos disponibilizados.">
+      <View style={s.filters}>{([['all', 'Todos'], ['pending', 'Pendentes'], ['accepted', 'Aceitos']] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: documentFilter === value }} style={[s.filter, documentFilter === value ? s.filterActive : null]} onPress={() => setDocumentFilter(value)}><Text style={[s.filterText, documentFilter === value ? s.filterTextActive : null]}>{label}</Text></Pressable>)}</View>
+      {!documents.length ? <Text style={s.empty}>Nenhum documento neste filtro.</Text> : null}
+      {documents.map(item => <View style={s.row} key={item.id}>
         <Text style={s.rowTitle}>{item.title}</Text>
         <Text style={s.muted}>Versão {item.version}</Text>
         <Text style={s.status}>{item.accepted_at ? `Aceito em ${calendarDate(item.accepted_at)}` : item.requires_acceptance ? 'Aguardando aceite no portal web' : 'Sem aceite obrigatório'}</Text>
         {item.expires_at ? <Text style={s.muted}>Validade: {calendarDate(item.expires_at)}</Text> : null}
         {item.content_snapshot ? <><Pressable accessibilityRole="button" accessibilityState={{ expanded: !!openedDocuments[item.id] }} accessibilityLabel={`${openedDocuments[item.id] ? 'Fechar' : 'Ler'} conteúdo de ${item.title}`} style={s.readDocument} onPress={() => setOpenedDocuments(current => ({ ...current, [item.id]: !current[item.id] }))}><Text style={s.readDocumentText}>{openedDocuments[item.id] ? 'Fechar conteúdo' : 'Ler documento'}</Text></Pressable>{openedDocuments[item.id] ? <Text selectable style={s.document}>{item.content_snapshot}</Text> : null}</> : <Text style={s.muted}>Consulte o arquivo no portal web.</Text>}
       </View>)}
-    </Section>
+    </Section> : null}
     </View>
   </View>;
 }
 const s = StyleSheet.create({
+  search: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce4ef', borderRadius: 12, paddingLeft: 14 },
+  searchInput: { flex: 1, minHeight: 48, paddingVertical: 12, color: '#14243c', fontSize: 13 }, clear: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   filter: { minHeight: 44, borderRadius: 10, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: '#f4f7fb' },
   filterActive: { backgroundColor: '#2266db' },

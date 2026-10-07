@@ -8,7 +8,7 @@ function Navigation() {
     <Stack.Screen name="index" />
     <Stack.Protected guard={!profile}><Stack.Screen name="login" /></Stack.Protected>
     <Stack.Protected guard={!!profile?.must_change_password}><Stack.Screen name="password-access" /></Stack.Protected>
-    <Stack.Protected guard={!!profile && !profile.must_change_password}><Stack.Screen name="(app)" /><Stack.Screen name="treinar" /></Stack.Protected>
+    <Stack.Protected guard={!!profile && !profile.must_change_password}><Stack.Screen name="(app)" /><Stack.Screen name="treinar" /><Stack.Screen name="acompanhamento" /><Stack.Screen name="seguranca" /></Stack.Protected>
   </Stack></TrainingProvider>;
 }
 export default function RootLayout() { return <SafeAreaProvider><AuthProvider><Navigation /></AuthProvider></SafeAreaProvider>; }

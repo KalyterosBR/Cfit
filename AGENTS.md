@@ -3268,6 +3268,40 @@ Ponto de retomada e limites reais:
 
 ---
 
+## 48.19 Evolução do aplicativo e portal — encerramento de 07/10/2026
+
+Entrega desta sessão:
+- mantidas as quatro abas Início, Treinos, Agenda e Perfil e a identidade do Cfit web;
+- Início recebeu atalhos reais de financeiro, acessos, avaliações e documentos; cada domínio abre sua própria tela em `/acompanhamento`, com busca e filtros, sem repetir os históricos no Perfil;
+- Perfil concentra cadastro, academia, unidade, contatos, matrículas atuais e conta; matrículas canceladas e encerradas ficam fora do resumo, enquanto congeladas continuam visíveis como vínculo atual;
+- detalhes expansíveis de matrícula usam valor contratado, início, duração, forma de cobrança, primeiro vencimento, congelamento, modalidades e benefícios; o primeiro vencimento não representa o fim da vigência;
+- contatos podem ser editados via PATCH do portal, com validação de telefone/DDD, limites de tamanho, proteção de identidade e auditoria; emergência ausente na resposta antiga não é sobrescrita pelo app;
+- alteração de senha em `/seguranca` reutiliza o formulário de primeiro acesso e o endpoint existente; após sucesso exige novo login; voltar ao Perfil sem salvar preserva a sessão;
+- Agenda permite reservar, entrar na lista de espera e cancelar com confirmação; o backend bloqueia turmas iniciadas ou indisponíveis, preserva reservas repetidas, controla vagas em transação e audita cancelamento e promoção da fila;
+- consulta da Agenda retorna até 20 turmas próximas e 20 anteriores da unidade do aluno; aulas antigas não ocultam as próximas; o estado vazio explica que as ações aparecem dentro de uma turma futura;
+- fichas e execução receberam refinamento visual; Minha evolução mostra a última sessão e histórico recolhido por sessão; durante a execução, a carga anterior é localizada pelo identificador do exercício;
+- conclusão mostra duração, exercícios, séries e cargas retornadas pela API; a prescrição do professor permanece preservada;
+- `.vercelignore` da raiz limita o envio da API e exclui `.env`, frontend, mobile, caches, backups e dados locais; o dry-run confirmou ausência desses arquivos antes do envio.
+
+Publicação e verificações confirmadas:
+- API `cfit-api` da conta `kalyteros1` publicada e promovida para o deployment `dpl_Hhq9BGkAJtWxiztD9SbeWj866qMr`, URL `https://cfit-q88ll1pg3-kalyteros1.vercel.app`; o app continua usando `https://cfit-api.vercel.app/api`;
+- build publicado sem migrations pendentes e sem alteração do administrador inicial; novos campos de matrícula e emergência confirmados no Perfil real do emulador;
+- lint mobile, TypeScript e 17 testes mobile aprovados novamente no encerramento; suíte completa Django final com 179 testes aprovada, incluindo a consulta com muitas turmas antigas e os fluxos de reservas, contatos e treinos;
+- `makemigrations --check --dry-run` sem alterações e `git diff --check` aprovado;
+- testes de backend usaram PostgreSQL local isolado, com DATABASE_URL remota desabilitada;
+- Perfil, contatos, matrícula e Agenda inspecionados no Android; última carga e conclusão de treino conferidas com uma rota temporária de dados locais, removida antes do encerramento, sem inserção de treinos fictícios no banco;
+- o aviso preexistente `staticfiles.W004` sobre a pasta `static` apareceu nas verificações e no build, sem impedir os testes ou a publicação.
+
+Retomada e limites reais:
+- a unidade do aluno inspecionado não tinha turmas futuras disponíveis; para testar reserva no app, cadastrar uma turma futura na mesma unidade em Comercial e turmas → Turmas → Nova turma no web, e atualizar a Agenda;
+- validar reservas, cancelamento e fila com turmas reais no emulador; os fluxos de mutação passaram nos testes isolados, mas não foram exercitados criando reservas de produção nesta sessão;
+- validar uma nova conclusão real de treino com exercícios cadastrados e alterações de contatos pelo app; a sessão não alterou os contatos reais do aluno nem sua senha durante a inspeção;
+- início de vigência e duração são exibidos com seus nomes corretos; o resumo atual não possui uma data final de vigência persistida;
+- sessões em andamento continuam apenas em memória; preparar development build própria e ampliar QA para outros tamanhos e login/primeiro acesso antes da distribuição;
+- Metro permanece na porta 8081 e o Android usa o SDK do Windows; restaurar adb reverse após reiniciar o emulador.
+
+---
+
 ## 49. Protocolo de encerramento da sessão
 Frase-gatilho exata:
 ```text

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-const { parseLoad, remainingRest, counts, completionPayload } = await import(process.env.CFIT_TEST_SESSION);
+const { parseLoad, remainingRest, counts, completionPayload, previousExercise, sessionSummary } = await import(process.env.CFIT_TEST_SESSION);
 const draft = () => ({
   submissionId: 'a-submission-id', startedAt: '2026-10-02T10:00:00Z', endedAt: '2026-10-02T10:20:00Z',
   workout: { exercises: [{ id: 'exercise-a', revision: '2026-10-02T09:00:00Z' }, { id: 'exercise-b', revision: '2026-10-02T09:00:00Z' }] },
@@ -35,4 +35,16 @@ test('completion freezes identity and duration for retries and converts loads wi
   assert.equal(first.exercises[0].load, '20.50');
   assert.equal(first.exercises[1].load, null);
   assert.deepEqual(value, original);
+});
+test('previous load matches exercise identity and keeps zero and missing load distinct', () => {
+  const sessions = [{ scheduled_for: '2026-10-07', exercises: [{ id: 'another', name: 'Same name', load: '50' }] }, { scheduled_for: '2026-10-06', exercises: [{ id: 'target', load: '0' }] }];
+  assert.equal(previousExercise(sessions, 'target').exercise.load, '0');
+  assert.equal(previousExercise(sessions, 'target').scheduledFor, '2026-10-06');
+  assert.equal(previousExercise(sessions, 'missing'), null);
+  sessions[1].exercises[0].load = null;
+  assert.equal(previousExercise(sessions, 'target').exercise.load, null);
+});
+test('completion summary uses saved results and supports legacy sessions without detail', () => {
+  assert.deepEqual(sessionSummary({ duration_minutes: 30, exercises: [{ sets: 3 }, { sets: 4 }] }), { duration: 30, exercises: 2, sets: 7 });
+  assert.deepEqual(sessionSummary({ duration_minutes: null, exercises: [] }), { duration: null, exercises: 0, sets: 0 });
 });

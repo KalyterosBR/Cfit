@@ -302,6 +302,7 @@ class StudentPortalView(APIView):
 
     def get(self, request):
         from apps.operations.serializers import PhysicalAssessmentSerializer, StudentDocumentSerializer
+        from apps.operations.models import ClassBooking
         from apps.checkins.api.serializers import CheckInSerializer
         from apps.financial.api.serializers import ChargeSerializer
         from apps.financial.models import Charge
@@ -309,40 +310,39 @@ class StudentPortalView(APIView):
         student = getattr(request.user, "portal_student", None)
         if not request.user.is_student_portal or not student:
             return Response({"detail": "Acesso exclusivo do portal do aluno."}, status=403)
-        classes = student.unit.group_classes.filter(canceled=False) if student.unit else []
+        classes = []
+        if student.unit:
+            available = student.unit.group_classes.filter(canceled=False).annotate(
+                portal_confirmed_count=Count("bookings", filter=models.Q(bookings__status__in=["confirmed", "attended"])),
+            ).prefetch_related(models.Prefetch("bookings", queryset=ClassBooking.objects.filter(student=student), to_attr="portal_bookings"))
+            now = timezone.now()
+            classes = [*available.filter(starts_at__gte=now).order_by("starts_at")[:20],
+                *available.filter(starts_at__lt=now).order_by("-starts_at")[:20]]
         return Response({
-            "student": {"id": student.id, "name": student.name, "email": student.email, "phone": student.phone},
-            "enrollments": [{"id": item.id, "plan": item.plan.name, "status": item.status, "start_date": item.start_date} for item in student.enrollments.select_related("plan").all()],
+            "student": {"id": student.id, "name": student.name, "email": student.email, "phone": student.phone, "emergency_contact": student.emergency_contact, "emergency_phone": student.emergency_phone},
+            "enrollments": [{"id": item.id, "plan": item.plan.name, "status": item.status, "start_date": item.start_date,
+                "due_date": item.due_date, "contracted_price": str(item.contracted_price), "billing_method": item.billing_method,
+                "duration_months": item.contract_snapshot.get("duration_months", item.plan.duration_months),
+                "modalities": item.contract_snapshot.get("modalities", item.plan.modalities),
+                "benefits": item.contract_snapshot.get("benefits", item.plan.benefits),
+                "frozen_until": item.frozen_until} for item in student.enrollments.select_related("plan").all()],
             "charges": ChargeSerializer(Charge.objects.filter(enrollment__student=student).order_by("-due_date")[:20], many=True).data,
             "checkins": CheckInSerializer(student.checkins.all()[:20], many=True).data,
             "assessments": PhysicalAssessmentSerializer(student.physical_assessments.all()[:10], many=True).data,
             "documents": StudentDocumentSerializer(student.documents.all()[:20], many=True).data,
             "workouts": [{"id": item.id, "name": item.name, "objective": item.objective, "review_date": item.review_date, "adherence_percentage": item.progress_records.first().adherence_percentage if item.progress_records.exists() else None, "exercises": [{"name": row.exercise.name, "sets": row.sets, "repetitions": row.repetitions, "load": row.load, "rest_seconds": row.rest_seconds} for row in item.workout_exercises.select_related("exercise").all()]} for item in student.workout_plans.filter(status="active")],
-            "classes": [{"id": item.id, "title": item.title, "starts_at": item.starts_at, "location": item.location, "capacity": item.capacity, "confirmed_count": item.bookings.filter(status__in=["confirmed", "attended"]).count(), "my_booking": item.bookings.filter(student=student).values("id", "status").first()} for item in classes.order_by("starts_at")[:20]] if student.unit else [],
+            "classes": [{"id": item.id, "title": item.title, "starts_at": item.starts_at, "ends_at": item.ends_at, "status": item.status, "location": item.location, "capacity": item.capacity, "confirmed_count": item.portal_confirmed_count, "my_booking": {"id": item.portal_bookings[0].pk, "status": item.portal_bookings[0].status} if item.portal_bookings else None} for item in classes],
         })
 
     def post(self, request):
-        from apps.operations.models import ClassBooking, GroupClass, StudentDocument
+        from apps.operations.models import StudentDocument
         student = getattr(request.user, "portal_student", None)
         if not request.user.is_student_portal or not student:
             return Response({"detail": "Acesso exclusivo do portal do aluno."}, status=403)
         operation = request.data.get("operation")
-        if operation == "book_class":
-            group_class = GroupClass.objects.filter(pk=request.data.get("class_id"), academy=student.academy, unit=student.unit, canceled=False).first()
-            if not group_class:
-                return Response({"detail": "Turma indisponível."}, status=404)
-            confirmed = group_class.bookings.filter(status__in=["confirmed", "attended"]).count()
-            booking, _ = ClassBooking.objects.update_or_create(group_class=group_class, student=student, defaults={"status": "confirmed" if confirmed < group_class.capacity else "waitlist"})
-            return Response({"id": booking.id, "status": booking.status}, status=201)
-        if operation == "cancel_booking":
-            booking = ClassBooking.objects.filter(pk=request.data.get("booking_id"), student=student).select_related("group_class").first()
-            if not booking:
-                return Response({"detail": "Reserva não encontrada."}, status=404)
-            booking.status = "canceled"; booking.save(update_fields=["status", "updated_at"])
-            waiting = booking.group_class.bookings.filter(status="waitlist").order_by("created_at").first()
-            if waiting:
-                waiting.status = "confirmed"; waiting.save(update_fields=["status", "updated_at"])
-            return Response({"status": booking.status})
+        if operation in {"book_class", "cancel_booking"}:
+            from apps.users.services.portal_booking import update_portal_booking
+            return update_portal_booking(request, student, operation)
         if operation == "accept_document":
             document = StudentDocument.objects.filter(pk=request.data.get("document_id"), student=student, accepted_at__isnull=True).first()
             if not document:
@@ -356,9 +356,21 @@ class StudentPortalView(APIView):
         student = getattr(request.user, "portal_student", None)
         if not request.user.is_student_portal or not student:
             return Response({"detail": "Acesso exclusivo do portal do aluno."}, status=403)
-        allowed = {key: request.data[key] for key in ["phone", "emergency_contact", "emergency_phone"] if key in request.data}
-        for key, value in allowed.items(): setattr(student, key, value)
-        student.save(update_fields=[*allowed.keys(), "updated_at"])
+        if request.user.must_change_password or not student.active:
+            return Response({"detail": "Atualize sua senha e verifique seu vínculo ativo para editar contatos."}, status=403)
+        from apps.users.api.serializers import PortalContactSerializer
+        serializer = PortalContactSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        allowed = serializer.validated_data
+        with transaction.atomic():
+            student = type(student).objects.select_for_update().get(pk=student.pk)
+            previous = {key: getattr(student, key) for key in allowed}
+            for key, value in allowed.items():
+                setattr(student, key, value)
+            student.save(update_fields=[*allowed.keys(), "updated_at"])
+            AdministrativeAudit.objects.create(academy=student.academy, actor=request.user,
+                action="student.portal_contacts_updated", entity_type="student", entity_id=str(student.pk),
+                previous_state=previous, new_state=allowed, origin="portal")
         return Response({"detail": "Dados atualizados.", **allowed})
 
 

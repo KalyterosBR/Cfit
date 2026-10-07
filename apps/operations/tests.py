@@ -309,9 +309,12 @@ class OperationsApiTests(APITestCase):
         self.assertEqual(devices.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_portal_can_book_class_and_accept_own_document(self):
+        from datetime import timedelta
+        from django.utils import timezone
         portal_user = get_user_model().objects.create_user(email="portal-actions@cfit.test", password="test", is_student_portal=True)
         self.student.portal_user = portal_user; self.student.save(update_fields=["portal_user"])
-        group_class = self.client.post(reverse("group-class-list"), {"title": "Bike", "modality": "Bike", "starts_at": "2026-09-02T10:00:00-03:00", "ends_at": "2026-09-02T11:00:00-03:00", "capacity": 2}, format="json")
+        starts_at = timezone.now() + timedelta(days=1)
+        group_class = self.client.post(reverse("group-class-list"), {"title": "Bike", "modality": "Bike", "starts_at": starts_at.isoformat(), "ends_at": (starts_at + timedelta(hours=1)).isoformat(), "capacity": 2}, format="json")
         document = self.client.post(reverse("student-document-list"), {"student": self.student.id, "document_type": "authorization", "title": "Uso de imagem"}, format="json")
         self.client.force_authenticate(portal_user)
         booking = self.client.post("/api/users/portal/me/", {"operation": "book_class", "class_id": group_class.data["id"]}, format="json")
